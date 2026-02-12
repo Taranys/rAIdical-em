@@ -64,6 +64,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Key Conventions
 
+- **KISS:** Keep solutions simple. Avoid overengineering — prefer the simplest approach that works and refactor later when needed.
 - Use Server Components by default; add "use client" only when needed
 - Database access only in Server Components or API routes (never in client code)
 - Import paths use the `@/` alias (maps to `src/`)
