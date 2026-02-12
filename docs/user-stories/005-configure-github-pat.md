@@ -10,10 +10,7 @@ As an engineering manager, I want to enter and save my GitHub Personal Access To
 ## Acceptance Criteria
 
 - [x] A `/settings` page exists with a form to enter a GitHub PAT
-- [x] The settings page includes a link to [generate a fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with the required permissions:
-  - **Pull requests**: Read — to fetch PRs, reviews, and review comments
-  - **Contents**: Read — to access repository content and commit data
-  - **Metadata**: Read (automatically included) — to access repository metadata
+- [x] The settings page includes a link to [generate a classic PAT](https://github.com/settings/tokens/new?scopes=repo) with the **repo** scope (works with organization repositories), and a secondary link to [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) as an alternative
 - [x] The PAT is stored in the SQLite database (encrypted or obfuscated — not plain text)
 - [x] A "Test connection" button validates the PAT against the GitHub API and shows success/failure feedback
 - [x] The PAT can be updated or deleted at any time

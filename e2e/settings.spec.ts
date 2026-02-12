@@ -20,20 +20,21 @@ test.describe("GitHub PAT Configuration", () => {
     // PAT input (password field)
     await expect(page.locator("input[type='password']")).toBeVisible();
 
-    // Generate PAT link
-    const patLink = page.getByRole("link", {
-      name: /generate a fine-grained pat/i,
+    // Generate classic PAT link (primary)
+    const classicLink = page.getByRole("link", {
+      name: /generate a classic pat/i,
     });
-    await expect(patLink).toBeVisible();
-    await expect(patLink).toHaveAttribute(
+    await expect(classicLink).toBeVisible();
+    await expect(classicLink).toHaveAttribute(
       "href",
-      "https://github.com/settings/personal-access-tokens/new",
+      "https://github.com/settings/tokens/new?scopes=repo",
     );
 
-    // Required permissions info
-    await expect(page.getByText(/Pull requests/)).toBeVisible();
-    await expect(page.getByText(/Contents/)).toBeVisible();
-    await expect(page.getByText(/Metadata/)).toBeVisible();
+    // Fine-grained PAT link (alternative)
+    const fineGrainedLink = page.getByRole("link", {
+      name: /fine-grained pat/i,
+    });
+    await expect(fineGrainedLink).toBeVisible();
 
     // Save and Test Connection buttons
     await expect(page.getByRole("button", { name: /save/i })).toBeVisible();
@@ -44,7 +45,11 @@ test.describe("GitHub PAT Configuration", () => {
 
   test("dashboard shows setup CTA when no PAT configured", async ({
     page,
+    request,
   }) => {
+    // Ensure no PAT is stored before testing the CTA
+    await request.delete("/api/settings/github-pat");
+
     await page.goto("/");
 
     // CTA card visible

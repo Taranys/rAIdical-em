@@ -35,24 +35,28 @@ describe("GitHubPatForm", () => {
     expect(input).toHaveAttribute("type", "password");
   });
 
-  it("renders a link to generate a fine-grained PAT", async () => {
+  it("renders a link to generate a classic PAT", async () => {
     globalThis.fetch = mockFetch({});
     render(<GitHubPatForm />);
     const link = screen.getByRole("link", {
-      name: /generate a fine-grained pat/i,
+      name: /generate a classic pat/i,
+    });
+    expect(link).toHaveAttribute(
+      "href",
+      "https://github.com/settings/tokens/new?scopes=repo",
+    );
+  });
+
+  it("renders a link to fine-grained PAT as alternative", async () => {
+    globalThis.fetch = mockFetch({});
+    render(<GitHubPatForm />);
+    const link = screen.getByRole("link", {
+      name: /fine-grained pat/i,
     });
     expect(link).toHaveAttribute(
       "href",
       "https://github.com/settings/personal-access-tokens/new",
     );
-  });
-
-  it("renders required permissions info", async () => {
-    globalThis.fetch = mockFetch({});
-    render(<GitHubPatForm />);
-    expect(screen.getByText(/Pull requests/)).toBeInTheDocument();
-    expect(screen.getByText(/Contents/)).toBeInTheDocument();
-    expect(screen.getByText(/Metadata/)).toBeInTheDocument();
   });
 
   it("renders Save and Test Connection buttons", async () => {

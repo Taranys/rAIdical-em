@@ -122,29 +122,32 @@ export function GitHubPatForm() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="text-sm space-y-1">
+        <div className="text-sm space-y-2">
           <p>
+            <a
+              href="https://github.com/settings/tokens/new?scopes=repo"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline underline-offset-4 hover:text-primary/80"
+            >
+              Generate a classic PAT
+            </a>{" "}
+            with the <strong>repo</strong> scope (required for organization
+            repositories).
+          </p>
+          <p className="text-muted-foreground">
+            Alternatively, use a{" "}
             <a
               href="https://github.com/settings/personal-access-tokens/new"
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary underline underline-offset-4 hover:text-primary/80"
             >
-              Generate a fine-grained PAT
+              fine-grained PAT
             </a>{" "}
-            with these permissions:
+            if your organization supports them (Pull requests: Read, Contents:
+            Read, Metadata: Read).
           </p>
-          <ul className="list-disc list-inside text-muted-foreground ml-2">
-            <li>
-              <strong>Pull requests</strong>: Read
-            </li>
-            <li>
-              <strong>Contents</strong>: Read
-            </li>
-            <li>
-              <strong>Metadata</strong>: Read (included automatically)
-            </li>
-          </ul>
         </div>
 
         <div className="flex gap-2">
