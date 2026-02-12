@@ -18,3 +18,8 @@ As an engineering manager, I want to enter and save my GitHub Personal Access To
 - [ ] A "Test connection" button validates the PAT against the GitHub API and shows success/failure feedback
 - [ ] The PAT can be updated or deleted at any time
 - [ ] If no PAT is configured, the dashboard shows a prompt directing to settings
+
+## Dependencies
+
+- [US-022: Database Schema](022-database-schema-phase1.md) — settings table must exist
+- [US-023: Application Shell](023-application-shell-navigation.md) — sidebar navigation to settings page

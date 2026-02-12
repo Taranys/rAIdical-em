@@ -12,3 +12,7 @@ As an engineering manager, I want subsequent syncs to only fetch new or updated 
 - [ ] After the first full sync, subsequent syncs only fetch PRs updated after the last sync timestamp
 - [ ] The sync uses the `since` parameter on the GitHub API where available
 - [ ] Newly updated PRs have their reviews and comments re-fetched
+
+## Dependencies
+
+- [US-010: Fetch Pull Requests](010-fetch-pull-requests.md) — a full sync must have run at least once

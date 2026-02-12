@@ -19,3 +19,7 @@ As a developer, I want a well-structured database schema for Phase 1 data so tha
   - `sync_runs` — run ID, started at, completed at, status, PR count, comment count, error message
 - [ ] Migrations are generated via `npm run db:generate` and applied via `npm run db:migrate`
 - [ ] Foreign keys and indexes are defined for common query patterns
+
+## Dependencies
+
+None — this is the foundational story for Phase 1.

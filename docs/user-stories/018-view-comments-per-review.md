@@ -12,3 +12,9 @@ As an engineering manager, I want to see the average number of review comments e
 - [ ] The dashboard shows average comments per review, per team member
 - [ ] Only review comments (not general PR comments) are counted
 - [ ] A low average could indicate rubber-stamping; a high average could indicate thoroughness — both are surfaced without judgment (data informs, humans decide)
+
+## Dependencies
+
+- [US-012: Fetch PR Review Comments](012-fetch-pr-review-comments.md) — review comment data must be synced before it can be displayed
+- [US-019: Dashboard Period Selector](019-dashboard-period-selector.md) — period selector must exist to filter the data
+- [US-023: Application Shell](023-application-shell-navigation.md) — sidebar navigation to dashboard page
