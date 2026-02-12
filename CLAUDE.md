@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**em-control-tower** is a project to help manage team(s). It is in its initial stage with no source code yet.
+**em-control-tower** is a dashboard for engineering managers to track team performance, review quality, and prepare better 1:1s.
 
 - **License:** MIT
 - **Author:** Yoann Prot
@@ -16,3 +16,38 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - When a plan is fully implemented, move it from `docs/plan/` to `docs/plan_finished/`, keeping the same filename.
 - When you need context on a past feature, look in `docs/plan_finished/` first — the sequential ID and description make it easy to find relevant plans.
 - Use plan IDs in code comments to link implementation back to the plan (e.g., `// Plan 001: auth token refresh logic`).
+
+## Tech Stack
+
+- **Language:** TypeScript (strict mode)
+- **Framework:** Next.js (App Router, Server Components)
+- **UI:** React + Tailwind CSS v4 + shadcn/ui
+- **Database:** SQLite via better-sqlite3 (file: data/em-control-tower.db)
+- **ORM:** Drizzle ORM
+- **GitHub API:** Octokit (Phase 1)
+
+## Common Commands
+
+- `npm run dev` -- Start local development server (Turbopack)
+- `npm run build` -- Production build
+- `npm run lint` -- Run ESLint
+- `npm run db:generate` -- Generate Drizzle migrations
+- `npm run db:migrate` -- Run Drizzle migrations
+- `npm run db:studio` -- Open Drizzle Studio (DB browser)
+
+## Project Structure
+
+- `src/app/` -- Next.js App Router pages and layouts
+- `src/app/api/` -- API route handlers
+- `src/components/ui/` -- shadcn/ui components
+- `src/db/` -- Database connection, schema, and utilities
+- `docs/` -- Project documentation (vision, technical decisions)
+- `data/` -- SQLite database file (gitignored)
+- `drizzle/` -- Generated migration files (gitignored)
+
+## Key Conventions
+
+- Use Server Components by default; add "use client" only when needed
+- Database access only in Server Components or API routes (never in client code)
+- Import paths use the `@/` alias (maps to `src/`)
+- shadcn/ui components live in `src/components/ui/`
