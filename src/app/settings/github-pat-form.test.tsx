@@ -59,34 +59,36 @@ describe("GitHubPatForm", () => {
     );
   });
 
-  it("renders Save and Test Connection buttons", async () => {
+  it("renders Save button always", async () => {
     globalThis.fetch = mockFetch({});
     render(<GitHubPatForm />);
     expect(screen.getByRole("button", { name: /save/i })).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /test connection/i }),
-    ).toBeInTheDocument();
   });
 
-  it("shows Delete button when PAT is configured", async () => {
+  it("shows Test Connection and Delete buttons when PAT is configured", async () => {
     globalThis.fetch = mockFetch({
       "GET /api/settings/github-pat": { configured: true },
     });
     render(<GitHubPatForm />);
     await waitFor(() => {
       expect(
+        screen.getByRole("button", { name: /test connection/i }),
+      ).toBeInTheDocument();
+      expect(
         screen.getByRole("button", { name: /delete/i }),
       ).toBeInTheDocument();
     });
   });
 
-  it("hides Delete button when PAT is not configured", async () => {
+  it("hides Test Connection and Delete buttons when PAT is not configured", async () => {
     globalThis.fetch = mockFetch({
       "GET /api/settings/github-pat": { configured: false },
     });
     render(<GitHubPatForm />);
-    // Wait for the initial fetch to complete
     await waitFor(() => {
+      expect(
+        screen.queryByRole("button", { name: /test connection/i }),
+      ).not.toBeInTheDocument();
       expect(
         screen.queryByRole("button", { name: /delete/i }),
       ).not.toBeInTheDocument();
@@ -131,6 +133,7 @@ describe("GitHubPatForm", () => {
 
   it("calls POST /test when Test Connection is clicked", async () => {
     const fetchMock = mockFetch({
+      "GET /api/settings/github-pat": { configured: true },
       "POST /api/settings/github-pat/test": {
         success: true,
         user: { login: "octocat", name: "Octo Cat" },
@@ -139,6 +142,11 @@ describe("GitHubPatForm", () => {
     globalThis.fetch = fetchMock;
 
     render(<GitHubPatForm />);
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /test connection/i }),
+      ).toBeInTheDocument();
+    });
     fireEvent.click(
       screen.getByRole("button", { name: /test connection/i }),
     );
@@ -153,12 +161,18 @@ describe("GitHubPatForm", () => {
 
   it("shows GitHub username on successful connection test", async () => {
     globalThis.fetch = mockFetch({
+      "GET /api/settings/github-pat": { configured: true },
       "POST /api/settings/github-pat/test": {
         success: true,
         user: { login: "octocat", name: "Octo Cat" },
       },
     });
     render(<GitHubPatForm />);
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /test connection/i }),
+      ).toBeInTheDocument();
+    });
     fireEvent.click(
       screen.getByRole("button", { name: /test connection/i }),
     );
@@ -169,18 +183,33 @@ describe("GitHubPatForm", () => {
   });
 
   it("shows error on failed connection test", async () => {
-    globalThis.fetch = vi.fn(() =>
-      Promise.resolve({
+    let callCount = 0;
+    globalThis.fetch = vi.fn(() => {
+      callCount++;
+      // First call is GET /api/settings/github-pat (check configured)
+      if (callCount === 1) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ configured: true }),
+        });
+      }
+      // Second call is POST /api/settings/github-pat/test (fails)
+      return Promise.resolve({
         ok: false,
         json: () =>
           Promise.resolve({
             success: false,
             error: "Bad credentials",
           }),
-      }),
-    ) as unknown as typeof globalThis.fetch;
+      });
+    }) as unknown as typeof globalThis.fetch;
 
     render(<GitHubPatForm />);
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /test connection/i }),
+      ).toBeInTheDocument();
+    });
     fireEvent.click(
       screen.getByRole("button", { name: /test connection/i }),
     );

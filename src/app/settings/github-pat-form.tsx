@@ -164,13 +164,15 @@ export function GitHubPatForm() {
           <Button onClick={handleSave} disabled={isSaving || !token.trim()}>
             {isSaving ? "Saving..." : "Save"}
           </Button>
-          <Button
-            variant="outline"
-            onClick={handleTestConnection}
-            disabled={isTesting}
-          >
-            {isTesting ? "Testing..." : "Test Connection"}
-          </Button>
+          {isConfigured && (
+            <Button
+              variant="outline"
+              onClick={handleTestConnection}
+              disabled={isTesting}
+            >
+              {isTesting ? "Testing..." : "Test Connection"}
+            </Button>
+          )}
           {isConfigured && (
             <Button
               variant="destructive"

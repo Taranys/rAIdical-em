@@ -36,11 +36,8 @@ test.describe("GitHub PAT Configuration", () => {
     });
     await expect(fineGrainedLink).toBeVisible();
 
-    // Save and Test Connection buttons
+    // Save button always visible
     await expect(page.getByRole("button", { name: /save/i })).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: /test connection/i }),
-    ).toBeVisible();
   });
 
   test("dashboard shows setup CTA when no PAT configured", async ({
