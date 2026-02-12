@@ -47,8 +47,8 @@ At a glance, you see:
 | **Phase 1** | GitHub integration — PR metrics & review comment extraction | In progress |
 | **Phase 2** | Comment categorization & seniority profiling (LLM-powered) | Planned |
 | **Phase 3** | Highlight reel & 1:1 preparation dashboard | Planned |
-| **Phase 4** | Slack & Confluence integration | Future |
-| **Phase 5** | OKR-to-individual-goals engine | Future |
+| **Phase 4** | OKR-to-individual-goals engine | Future |
+| **Phase 5** | Slack & Confluence integration | Future |
 
 ---
 
