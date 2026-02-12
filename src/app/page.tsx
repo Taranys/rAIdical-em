@@ -1,4 +1,5 @@
 import { checkDbHealth } from "@/db/health";
+import { GitHubSetupCta } from "./github-setup-cta";
 import {
   Card,
   CardContent,
@@ -24,6 +25,8 @@ export default function Home() {
           quality, and prepare better 1:1s.
         </p>
       </div>
+
+      <GitHubSetupCta />
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <Card>
