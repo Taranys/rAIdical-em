@@ -33,6 +33,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Database:** SQLite via better-sqlite3 (file: data/em-control-tower.db)
 - **ORM:** Drizzle ORM
 - **GitHub API:** Octokit (Phase 1)
+- **Testing:** Vitest (unit/integration) + Playwright (E2E)
 
 ## Common Commands
 
@@ -42,6 +43,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run db:generate` -- Generate Drizzle migrations
 - `npm run db:migrate` -- Run Drizzle migrations
 - `npm run db:studio` -- Open Drizzle Studio (DB browser)
+- `npm test` -- Run all unit and integration tests (single run)
+- `npm run test:watch` -- Run tests in watch mode (development)
+- `npm run test:unit` -- Run unit tests only
+- `npm run test:integration` -- Run integration tests only
+- `npm run test:e2e` -- Run E2E tests (builds and serves the app first)
+- `npm run test:e2e:ui` -- Run E2E tests with Playwright UI
 
 ## Project Structure
 
@@ -52,6 +59,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `docs/` -- Project documentation (vision, technical decisions)
 - `data/` -- SQLite database file (gitignored)
 - `drizzle/` -- Generated migration files (gitignored)
+- `e2e/` -- Playwright E2E tests
+- `.github/workflows/` -- CI workflow definitions
 
 ## Key Conventions
 
@@ -59,3 +68,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Database access only in Server Components or API routes (never in client code)
 - Import paths use the `@/` alias (maps to `src/`)
 - shadcn/ui components live in `src/components/ui/`
+
+## Testing Conventions
+
+- **TDD approach:** Write tests before implementing features. Start with a failing test, then implement the feature to make it pass.
+- **File naming:** Unit/integration tests use `*.test.ts` / `*.test.tsx`, colocated next to the file under test. Integration tests use `*.integration.test.ts`. E2E tests use `*.spec.ts` in the `e2e/` directory.
+- **Unit tests:** At least one unit test for each new feature or module. Mock external dependencies (database, APIs).
+- **Integration tests:** Write when they add value — particularly for database queries and multi-module interactions. Use in-memory SQLite (`:memory:`) instead of the project database.
+- **E2E tests:** One E2E test per golden path (critical user journey). Tests run against a production build.
+- **PR requirements:** Every PR must include at least one new or updated unit test. E2E tests required when the PR changes a golden path.
+- **Test environments:** Server-side code tests run in `node` environment; component tests run in `jsdom`.
+- **No coverage thresholds:** Tests must pass, but there is no enforced coverage minimum.
