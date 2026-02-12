@@ -106,4 +106,24 @@ describe("settings DAL (integration)", () => {
     expect(raw!.value).toBe("my-repo");
     expect(getSetting("github_repo", testDb)).toBe("my-repo");
   });
+
+  // US-020: AI heuristics configuration
+  it("stores ai_heuristics as plain JSON text", () => {
+    const config = {
+      coAuthorPatterns: ["*Claude*"],
+      authorBotList: ["dependabot"],
+      branchNamePatterns: ["ai/*"],
+      labels: ["ai-generated"],
+      enabled: { coAuthor: true, authorBot: true, branchName: true, label: true },
+    };
+
+    setSetting("ai_heuristics", JSON.stringify(config), testDb);
+
+    const raw = testSqlite
+      .prepare("SELECT value FROM settings WHERE key = ?")
+      .get("ai_heuristics") as { value: string } | undefined;
+    expect(raw).toBeDefined();
+    expect(JSON.parse(raw!.value)).toEqual(config);
+    expect(getSetting("ai_heuristics", testDb)).toBe(JSON.stringify(config));
+  });
 });

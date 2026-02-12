@@ -112,3 +112,67 @@ test.describe("GitHub Repository Configuration", () => {
     await request.delete("/api/settings/github-pat");
   });
 });
+
+// US-020: AI Detection Rules E2E tests
+test.describe("AI Detection Rules", () => {
+  test("settings page shows AI heuristics form with heading and default values", async ({
+    page,
+    request,
+  }) => {
+    // Ensure clean state
+    await request.delete("/api/settings/ai-heuristics");
+
+    await page.goto("/settings");
+
+    // Card heading visible
+    await expect(page.getByText("AI Detection Rules")).toBeVisible();
+
+    // Default patterns loaded
+    await expect(page.getByLabel(/co-author patterns/i)).toHaveValue(
+      /Claude/,
+    );
+    await expect(page.getByLabel(/bot usernames/i)).toHaveValue(/dependabot/);
+    await expect(page.getByLabel(/branch name patterns/i)).toHaveValue(/ai/);
+    await expect(page.getByLabel(/github labels/i)).toHaveValue(
+      /ai-generated/,
+    );
+  });
+
+  test("can save custom heuristics configuration", async ({
+    page,
+    request,
+  }) => {
+    // Ensure clean state
+    await request.delete("/api/settings/ai-heuristics");
+
+    await page.goto("/settings");
+
+    // Wait for form to load
+    await expect(page.getByLabel(/co-author patterns/i)).toBeVisible();
+
+    // Edit a pattern
+    const coAuthorInput = page.getByLabel(/co-author patterns/i);
+    await coAuthorInput.clear();
+    await coAuthorInput.fill("*MyCustomBot*");
+
+    // Click Save (specifically the one in the AI Detection Rules section)
+    const aiCard = page.locator("text=AI Detection Rules").locator("..");
+    const saveButton = aiCard
+      .locator("..")
+      .locator("..")
+      .getByRole("button", { name: /^save$/i });
+    await saveButton.click();
+
+    // Verify success message
+    await expect(page.getByText(/configuration saved/i)).toBeVisible();
+
+    // Reload and verify persistence
+    await page.reload();
+    await expect(page.getByLabel(/co-author patterns/i)).toHaveValue(
+      "*MyCustomBot*",
+    );
+
+    // Clean up
+    await request.delete("/api/settings/ai-heuristics");
+  });
+});

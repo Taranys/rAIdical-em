@@ -1,6 +1,7 @@
-// US-005, US-006: Settings page with GitHub PAT and repository configuration
+// US-005, US-006, US-020: Settings page
 import { GitHubPatForm } from "./github-pat-form";
 import { GitHubRepoForm } from "./github-repo-form";
+import { AiHeuristicsForm } from "./ai-heuristics-form";
 
 export default function SettingsPage() {
   return (
@@ -9,6 +10,7 @@ export default function SettingsPage() {
       <div className="space-y-6">
         <GitHubPatForm />
         <GitHubRepoForm />
+        <AiHeuristicsForm />
       </div>
     </div>
   );
