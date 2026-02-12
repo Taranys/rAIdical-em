@@ -1,7 +1,7 @@
 # US-020: Define AI Authorship Heuristic
 
 **Phase:** 1 — GitHub Integration
-**Status:** Todo
+**Status:** Done
 
 ## Story
 
@@ -9,14 +9,14 @@ As an engineering manager, I want to configure the rules that determine whether 
 
 ## Acceptance Criteria
 
-- [ ] The settings page has a section for AI detection rules
-- [ ] Supported heuristics (configurable, multiple can be active):
+- [x] The settings page has a section for AI detection rules
+- [x] Supported heuristics (configurable, multiple can be active):
   - **Co-author pattern**: PR commits contain a `Co-Authored-By` trailer matching a configurable pattern (e.g., `*[bot]*`, `*Claude*`, `*Copilot*`)
   - **Author is bot**: PR author username matches a configurable list (e.g., `dependabot`, `renovate`)
   - **Branch name pattern**: Branch name matches a configurable pattern (e.g., `ai/*`, `copilot/*`)
   - **Label-based**: PR has a specific GitHub label (e.g., `ai-generated`)
-- [ ] Default heuristics are pre-filled but editable
-- [ ] Each PR is tagged as `ai`, `human`, or `mixed` based on the active rules
+- [x] Default heuristics are pre-filled but editable
+- [x] Each PR is tagged as `ai`, `human`, or `mixed` based on the active rules
 
 ## Dependencies
 
