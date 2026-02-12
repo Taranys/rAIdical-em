@@ -36,8 +36,11 @@ test.describe("GitHub PAT Configuration", () => {
     });
     await expect(fineGrainedLink).toBeVisible();
 
-    // Save button always visible
-    await expect(page.getByRole("button", { name: /save/i })).toBeVisible();
+    // Save button always visible (within the PAT card)
+    const patCard = page
+      .locator('[data-slot="card"]')
+      .filter({ hasText: "GitHub Personal Access Token" });
+    await expect(patCard.getByRole("button", { name: /save/i })).toBeVisible();
   });
 
   test("dashboard shows setup CTA when no PAT configured", async ({
@@ -155,13 +158,11 @@ test.describe("AI Detection Rules", () => {
     await coAuthorInput.clear();
     await coAuthorInput.fill("*MyCustomBot*");
 
-    // Click Save (specifically the one in the AI Detection Rules section)
-    const aiCard = page.locator("text=AI Detection Rules").locator("..");
-    const saveButton = aiCard
-      .locator("..")
-      .locator("..")
-      .getByRole("button", { name: /^save$/i });
-    await saveButton.click();
+    // Click Save within the AI Detection Rules card
+    const aiCard = page
+      .locator('[data-slot="card"]')
+      .filter({ hasText: "AI Detection Rules" });
+    await aiCard.getByRole("button", { name: /^save$/i }).click();
 
     // Verify success message
     await expect(page.getByText(/configuration saved/i)).toBeVisible();
