@@ -9,6 +9,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **License:** MIT
 - **Author:** Yoann Prot
 
+## User Stories
+
+- All user stories live in `docs/user-stories/`.
+- Naming convention: `NNN-short-description.md` (e.g., `001-define-product-vision.md`, `002-select-technical-stack.md`). Use the next available sequential number.
+- Each file follows the template: title (`# US-NNN: Title`), phase, status (`Done` / `In Progress` / `Todo`), story (As a … I want … so that …), and acceptance criteria (checklist).
+- Use story IDs in code comments to link implementation back to the story (e.g., `// US-003: health check endpoint`).
+- When you need context on a feature, check `docs/user-stories/` — the sequential ID and description make it easy to find relevant stories.
+
 ## Plans
 
 - All implementation plans must be committed as Markdown files in `docs/plan/`.
