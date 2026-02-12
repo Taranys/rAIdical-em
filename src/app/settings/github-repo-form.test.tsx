@@ -18,10 +18,18 @@ function mockFetch(responses: Record<string, unknown>) {
   }) as unknown as typeof globalThis.fetch;
 }
 
+const OWNERS_RESPONSE = {
+  owners: [
+    { login: "octocat", type: "user" },
+    { login: "my-org", type: "org" },
+  ],
+};
+
 // Default responses for a configured PAT + no repo configured
 const PAT_CONFIGURED = {
   "GET /api/settings/github-pat": { configured: true },
   "GET /api/settings/github-repo": { configured: false, owner: null, repo: null },
+  "GET /api/settings/github-owners": OWNERS_RESPONSE,
 };
 
 // PAT configured + repo configured
@@ -32,6 +40,7 @@ const REPO_CONFIGURED = {
     owner: "my-org",
     repo: "my-repo",
   },
+  "GET /api/settings/github-owners": OWNERS_RESPONSE,
 };
 
 describe("GitHubRepoForm", () => {
@@ -296,5 +305,56 @@ describe("GitHubRepoForm", () => {
       expect(screen.getByLabelText(/owner/i)).toHaveValue("my-org");
       expect(screen.getByLabelText(/repository/i)).toHaveValue("my-repo");
     });
+  });
+
+  it("shows owner suggestions on focus when PAT is configured", async () => {
+    globalThis.fetch = mockFetch(PAT_CONFIGURED);
+    render(<GitHubRepoForm />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/owner/i)).toBeInTheDocument();
+    });
+
+    // Wait for owners to be fetched
+    await waitFor(() => {
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "/api/settings/github-owners",
+      );
+    });
+
+    // Focus the owner input to open the dropdown
+    fireEvent.focus(screen.getByLabelText(/owner/i));
+
+    await waitFor(() => {
+      expect(screen.getByRole("listbox", { name: /owner suggestions/i })).toBeInTheDocument();
+      expect(screen.getByText("octocat")).toBeInTheDocument();
+      expect(screen.getByText("my-org")).toBeInTheDocument();
+    });
+  });
+
+  it("fills owner input when clicking a suggestion", async () => {
+    globalThis.fetch = mockFetch(PAT_CONFIGURED);
+    render(<GitHubRepoForm />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/owner/i)).toBeInTheDocument();
+    });
+
+    // Wait for owners to be fetched
+    await waitFor(() => {
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "/api/settings/github-owners",
+      );
+    });
+
+    fireEvent.focus(screen.getByLabelText(/owner/i));
+
+    await waitFor(() => {
+      expect(screen.getByText("my-org")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("my-org"));
+
+    expect(screen.getByLabelText(/owner/i)).toHaveValue("my-org");
   });
 });

@@ -18,6 +18,11 @@ interface Feedback {
   message: string;
 }
 
+interface OwnerResult {
+  login: string;
+  type: "user" | "org";
+}
+
 interface RepoResult {
   name: string;
   fullName: string;
@@ -36,6 +41,8 @@ export function GitHubRepoForm() {
   const [isPatConfigured, setIsPatConfigured] = useState(false);
   const [isConfigured, setIsConfigured] = useState(false);
   const [owner, setOwner] = useState("");
+  const [owners, setOwners] = useState<OwnerResult[]>([]);
+  const [isOwnersOpen, setIsOwnersOpen] = useState(false);
   const [repo, setRepo] = useState("");
   const [repos, setRepos] = useState<RepoResult[]>([]);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -46,6 +53,7 @@ export function GitHubRepoForm() {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [verifyResult, setVerifyResult] = useState<VerifyResult | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ownerContainerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const checkPatConfigured = useCallback(async () => {
@@ -72,14 +80,39 @@ export function GitHubRepoForm() {
     }
   }, []);
 
+  const loadOwners = useCallback(async () => {
+    try {
+      const res = await fetch("/api/settings/github-owners");
+      const data = await res.json();
+      if (data.owners) {
+        setOwners(data.owners);
+      }
+    } catch {
+      // Ignore — owner suggestions are optional
+    }
+  }, []);
+
   useEffect(() => {
     checkPatConfigured();
     loadExistingConfig();
   }, [checkPatConfigured, loadExistingConfig]);
 
-  // Close search dropdown when clicking outside
+  // Prefetch owners once PAT is confirmed configured
+  useEffect(() => {
+    if (isPatConfigured) {
+      loadOwners();
+    }
+  }, [isPatConfigured, loadOwners]);
+
+  // Close dropdowns when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
+      if (
+        ownerContainerRef.current &&
+        !ownerContainerRef.current.contains(event.target as Node)
+      ) {
+        setIsOwnersOpen(false);
+      }
       if (
         containerRef.current &&
         !containerRef.current.contains(event.target as Node)
@@ -90,6 +123,24 @@ export function GitHubRepoForm() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const filteredOwners = owners.filter((o) =>
+    o.login.toLowerCase().includes(owner.toLowerCase()),
+  );
+
+  function selectOwner(o: OwnerResult) {
+    setOwner(o.login);
+    setIsOwnersOpen(false);
+    setVerifyResult(null);
+    setFeedback(null);
+  }
+
+  function handleOwnerChange(value: string) {
+    setOwner(value);
+    setVerifyResult(null);
+    setFeedback(null);
+    setIsOwnersOpen(value.length === 0 || filteredOwners.length > 0);
+  }
 
   function searchRepos(query: string) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -229,18 +280,41 @@ export function GitHubRepoForm() {
           </p>
         ) : (
           <>
-            <div className="space-y-2">
+            <div className="space-y-2 relative" ref={ownerContainerRef}>
               <Label htmlFor="github-owner">Owner (organization or user)</Label>
               <Input
                 id="github-owner"
                 placeholder="e.g., my-org"
                 value={owner}
-                onChange={(e) => {
-                  setOwner(e.target.value);
-                  setVerifyResult(null);
-                  setFeedback(null);
+                onChange={(e) => handleOwnerChange(e.target.value)}
+                onFocus={() => {
+                  if (owners.length > 0) setIsOwnersOpen(true);
                 }}
               />
+              {isOwnersOpen && filteredOwners.length > 0 && (
+                <ul
+                  role="listbox"
+                  aria-label="Owner suggestions"
+                  className="absolute z-50 top-full mt-1 w-full bg-popover border rounded-md shadow-md max-h-60 overflow-auto"
+                >
+                  {filteredOwners.map((o) => (
+                    <li
+                      key={o.login}
+                      role="option"
+                      aria-selected={o.login === owner}
+                      className="px-3 py-2 cursor-pointer hover:bg-accent text-sm"
+                      onClick={() => selectOwner(o)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{o.login}</span>
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                          {o.type}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             <div className="space-y-2 relative" ref={containerRef}>
