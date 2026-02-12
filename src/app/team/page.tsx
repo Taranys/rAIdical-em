@@ -13,6 +13,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface TeamMember {
   id: number;
@@ -22,6 +30,15 @@ interface TeamMember {
   isActive: number;
   createdAt: string;
   updatedAt: string;
+}
+
+// US-009: Format ISO date string for display
+function formatDate(isoString: string): string {
+  return new Date(isoString).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 interface Feedback {
@@ -152,30 +169,45 @@ export default function TeamPage() {
               No team members yet. Add your first member above.
             </p>
           ) : (
-            <div className="space-y-4">
-              {members.map((member) => (
-                <div
-                  key={member.id}
-                  className="flex items-center gap-4 p-4 border rounded-lg"
-                >
-                  <Avatar>
-                    <AvatarImage
-                      src={member.avatarUrl ?? undefined}
-                      alt={member.displayName}
-                    />
-                    <AvatarFallback>
-                      {member.displayName.substring(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-semibold">{member.displayName}</p>
-                    <p className="text-sm text-muted-foreground">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Member</TableHead>
+                  <TableHead>GitHub Username</TableHead>
+                  <TableHead>Date Added</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {members.map((member) => (
+                  <TableRow key={member.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar>
+                          <AvatarImage
+                            src={member.avatarUrl ?? undefined}
+                            alt={member.displayName}
+                          />
+                          <AvatarFallback>
+                            {member.displayName
+                              .substring(0, 2)
+                              .toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="font-semibold">
+                          {member.displayName}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
                       @{member.githubUsername}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {formatDate(member.createdAt)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>
