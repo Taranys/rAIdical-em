@@ -1,13 +1,11 @@
-// US-023: Settings page placeholder
+// US-005: Settings page with GitHub PAT configuration
+import { GitHubPatForm } from "./github-pat-form";
+
 export default function SettingsPage() {
   return (
-    <div className="container mx-auto px-4 py-16 max-w-4xl">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold tracking-tight mb-3">Settings</h1>
-        <p className="text-muted-foreground text-lg">
-          Application settings coming soon.
-        </p>
-      </div>
+    <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <h1 className="text-4xl font-bold tracking-tight mb-8">Settings</h1>
+      <GitHubPatForm />
     </div>
   );
 }

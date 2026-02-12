@@ -1,7 +1,7 @@
 # US-005: Configure GitHub Personal Access Token
 
 **Phase:** 1 — GitHub Integration
-**Status:** Todo
+**Status:** Done
 
 ## Story
 
@@ -9,15 +9,15 @@ As an engineering manager, I want to enter and save my GitHub Personal Access To
 
 ## Acceptance Criteria
 
-- [ ] A `/settings` page exists with a form to enter a GitHub PAT
-- [ ] The settings page includes a link to [generate a fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with the required permissions:
+- [x] A `/settings` page exists with a form to enter a GitHub PAT
+- [x] The settings page includes a link to [generate a fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with the required permissions:
   - **Pull requests**: Read — to fetch PRs, reviews, and review comments
   - **Contents**: Read — to access repository content and commit data
   - **Metadata**: Read (automatically included) — to access repository metadata
-- [ ] The PAT is stored in the SQLite database (encrypted or obfuscated — not plain text)
-- [ ] A "Test connection" button validates the PAT against the GitHub API and shows success/failure feedback
-- [ ] The PAT can be updated or deleted at any time
-- [ ] If no PAT is configured, the dashboard shows a prompt directing to settings
+- [x] The PAT is stored in the SQLite database (encrypted or obfuscated — not plain text)
+- [x] A "Test connection" button validates the PAT against the GitHub API and shows success/failure feedback
+- [x] The PAT can be updated or deleted at any time
+- [x] If no PAT is configured, the dashboard shows a prompt directing to settings
 
 ## Dependencies
 
