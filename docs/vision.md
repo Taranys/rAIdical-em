@@ -4,7 +4,7 @@
 
 The way engineering teams work has fundamentally changed. AI now generates a significant share of the code we ship. As an Engineering Manager, the skills I need to develop in my team have shifted: **the ability to critically review, challenge, and improve AI-generated code is becoming as important as writing code from scratch.**
 
-This project is a personal assistant that helps me lead my team through this transition by applying the principles of **Radical Candor** — caring personally while challenging directly — backed by data rather than gut feeling.
+This project is a **dashboard and control tower** — a single place where I can see, at a glance, how my team is performing, growing, and collaborating. It helps me lead my team through this transition by applying the principles of **Radical Candor** — caring personally while challenging directly — backed by data rather than gut feeling.
 
 ---
 
@@ -12,7 +12,7 @@ This project is a personal assistant that helps me lead my team through this tra
 
 > Give feedback that is specific, timely, and grounded in observable facts.
 
-em-control-tower aggregates signals from the tools my team already uses (GitHub, Slack, Confluence, Jira) so that every 1:1 conversation I have is informed, fair, and actionable.
+em-control-tower aggregates signals from the tools my team already uses (GitHub, Slack, Confluence, Jira) into a unified dashboard so that every 1:1 conversation I have is informed, fair, and actionable.
 
 ---
 
@@ -24,9 +24,11 @@ Understand the team's throughput and how AI is reshaping it.
 
 | Metric | Description |
 |--------|-------------|
-| **PR count** | Number of PRs opened per person over a period |
+| **PRs opened** | Number of PRs opened per person over a period |
 | **PR size** | Lines of code added/removed per PR |
 | **AI vs. human authorship** | Ratio of AI-generated PRs to manually written PRs |
+| **PRs reviewed** | Number of PRs reviewed per person over a period |
+| **Comments per review** | Average number of review comments left per PR reviewed |
 
 Goals:
 - Spot bottlenecks and imbalances in workload distribution.
@@ -58,12 +60,12 @@ Derive a per-person, per-language seniority profile based on review behavior:
 - Frequency and quality of suggested code changes
 - Consistency of review quality across different repositories and languages
 
-#### 2.3 Highlight reel
+#### 2.3 Highlight reel and 1:1 preparation
 
-For each team member, surface:
+A dedicated dashboard view to prepare each 1:1. For each team member, surface:
 
-- **Best comments** — strong examples to celebrate and reinforce (Radical Candor: praise specifically)
-- **Growth opportunities** — comments where they could have gone deeper or caught more, with concrete suggestions (Radical Candor: challenge directly)
+- **Best comments** — strong examples to celebrate and reinforce (Radical Candor: praise specifically). These are the comments I want to call out during our 1:1 to show I see and value their work.
+- **Growth opportunities** — comments where they could have gone deeper or caught more, with concrete suggestions on what a stronger review would have looked like (Radical Candor: challenge directly). These feed directly into actionable discussion points for our 1:1.
 
 ### 3. Team interaction insights (future)
 
@@ -97,6 +99,19 @@ This ensures that junior and senior engineers are challenged appropriately — n
 2. **Radical Candor over radical surveillance.** The goal is growth, not control. Data is used to give better feedback, never to punish.
 3. **Privacy by default.** Mood and interaction tracking must be opt-in and transparent to the team.
 4. **Start small, iterate.** Ship the delivery and review analysis first; expand to interaction and OKR features only once the foundation is solid.
+
+---
+
+## What this looks like
+
+em-control-tower is a **dashboard** — not a CLI tool, not a batch report. It is a control tower I open before every 1:1, every sprint review, every quarterly planning. At a glance I can see:
+
+- Team-level delivery metrics and trends
+- Per-person review activity and quality scores
+- Highlighted comments to celebrate or discuss
+- Detected seniority profiles per language
+- (Future) Interaction and collaboration signals
+- (Future) Suggested individual goals derived from team OKRs
 
 ---
 
