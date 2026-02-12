@@ -17,10 +17,15 @@ export async function GET() {
   try {
     const octokit = new Octokit({ auth: token });
 
-    const [{ data: user }, { data: orgs }] = await Promise.all([
-      octokit.rest.users.getAuthenticated(),
-      octokit.rest.orgs.listForAuthenticatedUser(),
-    ]);
+    const { data: user } = await octokit.rest.users.getAuthenticated();
+
+    let orgs: { login: string }[] = [];
+    try {
+      const { data } = await octokit.rest.orgs.listForAuthenticatedUser();
+      orgs = data;
+    } catch {
+      // Fine-grained PATs may not have org:read scope — continue with user only
+    }
 
     const owners = [
       { login: user.login, type: "user" as const },

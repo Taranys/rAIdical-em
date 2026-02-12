@@ -70,7 +70,21 @@ describe("GET /api/settings/github-owners", () => {
     expect(data.owners).toEqual([{ login: "octocat", type: "user" }]);
   });
 
-  it("returns 500 on Octokit error", async () => {
+  it("returns only user when orgs fetch fails", async () => {
+    mockGetSetting.mockReturnValue("ghp_token123");
+
+    mockGetAuthenticated.mockResolvedValue({
+      data: { login: "octocat" },
+    });
+    mockListOrgs.mockRejectedValue(new Error("Resource not accessible"));
+
+    const res = await GET();
+    const data = await res.json();
+
+    expect(data.owners).toEqual([{ login: "octocat", type: "user" }]);
+  });
+
+  it("returns 500 when user fetch fails", async () => {
     mockGetSetting.mockReturnValue("ghp_token123");
 
     mockGetAuthenticated.mockRejectedValue(new Error("Bad credentials"));

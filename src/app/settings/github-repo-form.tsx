@@ -139,7 +139,11 @@ export function GitHubRepoForm() {
     setOwner(value);
     setVerifyResult(null);
     setFeedback(null);
-    setIsOwnersOpen(value.length === 0 || filteredOwners.length > 0);
+    // Filter against the new value (not stale state)
+    const matches = owners.filter((o) =>
+      o.login.toLowerCase().includes(value.toLowerCase()),
+    );
+    setIsOwnersOpen(matches.length > 0);
   }
 
   function searchRepos(query: string) {
