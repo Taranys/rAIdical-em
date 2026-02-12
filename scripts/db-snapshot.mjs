@@ -2,9 +2,11 @@
 // Dev DB snapshot/restore — keeps your local dev data safe across worktrees/branches.
 // Snapshots are stored in data/snapshots/ (gitignored).
 
-const fs = require("node:fs");
-const path = require("node:path");
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DB_PATH = path.join(__dirname, "..", "data", "em-control-tower.db");
 const SNAPSHOTS_DIR = path.join(__dirname, "..", "data", "snapshots");
 
@@ -80,7 +82,7 @@ switch (command) {
     list();
     break;
   default:
-    console.log("Usage: node scripts/db-snapshot.js <command> [name]");
+    console.log("Usage: node scripts/db-snapshot.mjs <command> [name]");
     console.log("");
     console.log("Commands:");
     console.log("  save [name]     Save current DB as a snapshot (default: \"default\")");
