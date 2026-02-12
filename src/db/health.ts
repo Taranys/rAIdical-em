@@ -1,5 +1,4 @@
-import { db, sqlite } from "./index";
-import { healthCheck } from "./schema";
+import { sqlite } from "./index";
 
 export interface DbHealthStatus {
   connected: boolean;
@@ -11,30 +10,15 @@ export interface DbHealthStatus {
 
 export function checkDbHealth(): DbHealthStatus {
   try {
-    sqlite.exec(`
-      CREATE TABLE IF NOT EXISTS health_check (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        checked_at TEXT NOT NULL,
-        status TEXT NOT NULL
-      )
-    `);
-
     const versionResult = sqlite
       .prepare("SELECT sqlite_version() as version")
       .get() as { version: string };
 
     const tablesResult = sqlite
       .prepare(
-        "SELECT count(*) as count FROM sqlite_master WHERE type='table'"
+        "SELECT count(*) as count FROM sqlite_master WHERE type='table' AND name != 'sqlite_sequence'"
       )
       .get() as { count: number };
-
-    db.insert(healthCheck)
-      .values({
-        checkedAt: new Date().toISOString(),
-        status: "ok",
-      })
-      .run();
 
     return {
       connected: true,
