@@ -31,7 +31,7 @@ test.describe("Application Shell and Navigation", () => {
     // Navigate to Team page
     await sidebar.getByRole("link", { name: "Team" }).click();
     await expect(page).toHaveURL("/team");
-    await expect(page.getByRole("heading", { name: "Team" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Team Members" })).toBeVisible();
     await expect(sidebar.getByRole("link", { name: "Team" })).toHaveAttribute("data-active", "true");
 
     // Navigate to Settings page
