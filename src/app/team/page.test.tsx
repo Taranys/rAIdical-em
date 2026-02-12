@@ -180,6 +180,60 @@ describe("TeamPage", () => {
     });
   });
 
+  // US-009: Table column headers
+  it("renders table column headers when members exist", async () => {
+    globalThis.fetch = mockFetch({
+      "GET /api/team": {
+        members: [
+          {
+            id: 1,
+            githubUsername: "octocat",
+            displayName: "The Octocat",
+            avatarUrl: null,
+            isActive: 1,
+            createdAt: "2024-01-01T00:00:00Z",
+            updatedAt: "2024-01-01T00:00:00Z",
+          },
+        ],
+      },
+    });
+    render(<TeamPage />);
+    await waitFor(() => {
+      expect(
+        screen.getByRole("columnheader", { name: "Member" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("columnheader", { name: "GitHub Username" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("columnheader", { name: "Date Added" }),
+      ).toBeInTheDocument();
+    });
+  });
+
+  // US-009: Date added display
+  it("displays date added for team members", async () => {
+    globalThis.fetch = mockFetch({
+      "GET /api/team": {
+        members: [
+          {
+            id: 1,
+            githubUsername: "octocat",
+            displayName: "The Octocat",
+            avatarUrl: "https://avatars.githubusercontent.com/u/583231",
+            isActive: 1,
+            createdAt: "2024-01-15T10:30:00Z",
+            updatedAt: "2024-01-15T10:30:00Z",
+          },
+        ],
+      },
+    });
+    render(<TeamPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Jan 15, 2024")).toBeInTheDocument();
+    });
+  });
+
   it("shows error when GitHub user not found", async () => {
     globalThis.fetch = mockFetch({
       "GET /api/team": { members: [] },

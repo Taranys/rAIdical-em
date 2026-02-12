@@ -15,6 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Naming convention: `NNN-short-description.md` (e.g., `001-define-product-vision.md`, `002-select-technical-stack.md`). Use the next available sequential number.
 - Each file follows the template: title (`# US-NNN: Title`), phase, status (`Done` / `In Progress` / `Todo`), story (As a … I want … so that …), and acceptance criteria (checklist).
 - Use story IDs in code comments to link implementation back to the story (e.g., `// US-003: health check endpoint`).
+- **Status updates:** When a user story is fully implemented, update its status from `In Progress` (or `Todo`) to `Done` in the corresponding markdown file and check off all completed acceptance criteria.
 - When you need context on a feature, check `docs/user-stories/` — the sequential ID and description make it easy to find relevant stories.
 
 ## Plans
@@ -80,3 +81,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **PR requirements:** Every PR must include at least one new or updated unit test. E2E tests required when the PR changes a golden path.
 - **Test environments:** Server-side code tests run in `node` environment; component tests run in `jsdom`.
 - **No coverage thresholds:** Tests must pass, but there is no enforced coverage minimum.
+
+## Interaction Style
+
+- **Langue:** Toutes les interactions doivent se faire en francais.
+- **Roleplay D&D:** Agis comme un joueur de Donjons & Dragons. L'utilisateur est le Maitre du Jeu (MJ). Adopte un ton immersif et aventurier dans tes reponses, tout en restant efficace et precis dans ton travail de developpement.

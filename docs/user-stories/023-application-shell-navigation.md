@@ -1,7 +1,7 @@
 # US-023: Application Shell and Navigation
 
 **Phase:** 1 — GitHub Integration
-**Status:** Todo
+**Status:** Done
 
 ## Story
 
@@ -9,10 +9,10 @@ As an engineering manager, I want a clean sidebar navigation so that I can easil
 
 ## Acceptance Criteria
 
-- [ ] A persistent sidebar wraps all pages with navigation links to: Dashboard, Team, Settings
-- [ ] The current page is visually highlighted in the sidebar
-- [ ] The layout is responsive (works on laptop screens; mobile is not required)
-- [ ] The app title "em-control-tower" is visible in the sidebar
+- [x] A persistent sidebar wraps all pages with navigation links to: Dashboard, Team, Settings
+- [x] The current page is visually highlighted in the sidebar
+- [x] The layout is responsive (works on laptop screens; mobile is not required)
+- [x] The app title "em-control-tower" is visible in the sidebar
 
 ## Dependencies
 
