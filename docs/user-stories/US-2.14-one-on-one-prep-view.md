@@ -13,7 +13,7 @@ As an engineering manager, I want a dedicated 1:1 preparation view per team memb
 - [ ] A "1:1 Prep" page is accessible from the sidebar navigation
 - [ ] The page shows a team member selector (dropdown or card grid)
 - [ ] For the selected team member, the view displays:
-  - **Summary card**: seniority level, review depth score, total reviews in period, top categories
+  - **Summary card**: overall maturity level, review depth score, total reviews in period, top competency dimensions (technical + soft skills), top categories
   - **Best comments section**: the top 3–5 highlights with comment body, PR link, and LLM reasoning (from US-2.12)
   - **Growth opportunities section**: the top 3–5 opportunities with original comment, context, and improvement suggestion (from US-2.13)
   - **Review activity sparkline**: mini chart of review frequency over the period
