@@ -1,2 +1,2 @@
 # em-control-tower
-A project to help me my team(s)
+A POC to try [VIBE Kanban](https://www.vibekanban.com/) to help me manage my team(s).
