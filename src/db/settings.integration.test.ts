@@ -85,4 +85,25 @@ describe("settings DAL (integration)", () => {
 
     expect(getSetting("github_org", testDb)).toBe("my-org");
   });
+
+  // US-006: Repository configuration settings
+  it("stores github_owner as plain text", () => {
+    setSetting("github_owner", "my-org", testDb);
+
+    const raw = testSqlite
+      .prepare("SELECT value FROM settings WHERE key = ?")
+      .get("github_owner") as { value: string } | undefined;
+    expect(raw!.value).toBe("my-org");
+    expect(getSetting("github_owner", testDb)).toBe("my-org");
+  });
+
+  it("stores github_repo as plain text", () => {
+    setSetting("github_repo", "my-repo", testDb);
+
+    const raw = testSqlite
+      .prepare("SELECT value FROM settings WHERE key = ?")
+      .get("github_repo") as { value: string } | undefined;
+    expect(raw!.value).toBe("my-repo");
+    expect(getSetting("github_repo", testDb)).toBe("my-repo");
+  });
 });

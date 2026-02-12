@@ -1,4 +1,4 @@
-// US-005: GitHub PAT configuration E2E tests
+// US-005, US-006: GitHub PAT and repository configuration E2E tests
 import { test, expect } from "@playwright/test";
 
 test.describe("GitHub PAT Configuration", () => {
@@ -61,5 +61,54 @@ test.describe("GitHub PAT Configuration", () => {
     // Clicking navigates to settings
     await ctaLink.click();
     await expect(page).toHaveURL("/settings");
+  });
+});
+
+// US-006: GitHub Repository Configuration E2E tests
+test.describe("GitHub Repository Configuration", () => {
+  test("settings page shows repository form with heading", async ({
+    page,
+  }) => {
+    await page.goto("/settings");
+
+    await expect(page.getByText("Target Repository")).toBeVisible();
+  });
+
+  test("repository form shows PAT required message when no PAT configured", async ({
+    page,
+    request,
+  }) => {
+    // Ensure no PAT is stored
+    await request.delete("/api/settings/github-pat");
+
+    await page.goto("/settings");
+
+    await expect(
+      page.getByText(/configure a github pat above/i),
+    ).toBeVisible();
+  });
+
+  test("repository form shows owner and repo fields when PAT is configured", async ({
+    page,
+    request,
+  }) => {
+    // Configure a PAT first
+    await request.put("/api/settings/github-pat", {
+      data: { token: "ghp_test_token_for_e2e" },
+    });
+
+    await page.goto("/settings");
+
+    // Owner and repo fields should be visible
+    await expect(page.getByLabel(/owner/i)).toBeVisible();
+    await expect(page.getByLabel(/repository/i)).toBeVisible();
+
+    // Verify and Save buttons
+    await expect(
+      page.getByRole("button", { name: /verify/i }),
+    ).toBeVisible();
+
+    // Clean up
+    await request.delete("/api/settings/github-pat");
   });
 });

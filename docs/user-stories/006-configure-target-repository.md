@@ -1,7 +1,7 @@
 # US-006: Configure Target GitHub Repository
 
 **Phase:** 1 — GitHub Integration
-**Status:** Todo
+**Status:** Done
 
 ## Story
 
@@ -9,11 +9,11 @@ As an engineering manager, I want to specify the GitHub organization and reposit
 
 ## Acceptance Criteria
 
-- [ ] The settings page has fields for GitHub owner (org or user) and repository name
-- [ ] The repository field is searchable — typing filters the list of repositories accessible with the configured PAT
-- [ ] After entering valid values and a working PAT, a "Verify" action confirms the repo exists and is accessible
-- [ ] Owner and repository are stored in the database
-- [ ] Only one org/repo pair is supported at a time (single-repo scope)
+- [x] The settings page has fields for GitHub owner (org or user) and repository name
+- [x] The repository field is searchable — typing filters the list of repositories accessible with the configured PAT
+- [x] After entering valid values and a working PAT, a "Verify" action confirms the repo exists and is accessible
+- [x] Owner and repository are stored in the database
+- [x] Only one org/repo pair is supported at a time (single-repo scope)
 
 ## Dependencies
 
