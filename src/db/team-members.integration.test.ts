@@ -1,4 +1,4 @@
-// US-007: Team members data access layer integration tests
+// US-007, US-008: Team members data access layer integration tests
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
@@ -7,6 +7,7 @@ import {
   getAllTeamMembers,
   getTeamMemberByUsername,
   createTeamMember,
+  deactivateTeamMember,
 } from "./team-members";
 
 describe("team-members DAL (integration)", () => {
@@ -128,5 +129,47 @@ describe("team-members DAL (integration)", () => {
       testDb,
     );
     expect(member.avatarUrl).toBeNull();
+  });
+
+  // US-008: deactivateTeamMember tests
+  it("deactivates a team member (soft delete)", () => {
+    const member = createTeamMember(
+      { githubUsername: "octocat", displayName: "Octo", avatarUrl: null },
+      testDb,
+    );
+
+    const deactivated = deactivateTeamMember(member.id, testDb);
+
+    expect(deactivated).not.toBeNull();
+    expect(deactivated!.id).toBe(member.id);
+    expect(deactivated!.githubUsername).toBe("octocat");
+    expect(deactivated!.isActive).toBe(0);
+  });
+
+  it("returns null when deactivating non-existent member", () => {
+    const result = deactivateTeamMember(999, testDb);
+    expect(result).toBeNull();
+  });
+
+  it("returns null when deactivating already inactive member", () => {
+    const member = createTeamMember(
+      { githubUsername: "octocat", displayName: "Octo", avatarUrl: null },
+      testDb,
+    );
+    deactivateTeamMember(member.id, testDb);
+
+    const result = deactivateTeamMember(member.id, testDb);
+    expect(result).toBeNull();
+  });
+
+  it("deactivated member is excluded from getAllTeamMembers", () => {
+    const member = createTeamMember(
+      { githubUsername: "octocat", displayName: "Octo", avatarUrl: null },
+      testDb,
+    );
+    deactivateTeamMember(member.id, testDb);
+
+    const members = getAllTeamMembers(testDb);
+    expect(members).toHaveLength(0);
   });
 });

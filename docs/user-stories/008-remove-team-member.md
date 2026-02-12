@@ -1,7 +1,7 @@
 # US-008: Remove a Team Member
 
 **Phase:** 1 — GitHub Integration
-**Status:** Todo
+**Status:** Done
 
 ## Story
 
@@ -9,9 +9,9 @@ As an engineering manager, I want to remove a team member from the tracked list 
 
 ## Acceptance Criteria
 
-- [ ] Each team member row has a "Remove" action
-- [ ] A confirmation dialog appears before deletion
-- [ ] Removing a member does not delete their historical PR/review data (soft removal — data is retained for historical metrics)
+- [x] Each team member row has a "Remove" action
+- [x] A confirmation dialog appears before deletion
+- [x] Removing a member does not delete their historical PR/review data (soft removal — data is retained for historical metrics)
 
 ## Dependencies
 

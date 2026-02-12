@@ -1,7 +1,7 @@
-// US-007: Team members data access layer
+// US-007, US-008: Team members data access layer
 import { db as defaultDb } from "./index";
 import { teamMembers } from "./schema";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, and } from "drizzle-orm";
 
 type DbInstance = typeof defaultDb;
 
@@ -51,4 +51,21 @@ export function createTeamMember(
     })
     .returning()
     .get();
+}
+
+// US-008: Soft-delete a team member (set isActive = 0)
+export function deactivateTeamMember(
+  id: number,
+  dbInstance: DbInstance = defaultDb,
+) {
+  const now = new Date().toISOString();
+
+  return (
+    dbInstance
+      .update(teamMembers)
+      .set({ isActive: 0, updatedAt: now })
+      .where(and(eq(teamMembers.id, id), eq(teamMembers.isActive, 1)))
+      .returning()
+      .get() ?? null
+  );
 }
