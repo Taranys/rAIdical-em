@@ -12,11 +12,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## User Stories
 
 - All user stories live in `docs/user-stories/`.
-- Naming convention: `NNN-short-description.md` (e.g., `001-define-product-vision.md`, `002-select-technical-stack.md`). Use the next available sequential number.
-- Each file follows the template: title (`# US-NNN: Title`), phase, status (`Done` / `In Progress` / `Todo`), story (As a … I want … so that …), and acceptance criteria (checklist).
-- Use story IDs in code comments to link implementation back to the story (e.g., `// US-003: health check endpoint`).
+- **Naming convention (from Phase 2 onward):** `US-<phase>.<incremental>-short-description.md` — a semver-inspired format where `<phase>` is the phase number and `<incremental>` is a sequential ID within that phase (e.g., `US-2.01-configure-llm-provider.md`, `US-2.02-classify-review-comments.md`).
+- **Legacy naming (Phase 0–1):** Older stories use the format `NNN-short-description.md` (e.g., `001-define-product-vision.md`). These are kept as-is for backward compatibility.
+- Each file follows the template: title (`# US-<phase>.<id>: Title`), phase, status (`Done` / `In Progress` / `Todo`), story (As a … I want … so that …), and acceptance criteria (checklist).
+- Use story IDs in code comments to link implementation back to the story (e.g., `// US-2.03: seniority profile computation`).
 - **Status updates:** When a user story is fully implemented, update its status from `In Progress` (or `Todo`) to `Done` in the corresponding markdown file and check off all completed acceptance criteria.
-- When you need context on a feature, check `docs/user-stories/` — the sequential ID and description make it easy to find relevant stories.
+- When you need context on a feature, check `docs/user-stories/` — the phase prefix and description make it easy to find relevant stories.
 
 ## Plans
 
