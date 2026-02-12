@@ -51,5 +51,5 @@ next-env.d.ts
 *.db-wal
 *.db-shm
 
-# drizzle
-/drizzle/
+# drizzle (migration files are committed; only ignore generated studio files)
+/drizzle/meta/.drizzle/
