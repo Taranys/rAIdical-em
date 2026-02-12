@@ -124,19 +124,25 @@ export function GitHubRepoForm() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filteredOwners = owners.filter((o) =>
-    o.login.toLowerCase().includes(owner.toLowerCase()),
-  );
+  const [showAllOwners, setShowAllOwners] = useState(false);
+
+  const filteredOwners = showAllOwners
+    ? owners
+    : owners.filter((o) =>
+        o.login.toLowerCase().includes(owner.toLowerCase()),
+      );
 
   function selectOwner(o: OwnerResult) {
     setOwner(o.login);
     setIsOwnersOpen(false);
+    setShowAllOwners(false);
     setVerifyResult(null);
     setFeedback(null);
   }
 
   function handleOwnerChange(value: string) {
     setOwner(value);
+    setShowAllOwners(false);
     setVerifyResult(null);
     setFeedback(null);
     // Filter against the new value (not stale state)
@@ -292,7 +298,10 @@ export function GitHubRepoForm() {
                 value={owner}
                 onChange={(e) => handleOwnerChange(e.target.value)}
                 onFocus={() => {
-                  if (owners.length > 0) setIsOwnersOpen(true);
+                  if (owners.length > 0) {
+                    setShowAllOwners(true);
+                    setIsOwnersOpen(true);
+                  }
                 }}
               />
               {isOwnersOpen && filteredOwners.length > 0 && (
