@@ -14,19 +14,18 @@ export default function Home() {
   const dbHealth = checkDbHealth();
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-16 max-w-4xl">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold tracking-tight mb-3">
-            em-control-tower
-          </h1>
-          <p className="text-muted-foreground text-lg">
-            Engineering Manager Control Tower — Track team performance, review
-            quality, and prepare better 1:1s.
-          </p>
-        </div>
+    <div className="container mx-auto px-4 py-16 max-w-4xl">
+      <div className="text-center mb-12">
+        <h1 className="text-4xl font-bold tracking-tight mb-3">
+          em-control-tower
+        </h1>
+        <p className="text-muted-foreground text-lg">
+          Engineering Manager Control Tower — Track team performance, review
+          quality, and prepare better 1:1s.
+        </p>
+      </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
@@ -135,9 +134,8 @@ export default function Home() {
           </Card>
         </div>
 
-        <div className="text-center mt-12 text-sm text-muted-foreground">
-          <p>Phase 0 — Project skeleton. All technical bricks verified.</p>
-        </div>
+      <div className="text-center mt-12 text-sm text-muted-foreground">
+        <p>Phase 0 — Project skeleton. All technical bricks verified.</p>
       </div>
     </div>
   );
