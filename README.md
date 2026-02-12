@@ -30,7 +30,7 @@ See [docs/vision.md](docs/vision.md) for the full project vision and [docs/techn
 
 | Phase | Status |
 |-------|--------|
-| Phase 0 -- Setup & architecture | Current |
+| Phase 0 -- Setup & architecture | Done |
 | Phase 1 -- GitHub integration | Planned |
 | Phase 2 -- Comment categorization | Planned |
 | Phase 3 -- 1:1 preparation dashboard | Planned |

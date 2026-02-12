@@ -119,7 +119,7 @@ em-control-tower is a **dashboard** — not a CLI tool, not a batch report. It i
 
 | Phase | Scope | Status |
 |-------|-------|--------|
-| **Phase 0** | Project setup, vision, architecture decisions | Current |
+| **Phase 0** | Project setup, vision, architecture decisions | Done |
 | **Phase 1** | GitHub integration — PR metrics and review comment extraction | Planned |
 | **Phase 2** | Comment categorization and seniority profiling | Planned |
 | **Phase 3** | Highlight reel and 1:1 preparation dashboard | Planned |

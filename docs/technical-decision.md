@@ -1,6 +1,6 @@
 # Technical Decision — Stack Selection
 
-**Status:** Proposal — awaiting decision
+**Status:** Accepted
 **Date:** 2026-02-12
 **Context:** Phase 0 — Project setup & architecture decisions
 
