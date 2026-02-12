@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// US-007: Unit tests for team page
+// US-007, US-008: Unit tests for team page
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import TeamPage from "./page";
@@ -246,6 +246,157 @@ describe("TeamPage", () => {
       target: { value: "nonexistent" },
     });
     fireEvent.click(screen.getByRole("button", { name: /add member/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/not found/i)).toBeInTheDocument();
+    });
+  });
+
+  // US-008: Remove team member tests
+  it("displays a remove button for each team member", async () => {
+    globalThis.fetch = mockFetch({
+      "GET /api/team": {
+        members: [
+          {
+            id: 1,
+            githubUsername: "octocat",
+            displayName: "The Octocat",
+            avatarUrl: null,
+            isActive: 1,
+            createdAt: "2024-01-01T00:00:00Z",
+            updatedAt: "2024-01-01T00:00:00Z",
+          },
+          {
+            id: 2,
+            githubUsername: "user2",
+            displayName: "User Two",
+            avatarUrl: null,
+            isActive: 1,
+            createdAt: "2024-01-01T00:00:00Z",
+            updatedAt: "2024-01-01T00:00:00Z",
+          },
+        ],
+      },
+    });
+    render(<TeamPage />);
+
+    await waitFor(() => {
+      const removeButtons = screen.getAllByRole("button", { name: /remove/i });
+      expect(removeButtons).toHaveLength(2);
+    });
+  });
+
+  it("shows confirmation dialog when remove is clicked", async () => {
+    globalThis.fetch = mockFetch({
+      "GET /api/team": {
+        members: [
+          {
+            id: 1,
+            githubUsername: "octocat",
+            displayName: "The Octocat",
+            avatarUrl: null,
+            isActive: 1,
+            createdAt: "2024-01-01T00:00:00Z",
+            updatedAt: "2024-01-01T00:00:00Z",
+          },
+        ],
+      },
+    });
+    render(<TeamPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /remove/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /remove/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/remove team member\?/i)).toBeInTheDocument();
+      expect(screen.getByText(/historical data will be preserved/i)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
+    });
+  });
+
+  it("calls DELETE API and shows success feedback after confirming removal", async () => {
+    const fetchMock = mockFetch({
+      "GET /api/team": {
+        members: [
+          {
+            id: 1,
+            githubUsername: "octocat",
+            displayName: "The Octocat",
+            avatarUrl: null,
+            isActive: 1,
+            createdAt: "2024-01-01T00:00:00Z",
+            updatedAt: "2024-01-01T00:00:00Z",
+          },
+        ],
+      },
+      "DELETE /api/team/1": { message: "Team member removed successfully" },
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<TeamPage />);
+
+    // Wait for member to appear, then click the trigger Remove button
+    await waitFor(() => {
+      expect(screen.getByText("The Octocat")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^remove$/i }));
+
+    // Wait for the dialog to open and find the confirm button
+    await waitFor(() => {
+      expect(screen.getByText(/remove team member\?/i)).toBeInTheDocument();
+    });
+
+    // The dialog action button is the last "Remove" button in the DOM
+    const allRemoveButtons = screen.getAllByRole("button", { name: /remove/i });
+    fireEvent.click(allRemoveButtons[allRemoveButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/team/1", {
+        method: "DELETE",
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/successfully removed/i)).toBeInTheDocument();
+    });
+  });
+
+  it("shows error feedback when removal fails", async () => {
+    globalThis.fetch = mockFetch({
+      "GET /api/team": {
+        members: [
+          {
+            id: 1,
+            githubUsername: "octocat",
+            displayName: "The Octocat",
+            avatarUrl: null,
+            isActive: 1,
+            createdAt: "2024-01-01T00:00:00Z",
+            updatedAt: "2024-01-01T00:00:00Z",
+          },
+        ],
+      },
+      "DELETE /api/team/1": { error: "Team member not found" },
+      "DELETE /api/team/1:status": 404,
+    });
+    render(<TeamPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("The Octocat")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^remove$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/remove team member\?/i)).toBeInTheDocument();
+    });
+
+    const allRemoveButtons = screen.getAllByRole("button", { name: /remove/i });
+    fireEvent.click(allRemoveButtons[allRemoveButtons.length - 1]);
 
     await waitFor(() => {
       expect(screen.getByText(/not found/i)).toBeInTheDocument();

@@ -1,6 +1,6 @@
 "use client";
 
-// US-007: Team members page with add member form
+// US-007, US-008: Team members page with add/remove member functionality
 import { useCallback, useEffect, useState } from "react";
 import {
   Card,
@@ -13,6 +13,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Table,
   TableBody,
@@ -51,6 +61,8 @@ export default function TeamPage() {
   const [username, setUsername] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [removingId, setRemovingId] = useState<number | null>(null);
+  const [memberToRemove, setMemberToRemove] = useState<TeamMember | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
 
   const fetchMembers = useCallback(async () => {
@@ -102,6 +114,34 @@ export default function TeamPage() {
       setFeedback({ type: "error", message: "Failed to add team member." });
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  // US-008: Remove a team member
+  async function handleRemove(member: TeamMember) {
+    setRemovingId(member.id);
+    setFeedback(null);
+
+    try {
+      const res = await fetch(`/api/team/${member.id}`, { method: "DELETE" });
+      const data = await res.json();
+
+      if (res.ok) {
+        setFeedback({
+          type: "success",
+          message: `Successfully removed ${member.displayName} (@${member.githubUsername})`,
+        });
+        fetchMembers();
+      } else {
+        setFeedback({
+          type: "error",
+          message: data.error || "Failed to remove team member.",
+        });
+      }
+    } catch {
+      setFeedback({ type: "error", message: "Failed to remove team member." });
+    } finally {
+      setRemovingId(null);
     }
   }
 
@@ -175,6 +215,7 @@ export default function TeamPage() {
                   <TableHead>Member</TableHead>
                   <TableHead>GitHub Username</TableHead>
                   <TableHead>Date Added</TableHead>
+                  <TableHead className="w-[100px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -204,6 +245,17 @@ export default function TeamPage() {
                     <TableCell className="text-muted-foreground">
                       {formatDate(member.createdAt)}
                     </TableCell>
+                    {/* US-008: Remove button */}
+                    <TableCell>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={removingId === member.id}
+                        onClick={() => setMemberToRemove(member)}
+                      >
+                        {removingId === member.id ? "Removing..." : "Remove"}
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -211,6 +263,36 @@ export default function TeamPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* US-008: Confirmation dialog for removing a team member */}
+      <AlertDialog
+        open={memberToRemove !== null}
+        onOpenChange={(open) => {
+          if (!open) setMemberToRemove(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove team member?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove{" "}
+              <strong>{memberToRemove?.displayName}</strong> (@
+              {memberToRemove?.githubUsername}) from the team? Their historical
+              data will be preserved.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (memberToRemove) handleRemove(memberToRemove);
+              }}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
