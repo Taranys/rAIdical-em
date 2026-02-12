@@ -124,17 +124,21 @@ These constraints come from the project requirements and current stage:
 
 ---
 
-## Open Questions
+## Decision Inputs
 
-1. **Who will use / contribute to this project?** If it stays single-user (the EM), prototyping speed matters more than scalability.
-2. **How important is UI polish?** If a Streamlit-grade UI is sufficient, Option C wins on speed. If a polished dashboard is needed, Option A or B.
-3. **LLM provider preference?** All options support OpenAI/Anthropic APIs, but Python has more mature tooling for advanced prompting and evaluation.
+1. **Who will use / contribute to this project?** Will be shared with other EMs in the company and is expected to evolve over time. This favors a well-structured, maintainable stack.
+2. **How important is UI polish?** Very important — the UI/UX must be inviting enough to make the tool a habit. This rules out Streamlit.
+3. **LLM provider preference?** No strong preference — will use Claude Code or Gemini. All options support these equally.
 
 ---
 
 ## Recommendation
 
-> To be filled after decision.
+Selected option: **Option A — TypeScript + Next.js + SQLite**
 
-Selected option: **TBD**
-Rationale: **TBD**
+Rationale:
+- **UI/UX quality is a priority.** React + shadcn/ui + Tailwind gives full control over the dashboard look and feel, far beyond what Streamlit can offer.
+- **Shared with other EMs.** Next.js is a well-known framework — easier for others to contribute, fork, or extend. Single-project structure (API routes + UI co-located) lowers the onboarding bar.
+- **Built to evolve.** Next.js App Router supports incremental adoption of features (server components, API routes, middleware). As the project grows through Phases 1–5, the framework won't be a bottleneck.
+- **Single command start.** `npm run dev` — no process orchestration needed.
+- **SQLite via better-sqlite3 + Drizzle ORM** keeps the database embedded and dependency-free while providing a typed, migration-friendly data layer.
