@@ -64,6 +64,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `e2e/` -- Playwright E2E tests
 - `.github/workflows/` -- CI workflow definitions
 
+## GitHub Issues
+
+- Each user story has a corresponding GitHub issue. See `docs/github-issues-management.md` for the full mapping and label system.
+- **PR descriptions:** When a PR implements a user story, include `Closes #<issue-number>` in the PR description to automatically close the issue when the PR is merged.
+- When creating a new user story, create the corresponding GitHub issue following the process documented in `docs/github-issues-management.md`.
+
 ## Key Conventions
 
 - **KISS:** Keep solutions simple. Avoid overengineering — prefer the simplest approach that works and refactor later when needed.
