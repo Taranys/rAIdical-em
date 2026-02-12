@@ -10,8 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { SearchableInput } from "./searchable-input";
 
 interface Feedback {
   type: "success" | "error";
@@ -42,10 +41,8 @@ export function GitHubRepoForm() {
   const [isConfigured, setIsConfigured] = useState(false);
   const [owner, setOwner] = useState("");
   const [owners, setOwners] = useState<OwnerResult[]>([]);
-  const [isOwnersOpen, setIsOwnersOpen] = useState(false);
   const [repo, setRepo] = useState("");
   const [repos, setRepos] = useState<RepoResult[]>([]);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -53,8 +50,6 @@ export function GitHubRepoForm() {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [verifyResult, setVerifyResult] = useState<VerifyResult | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const ownerContainerRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   const checkPatConfigured = useCallback(async () => {
     try {
@@ -97,59 +92,15 @@ export function GitHubRepoForm() {
     loadExistingConfig();
   }, [checkPatConfigured, loadExistingConfig]);
 
-  // Prefetch owners once PAT is confirmed configured
   useEffect(() => {
     if (isPatConfigured) {
       loadOwners();
     }
   }, [isPatConfigured, loadOwners]);
 
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        ownerContainerRef.current &&
-        !ownerContainerRef.current.contains(event.target as Node)
-      ) {
-        setIsOwnersOpen(false);
-      }
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
-        setIsSearchOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const [showAllOwners, setShowAllOwners] = useState(false);
-
-  const filteredOwners = showAllOwners
-    ? owners
-    : owners.filter((o) =>
-        o.login.toLowerCase().includes(owner.toLowerCase()),
-      );
-
-  function selectOwner(o: OwnerResult) {
-    setOwner(o.login);
-    setIsOwnersOpen(false);
-    setShowAllOwners(false);
+  function clearFeedback() {
     setVerifyResult(null);
     setFeedback(null);
-  }
-
-  function handleOwnerChange(value: string) {
-    setOwner(value);
-    setShowAllOwners(false);
-    setVerifyResult(null);
-    setFeedback(null);
-    // Filter against the new value (not stale state)
-    const matches = owners.filter((o) =>
-      o.login.toLowerCase().includes(value.toLowerCase()),
-    );
-    setIsOwnersOpen(matches.length > 0);
   }
 
   function searchRepos(query: string) {
@@ -165,7 +116,6 @@ export function GitHubRepoForm() {
         const data = await res.json();
         if (data.repos) {
           setRepos(data.repos);
-          setIsSearchOpen(data.repos.length > 0);
         }
       } catch {
         // Ignore search errors
@@ -175,25 +125,10 @@ export function GitHubRepoForm() {
     }, 300);
   }
 
-  function handleRepoInputChange(value: string) {
-    setRepo(value);
-    setVerifyResult(null);
-    setFeedback(null);
-    searchRepos(value);
-  }
-
-  function selectRepo(r: RepoResult) {
-    setRepo(r.name);
-    setIsSearchOpen(false);
-    setVerifyResult(null);
-    setFeedback(null);
-  }
-
   async function handleVerify() {
     if (!owner.trim() || !repo.trim()) return;
     setIsVerifying(true);
-    setFeedback(null);
-    setVerifyResult(null);
+    clearFeedback();
 
     try {
       const res = await fetch("/api/settings/github-repo/verify", {
@@ -205,15 +140,9 @@ export function GitHubRepoForm() {
 
       if (data.success) {
         setVerifyResult(data.repository);
-        setFeedback({
-          type: "success",
-          message: "Repository verified successfully.",
-        });
+        setFeedback({ type: "success", message: "Repository verified successfully." });
       } else {
-        setFeedback({
-          type: "error",
-          message: data.error || "Verification failed.",
-        });
+        setFeedback({ type: "error", message: data.error || "Verification failed." });
       }
     } catch {
       setFeedback({ type: "error", message: "Verification failed." });
@@ -236,16 +165,10 @@ export function GitHubRepoForm() {
       const data = await res.json();
 
       if (data.success) {
-        setFeedback({
-          type: "success",
-          message: "Repository configuration saved.",
-        });
+        setFeedback({ type: "success", message: "Repository configuration saved." });
         setIsConfigured(true);
       } else {
-        setFeedback({
-          type: "error",
-          message: data.error || "Failed to save.",
-        });
+        setFeedback({ type: "error", message: data.error || "Failed to save." });
       }
     } catch {
       setFeedback({ type: "error", message: "Failed to save." });
@@ -256,8 +179,7 @@ export function GitHubRepoForm() {
 
   async function handleDelete() {
     setIsDeleting(true);
-    setFeedback(null);
-    setVerifyResult(null);
+    clearFeedback();
 
     try {
       await fetch("/api/settings/github-repo", { method: "DELETE" });
@@ -266,10 +188,7 @@ export function GitHubRepoForm() {
       setRepo("");
       setFeedback({ type: "success", message: "Repository configuration deleted." });
     } catch {
-      setFeedback({
-        type: "error",
-        message: "Failed to delete configuration.",
-      });
+      setFeedback({ type: "error", message: "Failed to delete configuration." });
     } finally {
       setIsDeleting(false);
     }
@@ -290,113 +209,66 @@ export function GitHubRepoForm() {
           </p>
         ) : (
           <>
-            <div className="space-y-2 relative" ref={ownerContainerRef}>
-              <Label htmlFor="github-owner">Owner (organization or user)</Label>
-              <Input
-                id="github-owner"
-                placeholder="e.g., my-org"
-                value={owner}
-                onChange={(e) => handleOwnerChange(e.target.value)}
-                onFocus={() => {
-                  if (owners.length > 0) {
-                    setShowAllOwners(true);
-                    setIsOwnersOpen(true);
-                  }
-                }}
-              />
-              {isOwnersOpen && filteredOwners.length > 0 && (
-                <ul
-                  role="listbox"
-                  aria-label="Owner suggestions"
-                  className="absolute z-50 top-full mt-1 w-full bg-popover border rounded-md shadow-md max-h-60 overflow-auto"
-                >
-                  {filteredOwners.map((o) => (
-                    <li
-                      key={o.login}
-                      role="option"
-                      aria-selected={o.login === owner}
-                      className="px-3 py-2 cursor-pointer hover:bg-accent text-sm"
-                      onClick={() => selectOwner(o)}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{o.login}</span>
-                        <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-                          {o.type}
-                        </span>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+            <SearchableInput
+              id="github-owner"
+              label="Owner (organization or user)"
+              placeholder="e.g., my-org"
+              value={owner}
+              onChange={(value) => { setOwner(value); clearFeedback(); }}
+              items={owners}
+              getKey={(o) => o.login}
+              filterItem={(o, q) => o.login.toLowerCase().includes(q.toLowerCase())}
+              onSelect={(o) => { setOwner(o.login); clearFeedback(); }}
+              renderItem={(o) => (
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{o.login}</span>
+                  <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                    {o.type}
+                  </span>
+                </div>
               )}
-            </div>
+              listLabel="Owner suggestions"
+              showAllOnFocus
+            />
 
-            <div className="space-y-2 relative" ref={containerRef}>
-              <Label htmlFor="github-repo">Repository</Label>
-              <Input
-                id="github-repo"
-                placeholder="Type to search repositories..."
-                value={repo}
-                onChange={(e) => handleRepoInputChange(e.target.value)}
-                onFocus={() => {
-                  if (repos.length > 0) setIsSearchOpen(true);
-                }}
-                disabled={!owner.trim()}
-              />
-              {isSearching && (
-                <p className="text-xs text-muted-foreground">Searching...</p>
+            <SearchableInput
+              id="github-repo"
+              label="Repository"
+              placeholder="Type to search repositories..."
+              value={repo}
+              onChange={(value) => { setRepo(value); clearFeedback(); searchRepos(value); }}
+              disabled={!owner.trim()}
+              items={repos}
+              getKey={(r) => r.name}
+              filterItem={() => true}
+              onSelect={(r) => { setRepo(r.name); clearFeedback(); }}
+              renderItem={(r) => (
+                <>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{r.name}</span>
+                    {r.isPrivate && (
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                        Private
+                      </span>
+                    )}
+                  </div>
+                  {r.description && (
+                    <p className="text-xs text-muted-foreground truncate">{r.description}</p>
+                  )}
+                </>
               )}
-              {isSearchOpen && repos.length > 0 && (
-                <ul
-                  role="listbox"
-                  className="absolute z-50 top-full mt-1 w-full bg-popover border rounded-md shadow-md max-h-60 overflow-auto"
-                >
-                  {repos.map((r) => (
-                    <li
-                      key={r.name}
-                      role="option"
-                      aria-selected={r.name === repo}
-                      className="px-3 py-2 cursor-pointer hover:bg-accent text-sm"
-                      onClick={() => selectRepo(r)}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{r.name}</span>
-                        {r.isPrivate && (
-                          <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-                            Private
-                          </span>
-                        )}
-                      </div>
-                      {r.description && (
-                        <p className="text-xs text-muted-foreground truncate">
-                          {r.description}
-                        </p>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+              isLoading={isSearching}
+            />
 
             <div className="flex gap-2 flex-wrap">
-              <Button
-                onClick={handleVerify}
-                variant="outline"
-                disabled={isVerifying || !owner.trim() || !repo.trim()}
-              >
+              <Button onClick={handleVerify} variant="outline" disabled={isVerifying || !owner.trim() || !repo.trim()}>
                 {isVerifying ? "Verifying..." : "Verify"}
               </Button>
-              <Button
-                onClick={handleSave}
-                disabled={isSaving || !owner.trim() || !repo.trim()}
-              >
+              <Button onClick={handleSave} disabled={isSaving || !owner.trim() || !repo.trim()}>
                 {isSaving ? "Saving..." : "Save"}
               </Button>
               {isConfigured && (
-                <Button
-                  variant="destructive"
-                  onClick={handleDelete}
-                  disabled={isDeleting}
-                >
+                <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
                   {isDeleting ? "Deleting..." : "Delete"}
                 </Button>
               )}
@@ -409,24 +281,14 @@ export function GitHubRepoForm() {
                   {verifyResult.isPrivate ? "(Private)" : "(Public)"}
                 </p>
                 {verifyResult.description && (
-                  <p className="text-muted-foreground">
-                    {verifyResult.description}
-                  </p>
+                  <p className="text-muted-foreground">{verifyResult.description}</p>
                 )}
-                <p className="text-muted-foreground">
-                  Default branch: {verifyResult.defaultBranch}
-                </p>
+                <p className="text-muted-foreground">Default branch: {verifyResult.defaultBranch}</p>
               </div>
             )}
 
             {feedback && (
-              <p
-                className={
-                  feedback.type === "success"
-                    ? "text-sm text-green-600 dark:text-green-400"
-                    : "text-sm text-destructive"
-                }
-              >
+              <p className={feedback.type === "success" ? "text-sm text-green-600 dark:text-green-400" : "text-sm text-destructive"}>
                 {feedback.message}
               </p>
             )}
