@@ -9,6 +9,7 @@ vi.mock("@/db/sync-runs", () => ({
   createSyncRun: vi.fn(),
   getLatestSyncRun: vi.fn(),
   getActiveSyncRun: vi.fn(),
+  getSyncRunHistory: vi.fn(),
 }));
 
 vi.mock("@/lib/github-sync", () => ({
@@ -21,6 +22,7 @@ import {
   createSyncRun,
   getLatestSyncRun,
   getActiveSyncRun,
+  getSyncRunHistory,
 } from "@/db/sync-runs";
 import { syncPullRequests } from "@/lib/github-sync";
 
@@ -112,22 +114,23 @@ describe("GET /api/sync", () => {
     vi.clearAllMocks();
   });
 
-  it("returns null when no repository configured", async () => {
+  it("returns null and empty history when no repository configured", async () => {
     vi.mocked(getSetting).mockReturnValue(null);
 
     const res = await GET();
     const data = await res.json();
 
     expect(data.syncRun).toBeNull();
+    expect(data.history).toEqual([]);
   });
 
-  it("returns latest sync run", async () => {
+  it("returns latest sync run and history", async () => {
     vi.mocked(getSetting).mockImplementation((key: string) => {
       if (key === "github_owner") return "owner";
       if (key === "github_repo") return "repo";
       return null;
     });
-    vi.mocked(getLatestSyncRun).mockReturnValue({
+    const mockRun = {
       id: 1,
       repository: "owner/repo",
       startedAt: "2024-06-01T10:00:00Z",
@@ -136,26 +139,32 @@ describe("GET /api/sync", () => {
       prCount: 42,
       commentCount: 0,
       errorMessage: null,
-    });
+    };
+    vi.mocked(getLatestSyncRun).mockReturnValue(mockRun);
+    vi.mocked(getSyncRunHistory).mockReturnValue([mockRun]);
 
     const res = await GET();
     const data = await res.json();
 
     expect(data.syncRun.status).toBe("success");
     expect(data.syncRun.prCount).toBe(42);
+    expect(data.history).toHaveLength(1);
+    expect(data.history[0].id).toBe(1);
   });
 
-  it("returns null when no sync runs exist", async () => {
+  it("returns null syncRun and empty history when no sync runs exist", async () => {
     vi.mocked(getSetting).mockImplementation((key: string) => {
       if (key === "github_owner") return "owner";
       if (key === "github_repo") return "repo";
       return null;
     });
     vi.mocked(getLatestSyncRun).mockReturnValue(null);
+    vi.mocked(getSyncRunHistory).mockReturnValue([]);
 
     const res = await GET();
     const data = await res.json();
 
     expect(data.syncRun).toBeNull();
+    expect(data.history).toEqual([]);
   });
 });

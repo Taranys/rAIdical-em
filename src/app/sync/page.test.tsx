@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// US-010: Sync page component tests
-import { describe, it, expect, vi, beforeEach } from "vitest";
+// US-010 + US-013: Sync page component tests
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 // Mock fetch globally
@@ -9,8 +9,11 @@ global.fetch = mockFetch;
 
 import SyncPage from "./page";
 
-function mockSyncStatus(syncRun: Record<string, unknown> | null) {
-  return { syncRun };
+function mockSyncResponse(
+  syncRun: Record<string, unknown> | null,
+  history: Record<string, unknown>[] = [],
+) {
+  return { syncRun, history };
 }
 
 function mockRateLimit(rateLimit: Record<string, unknown> | null) {
@@ -30,7 +33,7 @@ describe("SyncPage", () => {
   it("renders the page title", async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve(mockSyncStatus(null)),
+      json: () => Promise.resolve(mockSyncResponse(null)),
     });
 
     render(<SyncPage />);
@@ -48,7 +51,7 @@ describe("SyncPage", () => {
       }
       return Promise.resolve({
         ok: true,
-        json: () => Promise.resolve(mockSyncStatus(null)),
+        json: () => Promise.resolve(mockSyncResponse(null)),
       });
     });
 
@@ -60,6 +63,15 @@ describe("SyncPage", () => {
   });
 
   it("shows up to date state after successful sync", async () => {
+    const syncRun = {
+      id: 1,
+      status: "success",
+      prCount: 42,
+      commentCount: 5,
+      startedAt: "2024-06-01T10:00:00Z",
+      completedAt: "2024-06-01T10:05:00Z",
+      errorMessage: null,
+    };
     mockFetch.mockImplementation((url: string) => {
       if (url.includes("rate-limit")) {
         return Promise.resolve({
@@ -69,17 +81,7 @@ describe("SyncPage", () => {
       }
       return Promise.resolve({
         ok: true,
-        json: () =>
-          Promise.resolve(
-            mockSyncStatus({
-              id: 1,
-              status: "success",
-              prCount: 42,
-              startedAt: "2024-06-01T10:00:00Z",
-              completedAt: "2024-06-01T10:05:00Z",
-              errorMessage: null,
-            }),
-          ),
+        json: () => Promise.resolve(mockSyncResponse(syncRun, [syncRun])),
       });
     });
 
@@ -87,7 +89,7 @@ describe("SyncPage", () => {
 
     await waitFor(() => {
       expect(screen.getByText(/up to date/i)).toBeInTheDocument();
-      expect(screen.getByText(/42/)).toBeInTheDocument();
+      expect(screen.getByText(/42 PRs, 5 comments synced/)).toBeInTheDocument();
     });
   });
 
@@ -103,10 +105,11 @@ describe("SyncPage", () => {
         ok: true,
         json: () =>
           Promise.resolve(
-            mockSyncStatus({
+            mockSyncResponse({
               id: 1,
               status: "error",
               prCount: 10,
+              commentCount: 0,
               startedAt: "2024-06-01T10:00:00Z",
               completedAt: "2024-06-01T10:01:00Z",
               errorMessage: "Rate limit exceeded",
@@ -139,7 +142,7 @@ describe("SyncPage", () => {
       }
       return Promise.resolve({
         ok: true,
-        json: () => Promise.resolve(mockSyncStatus(null)),
+        json: () => Promise.resolve(mockSyncResponse(null)),
       });
     });
 
@@ -173,7 +176,7 @@ describe("SyncPage", () => {
       }
       return Promise.resolve({
         ok: true,
-        json: () => Promise.resolve(mockSyncStatus(null)),
+        json: () => Promise.resolve(mockSyncResponse(null)),
       });
     });
 
@@ -182,6 +185,91 @@ describe("SyncPage", () => {
     await waitFor(() => {
       expect(screen.getByText(/4500/)).toBeInTheDocument();
       expect(screen.getByText(/5000/)).toBeInTheDocument();
+    });
+  });
+
+  // US-013: Sync history tests
+  it("shows sync history table with runs", async () => {
+    const history = [
+      { id: 3, status: "success", prCount: 50, commentCount: 10, startedAt: "2024-06-03T10:00:00Z", completedAt: "2024-06-03T10:05:00Z", errorMessage: null },
+      { id: 2, status: "error", prCount: 5, commentCount: 0, startedAt: "2024-06-02T10:00:00Z", completedAt: "2024-06-02T10:01:00Z", errorMessage: "Error" },
+      { id: 1, status: "success", prCount: 20, commentCount: 3, startedAt: "2024-06-01T10:00:00Z", completedAt: "2024-06-01T10:03:00Z", errorMessage: null },
+    ];
+
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("rate-limit")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockRateLimit(null)),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockSyncResponse(history[0], history)),
+      });
+    });
+
+    render(<SyncPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Sync History")).toBeInTheDocument();
+    });
+
+    // Table should have rows for each history run
+    const rows = screen.getAllByRole("row");
+    // 1 header row + 3 data rows
+    expect(rows.length).toBe(4);
+  });
+
+  it("shows comment count in status indicator", async () => {
+    const syncRun = {
+      id: 1,
+      status: "success",
+      prCount: 42,
+      commentCount: 15,
+      startedAt: "2024-06-01T10:00:00Z",
+      completedAt: "2024-06-01T10:05:00Z",
+      errorMessage: null,
+    };
+
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("rate-limit")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockRateLimit(null)),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockSyncResponse(syncRun, [syncRun])),
+      });
+    });
+
+    render(<SyncPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/15 comments/)).toBeInTheDocument();
+    });
+  });
+
+  it("shows empty state when no sync history", async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("rate-limit")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockRateLimit(null)),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockSyncResponse(null, [])),
+      });
+    });
+
+    render(<SyncPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("No sync history yet.")).toBeInTheDocument();
     });
   });
 });

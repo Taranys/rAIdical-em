@@ -1,12 +1,17 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+// US-023 + US-013: App sidebar tests
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
 // Mock next/navigation
 vi.mock("next/navigation", () => ({
   usePathname: vi.fn(),
 }));
+
+// Mock fetch globally
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
 
 import { usePathname } from "next/navigation";
 
@@ -38,7 +43,17 @@ function renderSidebar() {
 
 describe("AppSidebar", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     vi.mocked(usePathname).mockReturnValue("/");
+    // Default: no sync run
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ syncRun: null, history: [] }),
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("renders the app title", () => {
@@ -100,5 +115,71 @@ describe("AppSidebar", () => {
     expect(screen.getByRole("link", { name: /Team/i })).toHaveAttribute("data-active", "false");
     expect(screen.getByRole("link", { name: /Sync/i })).toHaveAttribute("data-active", "false");
     expect(screen.getByRole("link", { name: /Settings/i })).toHaveAttribute("data-active", "true");
+  });
+
+  // US-013: Sync status emoji indicator tests
+  it("shows success emoji when last sync was successful", async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        syncRun: { id: 1, status: "success", prCount: 42, commentCount: 0, startedAt: "2024-06-01T10:00:00Z", completedAt: "2024-06-01T10:05:00Z", errorMessage: null },
+        history: [],
+      }),
+    });
+
+    renderSidebar();
+
+    await waitFor(() => {
+      const indicator = screen.getByTestId("sync-status-dot");
+      expect(indicator).toBeInTheDocument();
+      expect(indicator.textContent).toBe("✅");
+    });
+  });
+
+  it("shows error emoji when last sync had an error", async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        syncRun: { id: 1, status: "error", prCount: 5, commentCount: 0, startedAt: "2024-06-01T10:00:00Z", completedAt: "2024-06-01T10:01:00Z", errorMessage: "Error" },
+        history: [],
+      }),
+    });
+
+    renderSidebar();
+
+    await waitFor(() => {
+      const indicator = screen.getByTestId("sync-status-dot");
+      expect(indicator).toBeInTheDocument();
+      expect(indicator.textContent).toBe("❌");
+    });
+  });
+
+  it("shows running emoji when sync is in progress", async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        syncRun: { id: 1, status: "running", prCount: 5, commentCount: 0, startedAt: "2024-06-01T10:00:00Z", completedAt: null, errorMessage: null },
+        history: [],
+      }),
+    });
+
+    renderSidebar();
+
+    await waitFor(() => {
+      const indicator = screen.getByTestId("sync-status-dot");
+      expect(indicator).toBeInTheDocument();
+      expect(indicator.textContent).toBe("🔄");
+    });
+  });
+
+  it("does not show dot when no sync has been run", async () => {
+    renderSidebar();
+
+    // Wait for fetch to complete
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalled();
+    });
+
+    expect(screen.queryByTestId("sync-status-dot")).not.toBeInTheDocument();
   });
 });

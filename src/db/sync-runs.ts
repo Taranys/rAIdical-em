@@ -70,6 +70,21 @@ export function getLatestSyncRun(
   );
 }
 
+// US-013: Get sync run history (last N runs)
+export function getSyncRunHistory(
+  repository: string,
+  limit: number = 10,
+  dbInstance: DbInstance = defaultDb,
+) {
+  return dbInstance
+    .select()
+    .from(syncRuns)
+    .where(eq(syncRuns.repository, repository))
+    .orderBy(desc(syncRuns.id))
+    .limit(limit)
+    .all();
+}
+
 export function getActiveSyncRun(
   repository: string,
   dbInstance: DbInstance = defaultDb,

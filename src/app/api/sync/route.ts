@@ -5,6 +5,7 @@ import {
   createSyncRun,
   getLatestSyncRun,
   getActiveSyncRun,
+  getSyncRunHistory,
 } from "@/db/sync-runs";
 import { syncPullRequests } from "@/lib/github-sync";
 
@@ -50,9 +51,11 @@ export async function GET() {
   const repo = getSetting("github_repo");
 
   if (!owner || !repo) {
-    return NextResponse.json({ syncRun: null });
+    return NextResponse.json({ syncRun: null, history: [] });
   }
 
-  const syncRun = getLatestSyncRun(`${owner}/${repo}`);
-  return NextResponse.json({ syncRun });
+  const repository = `${owner}/${repo}`;
+  const syncRun = getLatestSyncRun(repository);
+  const history = getSyncRunHistory(repository, 10);
+  return NextResponse.json({ syncRun, history });
 }

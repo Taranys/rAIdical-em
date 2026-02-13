@@ -9,6 +9,7 @@ import {
   updateSyncRunProgress,
   getLatestSyncRun,
   getActiveSyncRun,
+  getSyncRunHistory,
 } from "./sync-runs";
 
 describe("sync-runs DAL (integration)", () => {
@@ -110,5 +111,55 @@ describe("sync-runs DAL (integration)", () => {
 
     expect(getLatestSyncRun("owner/repo", testDb)).toBeNull();
     expect(getActiveSyncRun("owner/repo", testDb)).toBeNull();
+  });
+
+  // US-013: getSyncRunHistory tests
+  describe("getSyncRunHistory", () => {
+    it("returns empty array when no sync runs exist", () => {
+      const history = getSyncRunHistory("owner/repo", 10, testDb);
+      expect(history).toEqual([]);
+    });
+
+    it("returns sync runs ordered by most recent first", () => {
+      const first = createSyncRun("owner/repo", testDb);
+      completeSyncRun(first.id, "success", 10, null, testDb);
+      const second = createSyncRun("owner/repo", testDb);
+      completeSyncRun(second.id, "error", 5, "Rate limit", testDb);
+      const third = createSyncRun("owner/repo", testDb);
+      completeSyncRun(third.id, "success", 20, null, testDb);
+
+      const history = getSyncRunHistory("owner/repo", 10, testDb);
+
+      expect(history).toHaveLength(3);
+      expect(history[0].id).toBe(third.id);
+      expect(history[1].id).toBe(second.id);
+      expect(history[2].id).toBe(first.id);
+    });
+
+    it("respects the limit parameter", () => {
+      for (let i = 0; i < 5; i++) {
+        const run = createSyncRun("owner/repo", testDb);
+        completeSyncRun(run.id, "success", i * 10, null, testDb);
+      }
+
+      const history = getSyncRunHistory("owner/repo", 2, testDb);
+
+      expect(history).toHaveLength(2);
+      // Should be the 2 most recent
+      expect(history[0].prCount).toBe(40);
+      expect(history[1].prCount).toBe(30);
+    });
+
+    it("only returns runs for the specified repository", () => {
+      const run1 = createSyncRun("owner/repo", testDb);
+      completeSyncRun(run1.id, "success", 10, null, testDb);
+      const run2 = createSyncRun("other/repo", testDb);
+      completeSyncRun(run2.id, "success", 20, null, testDb);
+
+      const history = getSyncRunHistory("owner/repo", 10, testDb);
+
+      expect(history).toHaveLength(1);
+      expect(history[0].repository).toBe("owner/repo");
+    });
   });
 });
