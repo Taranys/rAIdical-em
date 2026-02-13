@@ -15,6 +15,13 @@
       "when": 1770931382006,
       "tag": "0001_equal_tattoo",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1770993168254,
+      "tag": "0002_green_red_shift",
+      "breakpoints": true
     }
   ]
 }

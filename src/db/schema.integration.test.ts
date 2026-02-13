@@ -86,6 +86,7 @@ describe("Phase 1 schema (integration)", () => {
         completed_at TEXT,
         status TEXT NOT NULL,
         pr_count INTEGER NOT NULL DEFAULT 0,
+        review_count INTEGER NOT NULL DEFAULT 0,
         comment_count INTEGER NOT NULL DEFAULT 0,
         error_message TEXT
       );

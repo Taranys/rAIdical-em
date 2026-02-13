@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// US-010 + US-013: Sync page component tests
+// US-010 + US-011 + US-013: Sync page component tests
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
@@ -67,6 +67,7 @@ describe("SyncPage", () => {
       id: 1,
       status: "success",
       prCount: 42,
+      reviewCount: 10,
       commentCount: 5,
       startedAt: "2024-06-01T10:00:00Z",
       completedAt: "2024-06-01T10:05:00Z",
@@ -89,7 +90,7 @@ describe("SyncPage", () => {
 
     await waitFor(() => {
       expect(screen.getByText(/up to date/i)).toBeInTheDocument();
-      expect(screen.getByText(/42 PRs, 5 comments synced/)).toBeInTheDocument();
+      expect(screen.getByText(/42 PRs, 10 reviews, 5 comments synced/)).toBeInTheDocument();
     });
   });
 
@@ -109,6 +110,7 @@ describe("SyncPage", () => {
               id: 1,
               status: "error",
               prCount: 10,
+              reviewCount: 0,
               commentCount: 0,
               startedAt: "2024-06-01T10:00:00Z",
               completedAt: "2024-06-01T10:01:00Z",
@@ -159,6 +161,73 @@ describe("SyncPage", () => {
     });
   });
 
+  // US-011: Review count display tests
+  it("shows review count in success state", async () => {
+    const syncRun = {
+      id: 1,
+      status: "success",
+      prCount: 42,
+      reviewCount: 120,
+      commentCount: 5,
+      startedAt: "2024-06-01T10:00:00Z",
+      completedAt: "2024-06-01T10:05:00Z",
+      errorMessage: null,
+    };
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("rate-limit")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockRateLimit({ limit: 5000, remaining: 4500, resetAt: "2024-06-01T11:00:00Z" })),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockSyncResponse(syncRun, [syncRun])),
+      });
+    });
+
+    render(<SyncPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/42 PRs/)).toBeInTheDocument();
+      expect(screen.getByText(/120 reviews/)).toBeInTheDocument();
+    });
+  });
+
+  it("shows review count in running state", async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("rate-limit")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockRateLimit({ limit: 5000, remaining: 4500, resetAt: "2024-06-01T11:00:00Z" })),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve(
+            mockSyncResponse({
+              id: 1,
+              status: "running",
+              prCount: 10,
+              reviewCount: 25,
+              commentCount: 3,
+              startedAt: "2024-06-01T10:00:00Z",
+              completedAt: null,
+              errorMessage: null,
+            }),
+          ),
+      });
+    });
+
+    render(<SyncPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/10 PRs/)).toBeInTheDocument();
+      expect(screen.getByText(/25 reviews/)).toBeInTheDocument();
+    });
+  });
+
   it("shows rate limit information", async () => {
     mockFetch.mockImplementation((url: string) => {
       if (url.includes("rate-limit")) {
@@ -191,9 +260,9 @@ describe("SyncPage", () => {
   // US-013: Sync history tests
   it("shows sync history table with runs", async () => {
     const history = [
-      { id: 3, status: "success", prCount: 50, commentCount: 10, startedAt: "2024-06-03T10:00:00Z", completedAt: "2024-06-03T10:05:00Z", errorMessage: null },
-      { id: 2, status: "error", prCount: 5, commentCount: 0, startedAt: "2024-06-02T10:00:00Z", completedAt: "2024-06-02T10:01:00Z", errorMessage: "Error" },
-      { id: 1, status: "success", prCount: 20, commentCount: 3, startedAt: "2024-06-01T10:00:00Z", completedAt: "2024-06-01T10:03:00Z", errorMessage: null },
+      { id: 3, status: "success", prCount: 50, reviewCount: 15, commentCount: 10, startedAt: "2024-06-03T10:00:00Z", completedAt: "2024-06-03T10:05:00Z", errorMessage: null },
+      { id: 2, status: "error", prCount: 5, reviewCount: 0, commentCount: 0, startedAt: "2024-06-02T10:00:00Z", completedAt: "2024-06-02T10:01:00Z", errorMessage: "Error" },
+      { id: 1, status: "success", prCount: 20, reviewCount: 8, commentCount: 3, startedAt: "2024-06-01T10:00:00Z", completedAt: "2024-06-01T10:03:00Z", errorMessage: null },
     ];
 
     mockFetch.mockImplementation((url: string) => {
@@ -226,6 +295,7 @@ describe("SyncPage", () => {
       id: 1,
       status: "success",
       prCount: 42,
+      reviewCount: 10,
       commentCount: 15,
       startedAt: "2024-06-01T10:00:00Z",
       completedAt: "2024-06-01T10:05:00Z",
