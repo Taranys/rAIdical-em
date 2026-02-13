@@ -6,7 +6,7 @@ import { encrypt, decrypt } from "@/lib/crypto";
 
 type DbInstance = typeof defaultDb;
 
-const ENCRYPTED_KEYS = new Set(["github_pat"]);
+const ENCRYPTED_KEYS = new Set(["github_pat", "llm_api_key"]);
 
 export function getSetting(
   key: string,

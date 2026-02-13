@@ -17,8 +17,11 @@ test.describe("GitHub PAT Configuration", () => {
       page.getByText("GitHub Personal Access Token"),
     ).toBeVisible();
 
-    // PAT input (password field)
-    await expect(page.locator("input[type='password']")).toBeVisible();
+    // PAT input (password field, scoped to PAT card)
+    const patCard = page
+      .locator('[data-slot="card"]')
+      .filter({ hasText: "GitHub Personal Access Token" });
+    await expect(patCard.locator("input[type='password']")).toBeVisible();
 
     // Generate classic PAT link (primary)
     const classicLink = page.getByRole("link", {
@@ -37,9 +40,6 @@ test.describe("GitHub PAT Configuration", () => {
     await expect(fineGrainedLink).toBeVisible();
 
     // Save button always visible (within the PAT card)
-    const patCard = page
-      .locator('[data-slot="card"]')
-      .filter({ hasText: "GitHub Personal Access Token" });
     await expect(patCard.getByRole("button", { name: /save/i })).toBeVisible();
   });
 
