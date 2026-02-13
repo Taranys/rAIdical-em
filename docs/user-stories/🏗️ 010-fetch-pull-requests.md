@@ -1,7 +1,7 @@
 # US-010: Fetch Pull Requests from GitHub
 
 **Phase:** 1 — GitHub Integration
-**Status:** Todo
+**Status:** In Progress
 
 ## Story
 

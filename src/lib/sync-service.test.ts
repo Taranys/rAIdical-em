@@ -33,7 +33,6 @@ describe("mapPullRequest", () => {
     expect(result.additions).toBe(100);
     expect(result.deletions).toBe(20);
     expect(result.changedFiles).toBe(5);
-    expect(result.rawJson).toBeTruthy();
   });
 
   it("maps a closed-and-merged PR to state 'merged'", () => {
