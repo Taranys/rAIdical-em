@@ -219,7 +219,7 @@ describe("GitHubPatForm", () => {
     });
   });
 
-  it("calls onPatChange after saving PAT", async () => {
+  it("calls onPatChange(true) after saving PAT", async () => {
     const onPatChange = vi.fn();
     globalThis.fetch = mockFetch({
       "PUT /api/settings/github-pat": { success: true },
@@ -232,11 +232,11 @@ describe("GitHubPatForm", () => {
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
 
     await waitFor(() => {
-      expect(onPatChange).toHaveBeenCalledTimes(1);
+      expect(onPatChange).toHaveBeenCalledWith(true);
     });
   });
 
-  it("calls onPatChange after deleting PAT", async () => {
+  it("calls onPatChange(false) after deleting PAT", async () => {
     const onPatChange = vi.fn();
     globalThis.fetch = mockFetch({
       "GET /api/settings/github-pat": { configured: true },
@@ -251,7 +251,7 @@ describe("GitHubPatForm", () => {
     fireEvent.click(screen.getByRole("button", { name: /delete/i }));
 
     await waitFor(() => {
-      expect(onPatChange).toHaveBeenCalledTimes(1);
+      expect(onPatChange).toHaveBeenCalledWith(false);
     });
   });
 

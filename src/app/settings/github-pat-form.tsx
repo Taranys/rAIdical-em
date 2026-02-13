@@ -18,7 +18,7 @@ interface Feedback {
 }
 
 interface GitHubPatFormProps {
-  onPatChange?: () => void;
+  onPatChange?: (isConfigured: boolean) => void;
 }
 
 export function GitHubPatForm({ onPatChange }: GitHubPatFormProps) {
@@ -60,7 +60,7 @@ export function GitHubPatForm({ onPatChange }: GitHubPatFormProps) {
         setFeedback({ type: "success", message: "PAT saved successfully." });
         setToken("");
         setIsConfigured(true);
-        onPatChange?.();
+        onPatChange?.(true);
       } else {
         setFeedback({
           type: "error",
@@ -110,7 +110,7 @@ export function GitHubPatForm({ onPatChange }: GitHubPatFormProps) {
       await fetch("/api/settings/github-pat", { method: "DELETE" });
       setIsConfigured(false);
       setFeedback({ type: "success", message: "PAT deleted." });
-      onPatChange?.();
+      onPatChange?.(false);
     } catch {
       setFeedback({ type: "error", message: "Failed to delete PAT." });
     } finally {
