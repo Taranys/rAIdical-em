@@ -117,8 +117,8 @@ describe("AppSidebar", () => {
     expect(screen.getByRole("link", { name: /Settings/i })).toHaveAttribute("data-active", "true");
   });
 
-  // US-013: Sync status dot tests
-  it("shows green dot when last sync was successful", async () => {
+  // US-013: Sync status emoji indicator tests
+  it("shows success emoji when last sync was successful", async () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({
@@ -130,13 +130,13 @@ describe("AppSidebar", () => {
     renderSidebar();
 
     await waitFor(() => {
-      const dot = screen.getByTestId("sync-status-dot");
-      expect(dot).toBeInTheDocument();
-      expect(dot.className).toContain("bg-green-500");
+      const indicator = screen.getByTestId("sync-status-dot");
+      expect(indicator).toBeInTheDocument();
+      expect(indicator.textContent).toBe("✅");
     });
   });
 
-  it("shows red dot when last sync had an error", async () => {
+  it("shows error emoji when last sync had an error", async () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({
@@ -148,13 +148,13 @@ describe("AppSidebar", () => {
     renderSidebar();
 
     await waitFor(() => {
-      const dot = screen.getByTestId("sync-status-dot");
-      expect(dot).toBeInTheDocument();
-      expect(dot.className).toContain("bg-red-500");
+      const indicator = screen.getByTestId("sync-status-dot");
+      expect(indicator).toBeInTheDocument();
+      expect(indicator.textContent).toBe("❌");
     });
   });
 
-  it("shows blue pulsing dot when sync is running", async () => {
+  it("shows running emoji when sync is in progress", async () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({
@@ -166,10 +166,9 @@ describe("AppSidebar", () => {
     renderSidebar();
 
     await waitFor(() => {
-      const dot = screen.getByTestId("sync-status-dot");
-      expect(dot).toBeInTheDocument();
-      expect(dot.className).toContain("bg-blue-500");
-      expect(dot.className).toContain("animate-pulse");
+      const indicator = screen.getByTestId("sync-status-dot");
+      expect(indicator).toBeInTheDocument();
+      expect(indicator.textContent).toBe("🔄");
     });
   });
 

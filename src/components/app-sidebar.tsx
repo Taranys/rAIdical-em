@@ -24,7 +24,7 @@ const NAV_ITEMS = [
   { title: "Settings", href: "/settings", icon: Settings },
 ];
 
-// US-013: Sync status dot indicator
+// US-013: Sync status emoji indicator
 type SyncStatus = "running" | "success" | "error" | null;
 
 async function fetchSyncStatusFromApi(): Promise<SyncStatus> {
@@ -37,19 +37,21 @@ async function fetchSyncStatusFromApi(): Promise<SyncStatus> {
   }
 }
 
-function SyncStatusDot({ status }: { status: "running" | "success" | "error" }) {
-  const colorMap = {
-    running: "bg-blue-500 animate-pulse",
-    success: "bg-green-500",
-    error: "bg-red-500",
-  };
+const SYNC_STATUS_EMOJI: Record<"running" | "success" | "error", string> = {
+  running: "🔄",
+  success: "✅",
+  error: "❌",
+};
 
+function SyncStatusIndicator({ status }: { status: "running" | "success" | "error" }) {
   return (
     <span
       data-testid="sync-status-dot"
-      className={`ml-auto inline-block h-2 w-2 rounded-full ${colorMap[status]}`}
+      className="ml-auto text-xs"
       title={`Sync: ${status}`}
-    />
+    >
+      {SYNC_STATUS_EMOJI[status]}
+    </span>
   );
 }
 
@@ -114,7 +116,7 @@ export function AppSidebar() {
                       <item.icon />
                       <span>{item.title}</span>
                       {item.title === "Sync" && syncStatus && (
-                        <SyncStatusDot status={syncStatus} />
+                        <SyncStatusIndicator status={syncStatus} />
                       )}
                     </Link>
                   </SidebarMenuButton>
