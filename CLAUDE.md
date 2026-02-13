@@ -12,20 +12,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## User Stories
 
 - All user stories live in `docs/user-stories/`.
-- **Naming convention (from Phase 2 onward):** `US-<phase>.<incremental>-short-description.md` — a semver-inspired format where `<phase>` is the phase number and `<incremental>` is a sequential ID within that phase (e.g., `US-2.01-configure-llm-provider.md`, `US-2.02-classify-review-comments.md`).
+- Naming convention: `<emoji> NNN-short-description.md`. Use the next available sequential number.
+  - `✅` — Done (all acceptance criteria met)
+  - `🏗️` — Ready to build (all dependencies are Done, implementation not started)
+  - `❌` — Blocked (at least one dependency is not Done yet)
+- **Phase 2+ naming:** `US-<phase>.<incremental>-short-description.md` — a semver-inspired format where `<phase>` is the phase number and `<incremental>` is a sequential ID within that phase (e.g., `US-2.01-configure-llm-provider.md`). The emoji prefix convention applies to these files too.
 - **Legacy naming (Phase 0–1):** Older stories use the format `NNN-short-description.md` (e.g., `001-define-product-vision.md`). These are kept as-is for backward compatibility.
-- Each file follows the template: title (`# US-<phase>.<id>: Title`), phase, status (`Done` / `In Progress` / `Todo`), story (As a … I want … so that …), and acceptance criteria (checklist).
-- Use story IDs in code comments to link implementation back to the story (e.g., `// US-2.03: seniority profile computation`).
+- Each file follows the template: title (`# US-NNN: Title`), phase, status (`Done` / `In Progress` / `Todo`), story (As a … I want … so that …), dependencies (with status emoji and markdown links), acceptance criteria (checklist), and a "Plan and implementation details" section.
+- The "Plan and implementation details" section in each US contains the implementation plan (filled before starting work) and implementation notes (filled after completion). This replaces the old `docs/plan/` folder.
 - **Status updates:** When a user story is fully implemented, update its status from `In Progress` (or `Todo`) to `Done` in the corresponding markdown file and check off all completed acceptance criteria.
-- When you need context on a feature, check `docs/user-stories/` — the phase prefix and description make it easy to find relevant stories.
-
-## Plans
-
-- All implementation plans must be committed as Markdown files in `docs/plan/`.
-- Naming convention: `NNN-short-description.md` (e.g., `001-auth-system.md`, `002-dashboard-ui.md`). Use the next available sequential number. When the plan implements a user story, prefix the name with the user story ID (e.g., `002-US-023-application-shell-navigation.md`).
-- When a plan is fully implemented, move it from `docs/plan/` to `docs/plan_finished/`, keeping the same filename.
-- When you need context on a past feature, look in `docs/plan_finished/` first — the sequential ID and description make it easy to find relevant plans.
-- Use plan IDs in code comments to link implementation back to the plan (e.g., `// Plan 001: auth token refresh logic`).
+- Use story IDs in code comments to link implementation back to the story (e.g., `// US-003: health check endpoint`).
 
 ## Tech Stack
 
