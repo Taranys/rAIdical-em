@@ -9,6 +9,7 @@ As an engineering manager, I want to filter all dashboard metrics by a time peri
 
 ## Dependencies
 
+- 🏗️ [US-015: View PRs Opened per Team Member](🏗️%20015-view-prs-opened.md) — at least one metric view must exist for the period selector to filter
 - ✅ [US-023: Application Shell](✅%20023-application-shell-navigation.md) — sidebar navigation to dashboard page
 
 ## Acceptance Criteria
