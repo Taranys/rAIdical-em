@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { VibeKanbanDevTools } from "@/components/vibe-kanban-web-companion";
 
 export const metadata: Metadata = {
   title: "em-control-tower",
@@ -18,6 +19,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        <VibeKanbanDevTools />
         <SidebarProvider>
           <AppSidebar />
           <SidebarInset>
