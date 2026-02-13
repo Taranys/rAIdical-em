@@ -9,9 +9,10 @@ test.describe("Application Shell and Navigation", () => {
     const sidebar = page.locator("[data-slot='sidebar']");
     await expect(sidebar.getByText("em-control-tower")).toBeVisible();
 
-    // All three navigation links present
+    // All navigation links present
     await expect(sidebar.getByRole("link", { name: "Dashboard" })).toBeVisible();
     await expect(sidebar.getByRole("link", { name: "Team" })).toBeVisible();
+    await expect(sidebar.getByRole("link", { name: "Sync" })).toBeVisible();
     await expect(sidebar.getByRole("link", { name: "Settings" })).toBeVisible();
   });
 

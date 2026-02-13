@@ -1,150 +1,187 @@
 // @vitest-environment jsdom
-// US-010: Unit tests for sync page
+// US-010: Sync page component tests
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+
+// Mock fetch globally
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
+
 import SyncPage from "./page";
 
-function createSSEStream(events: { event: string; data: unknown }[]) {
-  const text = events
-    .map((e) => `event: ${e.event}\ndata: ${JSON.stringify(e.data)}`)
-    .join("\n\n") + "\n\n";
-  const encoder = new TextEncoder();
-  const stream = new ReadableStream({
-    start(controller) {
-      controller.enqueue(encoder.encode(text));
-      controller.close();
-    },
-  });
-  return stream;
+function mockSyncStatus(syncRun: Record<string, unknown> | null) {
+  return { syncRun };
 }
 
-function mockFetchWithConfig(
-  configResponse: { configured: boolean; owner?: string; repo?: string },
-  sseEvents?: { event: string; data: unknown }[],
-) {
-  return vi.fn((url: string, init?: RequestInit) => {
-    if (url === "/api/settings/github-repo" && (!init || init.method === "GET" || !init.method)) {
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve(configResponse),
-      });
-    }
-    if (url === "/api/sync" && init?.method === "POST" && sseEvents) {
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        body: createSSEStream(sseEvents),
-      });
-    }
-    return Promise.resolve({
-      ok: false,
-      status: 404,
-      json: () => Promise.resolve({ error: "Not found" }),
-    });
-  }) as unknown as typeof globalThis.fetch;
+function mockRateLimit(rateLimit: Record<string, unknown> | null) {
+  return rateLimit ? { rateLimit } : { error: "No PAT" };
 }
 
 describe("SyncPage", () => {
   beforeEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
   });
 
-  it("renders the page heading", () => {
-    globalThis.fetch = mockFetchWithConfig({
-      configured: true,
-      owner: "myorg",
-      repo: "myrepo",
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("renders the page title", async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(mockSyncStatus(null)),
     });
+
     render(<SyncPage />);
+
     expect(screen.getByText("Sync")).toBeInTheDocument();
   });
 
-  it("renders the start sync button when repo is configured", async () => {
-    globalThis.fetch = mockFetchWithConfig({
-      configured: true,
-      owner: "myorg",
-      repo: "myrepo",
+  it("shows never synced state when no sync runs exist", async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("rate-limit")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockRateLimit({ limit: 5000, remaining: 4500, resetAt: "2024-06-01T11:00:00Z" })),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockSyncStatus(null)),
+      });
     });
+
     render(<SyncPage />);
+
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: /start sync/i }),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/never synced/i)).toBeInTheDocument();
     });
   });
 
-  it("shows message when repository is not configured", async () => {
-    globalThis.fetch = mockFetchWithConfig({ configured: false });
-    render(<SyncPage />);
-    await waitFor(() => {
-      expect(screen.getByText(/configure.*repository/i)).toBeInTheDocument();
+  it("shows up to date state after successful sync", async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("rate-limit")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockRateLimit({ limit: 5000, remaining: 4500, resetAt: "2024-06-01T11:00:00Z" })),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve(
+            mockSyncStatus({
+              id: 1,
+              status: "success",
+              prCount: 42,
+              startedAt: "2024-06-01T10:00:00Z",
+              completedAt: "2024-06-01T10:05:00Z",
+              errorMessage: null,
+            }),
+          ),
+      });
     });
-  });
-
-  it("disables button while syncing", async () => {
-    // Use a fetch that returns a stream that never resolves quickly
-    globalThis.fetch = mockFetchWithConfig(
-      { configured: true, owner: "myorg", repo: "myrepo" },
-      [
-        { event: "sync:start", data: { syncRunId: 1, repository: "myorg/myrepo" } },
-        { event: "sync:complete", data: { syncRunId: 1, prCount: 5, durationMs: 100 } },
-      ],
-    );
-
-    render(<SyncPage />);
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /start sync/i })).toBeEnabled();
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: /start sync/i }));
-
-    // Button should show syncing state
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /syncing/i })).toBeDisabled();
-    });
-  });
-
-  it("shows success state on completion", async () => {
-    globalThis.fetch = mockFetchWithConfig(
-      { configured: true, owner: "myorg", repo: "myrepo" },
-      [
-        { event: "sync:start", data: { syncRunId: 1, repository: "myorg/myrepo" } },
-        { event: "sync:progress", data: { fetched: 42, currentPage: 1 } },
-        { event: "sync:complete", data: { syncRunId: 1, prCount: 42, durationMs: 1500 } },
-      ],
-    );
 
     render(<SyncPage />);
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /start sync/i })).toBeEnabled();
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: /start sync/i }));
 
     await waitFor(() => {
+      expect(screen.getByText(/up to date/i)).toBeInTheDocument();
       expect(screen.getByText(/42/)).toBeInTheDocument();
     });
   });
 
-  it("shows error state on failure", async () => {
-    globalThis.fetch = mockFetchWithConfig(
-      { configured: true, owner: "myorg", repo: "myrepo" },
-      [
-        { event: "sync:start", data: { syncRunId: 1, repository: "myorg/myrepo" } },
-        { event: "sync:error", data: { message: "Rate limit exceeded", syncRunId: 1 } },
-      ],
-    );
-
-    render(<SyncPage />);
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /start sync/i })).toBeEnabled();
+  it("shows error state with error message", async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("rate-limit")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockRateLimit({ limit: 5000, remaining: 4500, resetAt: "2024-06-01T11:00:00Z" })),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve(
+            mockSyncStatus({
+              id: 1,
+              status: "error",
+              prCount: 10,
+              startedAt: "2024-06-01T10:00:00Z",
+              completedAt: "2024-06-01T10:01:00Z",
+              errorMessage: "Rate limit exceeded",
+            }),
+          ),
+      });
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /start sync/i }));
+    render(<SyncPage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/rate limit exceeded/i)).toBeInTheDocument();
+      expect(screen.getByText("Sync error")).toBeInTheDocument();
+      expect(screen.getByText("Rate limit exceeded")).toBeInTheDocument();
+    });
+  });
+
+  it("triggers sync when clicking Sync Now button", async () => {
+    mockFetch.mockImplementation((url: string, opts?: RequestInit) => {
+      if (url.includes("rate-limit")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockRateLimit({ limit: 5000, remaining: 4500, resetAt: "2024-06-01T11:00:00Z" })),
+        });
+      }
+      if (opts?.method === "POST") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: true, syncRunId: 1 }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockSyncStatus(null)),
+      });
+    });
+
+    render(<SyncPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /sync now/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /sync now/i }));
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith("/api/sync", expect.objectContaining({ method: "POST" }));
+    });
+  });
+
+  it("shows rate limit information", async () => {
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("rate-limit")) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve(
+              mockRateLimit({
+                limit: 5000,
+                remaining: 4500,
+                resetAt: "2024-06-01T11:00:00Z",
+              }),
+            ),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockSyncStatus(null)),
+      });
+    });
+
+    render(<SyncPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/4500/)).toBeInTheDocument();
+      expect(screen.getByText(/5000/)).toBeInTheDocument();
     });
   });
 });

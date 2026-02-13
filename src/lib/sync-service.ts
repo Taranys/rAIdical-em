@@ -31,8 +31,12 @@ interface GitHubPR {
 }
 
 export function mapPullRequest(pr: GitHubPR): PullRequestInput {
-  const state =
-    pr.state === "closed" && pr.merged_at ? "merged" : pr.state;
+  const state: PullRequestInput["state"] =
+    pr.state === "closed" && pr.merged_at
+      ? "merged"
+      : pr.state === "closed"
+        ? "closed"
+        : "open";
 
   return {
     githubId: pr.id,
@@ -45,7 +49,6 @@ export function mapPullRequest(pr: GitHubPR): PullRequestInput {
     additions: pr.additions ?? 0,
     deletions: pr.deletions ?? 0,
     changedFiles: pr.changed_files ?? 0,
-    rawJson: JSON.stringify(pr),
   };
 }
 

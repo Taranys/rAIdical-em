@@ -6,8 +6,9 @@ import * as schema from "./schema";
 import {
   createSyncRun,
   completeSyncRun,
-  failSyncRun,
+  updateSyncRunProgress,
   getLatestSyncRun,
+  getActiveSyncRun,
 } from "./sync-runs";
 
 describe("sync-runs DAL (integration)", () => {
@@ -37,59 +38,77 @@ describe("sync-runs DAL (integration)", () => {
     testSqlite.close();
   });
 
-  it("creates a sync run with status 'running'", () => {
+  it("creates a sync run with running status", () => {
     const run = createSyncRun("owner/repo", testDb);
 
-    expect(run.id).toBeDefined();
     expect(run.repository).toBe("owner/repo");
     expect(run.status).toBe("running");
-    expect(run.startedAt).toBeTruthy();
-    expect(run.completedAt).toBeNull();
     expect(run.prCount).toBe(0);
-    expect(run.errorMessage).toBeNull();
+    expect(run.completedAt).toBeNull();
+    expect(run.startedAt).toBeTruthy();
   });
 
-  it("completes a sync run with success status and prCount", () => {
+  it("completes a sync run with success", () => {
     const run = createSyncRun("owner/repo", testDb);
-    completeSyncRun(run.id, 42, testDb);
+    const completed = completeSyncRun(run.id, "success", 42, null, testDb);
 
-    const rows = testSqlite
-      .prepare("SELECT * FROM sync_runs WHERE id = ?")
-      .all(run.id) as Record<string, unknown>[];
-    expect(rows[0].status).toBe("success");
-    expect(rows[0].pr_count).toBe(42);
-    expect(rows[0].completed_at).toBeTruthy();
+    expect(completed.status).toBe("success");
+    expect(completed.prCount).toBe(42);
+    expect(completed.completedAt).toBeTruthy();
+    expect(completed.errorMessage).toBeNull();
   });
 
-  it("fails a sync run with error status and message", () => {
+  it("completes a sync run with error", () => {
     const run = createSyncRun("owner/repo", testDb);
-    failSyncRun(run.id, "Rate limit exceeded", testDb);
+    const completed = completeSyncRun(run.id, "error", 10, "Rate limit exceeded", testDb);
 
-    const rows = testSqlite
-      .prepare("SELECT * FROM sync_runs WHERE id = ?")
-      .all(run.id) as Record<string, unknown>[];
-    expect(rows[0].status).toBe("error");
-    expect(rows[0].error_message).toBe("Rate limit exceeded");
-    expect(rows[0].completed_at).toBeTruthy();
+    expect(completed.status).toBe("error");
+    expect(completed.prCount).toBe(10);
+    expect(completed.errorMessage).toBe("Rate limit exceeded");
+    expect(completed.completedAt).toBeTruthy();
   });
 
-  it("returns the latest sync run for a repository", () => {
+  it("updates sync run progress", () => {
+    const run = createSyncRun("owner/repo", testDb);
+    const updated = updateSyncRunProgress(run.id, 25, testDb);
+
+    expect(updated.prCount).toBe(25);
+    expect(updated.status).toBe("running");
+  });
+
+  it("returns latest sync run for a repository", () => {
     createSyncRun("owner/repo", testDb);
     const second = createSyncRun("owner/repo", testDb);
-    completeSyncRun(second.id, 10, testDb);
+    completeSyncRun(second.id, "success", 50, null, testDb);
 
     const latest = getLatestSyncRun("owner/repo", testDb);
-    expect(latest).toBeTruthy();
+    expect(latest).not.toBeNull();
     expect(latest!.id).toBe(second.id);
   });
 
-  it("returns null when no sync runs exist for repository", () => {
+  it("returns null when no sync runs exist", () => {
     expect(getLatestSyncRun("owner/repo", testDb)).toBeNull();
   });
 
-  it("only returns sync runs for the specified repository", () => {
+  it("returns active sync run when one is running", () => {
+    const run = createSyncRun("owner/repo", testDb);
+
+    const active = getActiveSyncRun("owner/repo", testDb);
+    expect(active).not.toBeNull();
+    expect(active!.id).toBe(run.id);
+  });
+
+  it("returns null for active sync run when none running", () => {
+    const run = createSyncRun("owner/repo", testDb);
+    completeSyncRun(run.id, "success", 10, null, testDb);
+
+    expect(getActiveSyncRun("owner/repo", testDb)).toBeNull();
+  });
+
+  it("does not return sync runs from other repositories", () => {
     createSyncRun("other/repo", testDb);
 
     expect(getLatestSyncRun("owner/repo", testDb)).toBeNull();
+    expect(getActiveSyncRun("owner/repo", testDb)).toBeNull();
   });
 });

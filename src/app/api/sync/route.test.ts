@@ -1,38 +1,28 @@
 // US-010: Sync API route unit tests
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { mockSyncPullRequests } = vi.hoisted(() => ({
-  mockSyncPullRequests: vi.fn(),
+vi.mock("@/db/settings", () => ({
+  getSetting: vi.fn(),
 }));
 
-vi.mock("@/db/settings");
-vi.mock("@/db/pull-requests");
-vi.mock("@/db/sync-runs");
-vi.mock("@/lib/sync-service", () => ({
-  syncPullRequests: mockSyncPullRequests,
-}));
-vi.mock("octokit", () => ({
-  Octokit: class MockOctokit {},
+vi.mock("@/db/sync-runs", () => ({
+  createSyncRun: vi.fn(),
+  getLatestSyncRun: vi.fn(),
+  getActiveSyncRun: vi.fn(),
 }));
 
-import { POST } from "./route";
-import * as settingsDAL from "@/db/settings";
-import * as syncRunsDAL from "@/db/sync-runs";
+vi.mock("@/lib/github-sync", () => ({
+  syncPullRequests: vi.fn(),
+}));
 
-async function readSSEEvents(response: Response) {
-  const text = await response.text();
-  return text
-    .split("\n\n")
-    .filter(Boolean)
-    .map((block) => {
-      const eventMatch = block.match(/event: (.+)/);
-      const dataMatch = block.match(/data: (.+)/);
-      return {
-        event: eventMatch?.[1] ?? null,
-        data: dataMatch ? JSON.parse(dataMatch[1]) : null,
-      };
-    });
-}
+import { GET, POST } from "./route";
+import { getSetting } from "@/db/settings";
+import {
+  createSyncRun,
+  getLatestSyncRun,
+  getActiveSyncRun,
+} from "@/db/sync-runs";
+import { syncPullRequests } from "@/lib/github-sync";
 
 describe("POST /api/sync", () => {
   beforeEach(() => {
@@ -40,40 +30,39 @@ describe("POST /api/sync", () => {
   });
 
   it("returns 400 when no PAT configured", async () => {
-    vi.mocked(settingsDAL.getSetting).mockReturnValue(null);
+    vi.mocked(getSetting).mockReturnValue(null);
 
-    const response = await POST();
-    const data = await response.json();
+    const res = await POST();
+    const data = await res.json();
 
-    expect(response.status).toBe(400);
-    expect(data.error).toMatch(/PAT|repository|configured/i);
+    expect(res.status).toBe(400);
+    expect(data.error).toMatch(/PAT/i);
   });
 
   it("returns 400 when no repository configured", async () => {
-    vi.mocked(settingsDAL.getSetting).mockImplementation((key: string) => {
-      if (key === "github_pat") return "ghp_test";
+    vi.mocked(getSetting).mockImplementation((key: string) => {
+      if (key === "github_pat") return "ghp_token";
       return null;
     });
 
-    const response = await POST();
-    const data = await response.json();
+    const res = await POST();
+    const data = await res.json();
 
-    expect(response.status).toBe(400);
-    expect(data.error).toMatch(/PAT|repository|configured/i);
+    expect(res.status).toBe(400);
+    expect(data.error).toMatch(/repository/i);
   });
 
-  it("returns SSE stream with start and complete events on success", async () => {
-    vi.mocked(settingsDAL.getSetting).mockImplementation((key: string) => {
-      if (key === "github_pat") return "ghp_test";
-      if (key === "github_owner") return "myorg";
-      if (key === "github_repo") return "myrepo";
+  it("returns 409 when sync already running", async () => {
+    vi.mocked(getSetting).mockImplementation((key: string) => {
+      if (key === "github_pat") return "ghp_token";
+      if (key === "github_owner") return "owner";
+      if (key === "github_repo") return "repo";
       return null;
     });
-
-    vi.mocked(syncRunsDAL.createSyncRun).mockReturnValue({
+    vi.mocked(getActiveSyncRun).mockReturnValue({
       id: 1,
-      repository: "myorg/myrepo",
-      startedAt: "2024-01-01T00:00:00Z",
+      repository: "owner/repo",
+      startedAt: "2024-06-01T10:00:00Z",
       completedAt: null,
       status: "running",
       prCount: 0,
@@ -81,105 +70,92 @@ describe("POST /api/sync", () => {
       errorMessage: null,
     });
 
-    mockSyncPullRequests.mockResolvedValue({ prCount: 42, durationMs: 1500 });
+    const res = await POST();
+    const data = await res.json();
 
-    const response = await POST();
-    expect(response.headers.get("Content-Type")).toBe("text/event-stream");
-
-    const events = await readSSEEvents(response);
-
-    const startEvent = events.find((e) => e.event === "sync:start");
-    expect(startEvent).toBeTruthy();
-    expect(startEvent!.data.syncRunId).toBe(1);
-    expect(startEvent!.data.repository).toBe("myorg/myrepo");
-
-    const completeEvent = events.find((e) => e.event === "sync:complete");
-    expect(completeEvent).toBeTruthy();
-    expect(completeEvent!.data.prCount).toBe(42);
-    expect(completeEvent!.data.durationMs).toBe(1500);
+    expect(res.status).toBe(409);
+    expect(data.error).toMatch(/already/i);
   });
 
-  it("calls createSyncRun and completeSyncRun on success", async () => {
-    vi.mocked(settingsDAL.getSetting).mockImplementation((key: string) => {
-      if (key === "github_pat") return "ghp_test";
-      if (key === "github_owner") return "myorg";
-      if (key === "github_repo") return "myrepo";
+  it("starts sync and returns syncRunId on success", async () => {
+    vi.mocked(getSetting).mockImplementation((key: string) => {
+      if (key === "github_pat") return "ghp_token";
+      if (key === "github_owner") return "owner";
+      if (key === "github_repo") return "repo";
       return null;
     });
-
-    vi.mocked(syncRunsDAL.createSyncRun).mockReturnValue({
-      id: 1,
-      repository: "myorg/myrepo",
-      startedAt: "2024-01-01T00:00:00Z",
+    vi.mocked(getActiveSyncRun).mockReturnValue(null);
+    vi.mocked(createSyncRun).mockReturnValue({
+      id: 42,
+      repository: "owner/repo",
+      startedAt: "2024-06-01T10:00:00Z",
       completedAt: null,
       status: "running",
       prCount: 0,
       commentCount: 0,
       errorMessage: null,
     });
+    vi.mocked(syncPullRequests).mockResolvedValue(10);
 
-    mockSyncPullRequests.mockResolvedValue({ prCount: 10, durationMs: 500 });
+    const res = await POST();
+    const data = await res.json();
 
-    const response = await POST();
-    await response.text(); // consume stream
+    expect(res.status).toBe(200);
+    expect(data.success).toBe(true);
+    expect(data.syncRunId).toBe(42);
+    expect(syncPullRequests).toHaveBeenCalledWith("owner", "repo", "ghp_token", 42);
+  });
+});
 
-    expect(syncRunsDAL.createSyncRun).toHaveBeenCalledWith("myorg/myrepo");
-    expect(syncRunsDAL.completeSyncRun).toHaveBeenCalledWith(1, 10);
+describe("GET /api/sync", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
-  it("returns SSE stream with error event on failure", async () => {
-    vi.mocked(settingsDAL.getSetting).mockImplementation((key: string) => {
-      if (key === "github_pat") return "ghp_test";
-      if (key === "github_owner") return "myorg";
-      if (key === "github_repo") return "myrepo";
+  it("returns null when no repository configured", async () => {
+    vi.mocked(getSetting).mockReturnValue(null);
+
+    const res = await GET();
+    const data = await res.json();
+
+    expect(data.syncRun).toBeNull();
+  });
+
+  it("returns latest sync run", async () => {
+    vi.mocked(getSetting).mockImplementation((key: string) => {
+      if (key === "github_owner") return "owner";
+      if (key === "github_repo") return "repo";
       return null;
     });
-
-    vi.mocked(syncRunsDAL.createSyncRun).mockReturnValue({
+    vi.mocked(getLatestSyncRun).mockReturnValue({
       id: 1,
-      repository: "myorg/myrepo",
-      startedAt: "2024-01-01T00:00:00Z",
-      completedAt: null,
-      status: "running",
-      prCount: 0,
+      repository: "owner/repo",
+      startedAt: "2024-06-01T10:00:00Z",
+      completedAt: "2024-06-01T10:05:00Z",
+      status: "success",
+      prCount: 42,
       commentCount: 0,
       errorMessage: null,
     });
 
-    mockSyncPullRequests.mockRejectedValue(new Error("API rate limit exceeded"));
+    const res = await GET();
+    const data = await res.json();
 
-    const response = await POST();
-    const events = await readSSEEvents(response);
-
-    const errorEvent = events.find((e) => e.event === "sync:error");
-    expect(errorEvent).toBeTruthy();
-    expect(errorEvent!.data.message).toBe("API rate limit exceeded");
+    expect(data.syncRun.status).toBe("success");
+    expect(data.syncRun.prCount).toBe(42);
   });
 
-  it("calls failSyncRun on error", async () => {
-    vi.mocked(settingsDAL.getSetting).mockImplementation((key: string) => {
-      if (key === "github_pat") return "ghp_test";
-      if (key === "github_owner") return "myorg";
-      if (key === "github_repo") return "myrepo";
+  it("returns null when no sync runs exist", async () => {
+    vi.mocked(getSetting).mockImplementation((key: string) => {
+      if (key === "github_owner") return "owner";
+      if (key === "github_repo") return "repo";
       return null;
     });
+    vi.mocked(getLatestSyncRun).mockReturnValue(null);
 
-    vi.mocked(syncRunsDAL.createSyncRun).mockReturnValue({
-      id: 1,
-      repository: "myorg/myrepo",
-      startedAt: "2024-01-01T00:00:00Z",
-      completedAt: null,
-      status: "running",
-      prCount: 0,
-      commentCount: 0,
-      errorMessage: null,
-    });
+    const res = await GET();
+    const data = await res.json();
 
-    mockSyncPullRequests.mockRejectedValue(new Error("Network error"));
-
-    const response = await POST();
-    await response.text(); // consume stream
-
-    expect(syncRunsDAL.failSyncRun).toHaveBeenCalledWith(1, "Network error");
+    expect(data.syncRun).toBeNull();
   });
 });

@@ -9,7 +9,7 @@ As an engineering manager, I want to see when the last sync happened and whether
 
 ## Dependencies
 
-- 🏗️ [US-010: Fetch Pull Requests](🏗️%20010-fetch-pull-requests.md) — sync must exist before its status can be displayed
+- ✅ [US-010: Fetch Pull Requests](✅%20010-fetch-pull-requests.md) — sync must exist before its status can be displayed
 - ✅ [US-023: Application Shell](✅%20023-application-shell-navigation.md) — sidebar navigation to sync page
 
 ## Acceptance Criteria
