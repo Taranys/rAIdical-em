@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// US-007, US-008: Unit tests for team page
+// US-007, US-008, US-024: Unit tests for team page
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import TeamPage from "./page";
@@ -363,6 +363,15 @@ describe("TeamPage", () => {
     await waitFor(() => {
       expect(screen.getByText(/successfully removed/i)).toBeInTheDocument();
     });
+  });
+
+  // US-024: Import from GitHub button
+  it("renders the Import from GitHub button", () => {
+    globalThis.fetch = mockFetch({});
+    render(<TeamPage />);
+    expect(
+      screen.getByRole("button", { name: /import from github/i }),
+    ).toBeInTheDocument();
   });
 
   it("shows error feedback when removal fails", async () => {

@@ -1,4 +1,4 @@
-// US-007: E2E test for team member management
+// US-007, US-024: E2E test for team member management
 import { test, expect } from "@playwright/test";
 
 test.describe("Team page", () => {
@@ -32,5 +32,32 @@ test.describe("Team page", () => {
 
     const button = page.getByRole("button", { name: /add member/i });
     await expect(button).toBeDisabled();
+  });
+
+  // US-024: Import from GitHub
+  test("displays Import from GitHub button", async ({ page }) => {
+    await page.goto("/team");
+
+    await expect(
+      page.getByRole("button", { name: /import from github/i }),
+    ).toBeVisible();
+  });
+
+  test("opens import sheet when clicking Import from GitHub", async ({
+    page,
+  }) => {
+    await page.goto("/team");
+
+    await page.getByRole("button", { name: /import from github/i }).click();
+
+    await expect(
+      page.getByRole("heading", { name: "Import from GitHub" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /search users/i }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /browse organization/i }),
+    ).toBeVisible();
   });
 });
