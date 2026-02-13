@@ -19,6 +19,7 @@ As an engineering manager, I want to import team members from a GitHub organizat
 - [x] The import supports two modes:
   - Search by GitHub username — type-ahead search against the GitHub API
   - Browse organization members — list members of a GitHub organization accessible with the configured PAT
+- [x] Browse mode supports filtering members by name and a "Select All" button to import an entire team at once
 - [x] Selected users are added to the team_members table with their display name and avatar URL fetched from GitHub
 - [x] Already-existing team members are skipped with a clear indication
 - [x] The import respects GitHub API rate limits
@@ -54,4 +55,9 @@ As an engineering manager, I want to import team members from a GitHub organizat
 - `src/app/team/page.test.tsx` — Added test for Import button (1 new test)
 - `e2e/team.spec.ts` — Added 2 E2E tests (button visibility + sheet opening)
 
-**Total new tests:** 22 unit tests + 2 E2E tests
+**Total new tests:** 24 unit tests + 2 E2E tests
+
+**Follow-up enhancements:**
+- Browse mode: client-side filter input to search within loaded org members
+- Browse mode: "Select All" button to select all importable (non-existing) members at once
+- Settings page: repo form now auto-refreshes when PAT is saved or deleted (no page reload needed)

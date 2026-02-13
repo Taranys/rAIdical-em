@@ -289,6 +289,98 @@ describe("ImportGitHubSheet", () => {
     });
   });
 
+  it("filters org members by name in browse mode", async () => {
+    const fetchMock = mockFetchResponses({
+      "GET /api/settings/github-owners": {
+        body: {
+          owners: [{ login: "my-org", type: "org" }],
+        },
+      },
+      "GET /api/team/github-org-members": {
+        body: {
+          members: [
+            { login: "alice", avatarUrl: "https://avatars.example.com/1" },
+            { login: "bob", avatarUrl: "https://avatars.example.com/2" },
+            { login: "charlie", avatarUrl: "https://avatars.example.com/3" },
+          ],
+          rateLimit: { remaining: 4990, reset: 1700000000 },
+        },
+      },
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<ImportGitHubSheet {...defaultProps} />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /browse organization/i }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/select an organization/i)).toBeInTheDocument();
+    });
+
+    // Select org
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "my-org" } });
+
+    await waitFor(() => {
+      expect(screen.getByText("alice")).toBeInTheDocument();
+      expect(screen.getByText("bob")).toBeInTheDocument();
+      expect(screen.getByText("charlie")).toBeInTheDocument();
+    });
+
+    // Filter by name
+    fireEvent.change(screen.getByPlaceholderText(/filter members/i), {
+      target: { value: "ali" },
+    });
+
+    expect(screen.getByText("alice")).toBeInTheDocument();
+    expect(screen.queryByText("bob")).not.toBeInTheDocument();
+    expect(screen.queryByText("charlie")).not.toBeInTheDocument();
+  });
+
+  it("selects all importable members with Select All button", async () => {
+    const fetchMock = mockFetchResponses({
+      "GET /api/settings/github-owners": {
+        body: {
+          owners: [{ login: "my-org", type: "org" }],
+        },
+      },
+      "GET /api/team/github-org-members": {
+        body: {
+          members: [
+            { login: "existing-user", avatarUrl: "https://avatars.example.com/1" },
+            { login: "new-user-a", avatarUrl: "https://avatars.example.com/2" },
+            { login: "new-user-b", avatarUrl: "https://avatars.example.com/3" },
+          ],
+          rateLimit: { remaining: 4990, reset: 1700000000 },
+        },
+      },
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<ImportGitHubSheet {...defaultProps} />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /browse organization/i }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/select an organization/i)).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "my-org" } });
+
+    await waitFor(() => {
+      expect(screen.getByText("new-user-a")).toBeInTheDocument();
+    });
+
+    // Click Select All
+    fireEvent.click(screen.getByRole("button", { name: /select all/i }));
+
+    // Should select 2 (not the existing-user)
+    expect(screen.getByText(/2 selected/i)).toBeInTheDocument();
+  });
+
   it("displays rate limit info", async () => {
     const fetchMock = mockFetchResponses({
       "GET /api/team/github-search": {

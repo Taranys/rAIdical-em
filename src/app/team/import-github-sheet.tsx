@@ -53,6 +53,7 @@ export function ImportGitHubSheet({
   const [orgs, setOrgs] = useState<{ login: string; type: string }[]>([]);
   const [selectedOrg, setSelectedOrg] = useState("");
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
+  const [browseFilter, setBrowseFilter] = useState("");
 
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -86,6 +87,7 @@ export function ImportGitHubSheet({
       setImportResults(new Map());
       setRateLimit(null);
       setSelectedOrg("");
+      setBrowseFilter("");
       setMode("search");
     }
   }, [open]);
@@ -202,6 +204,19 @@ export function ImportGitHubSheet({
     return existingSet.has(login.toLowerCase());
   }
 
+  // Client-side filter for browse mode
+  const filteredResults = mode === "browse" && browseFilter.trim()
+    ? results.filter((u) => u.login.toLowerCase().includes(browseFilter.trim().toLowerCase()))
+    : results;
+
+  // Select all importable (non-existing, no result yet) from filtered list
+  function selectAllImportable() {
+    const importable = filteredResults
+      .filter((u) => !isExisting(u.login) && !importResults.get(u.login))
+      .map((u) => u.login);
+    setSelected(new Set(importable));
+  }
+
   const selectedCount = selected.size;
 
   return (
@@ -267,9 +282,31 @@ export function ImportGitHubSheet({
                   </option>
                 ))}
               </select>
+              {results.length > 0 && (
+                <Input
+                  placeholder="Filter members..."
+                  value={browseFilter}
+                  onChange={(e) => setBrowseFilter(e.target.value)}
+                  disabled={isImporting}
+                />
+              )}
             </div>
           )}
         </div>
+
+        {/* Select All action (browse mode with results) */}
+        {mode === "browse" && filteredResults.length > 0 && (
+          <div className="px-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={selectAllImportable}
+              disabled={isImporting}
+            >
+              Select All
+            </Button>
+          </div>
+        )}
 
         {/* Rate limit info */}
         {rateLimit !== null && (
@@ -284,11 +321,11 @@ export function ImportGitHubSheet({
         <div className="flex-1 overflow-y-auto px-4 min-h-0">
           {isSearching ? (
             <p className="text-sm text-muted-foreground">Searching...</p>
-          ) : results.length === 0 && (searchQuery.length >= 2 || selectedOrg) ? (
+          ) : filteredResults.length === 0 && (searchQuery.length >= 2 || selectedOrg) ? (
             <p className="text-sm text-muted-foreground">No results found.</p>
           ) : (
             <div className="space-y-2">
-              {results.map((user) => {
+              {filteredResults.map((user) => {
                 const existing = isExisting(user.login);
                 const result = importResults.get(user.login);
 

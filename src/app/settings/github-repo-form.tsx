@@ -36,7 +36,11 @@ interface VerifyResult {
   defaultBranch: string;
 }
 
-export function GitHubRepoForm() {
+interface GitHubRepoFormProps {
+  patVersion?: number;
+}
+
+export function GitHubRepoForm({ patVersion = 0 }: GitHubRepoFormProps) {
   const [isPatConfigured, setIsPatConfigured] = useState(false);
   const [isConfigured, setIsConfigured] = useState(false);
   const [owner, setOwner] = useState("");
@@ -90,7 +94,7 @@ export function GitHubRepoForm() {
   useEffect(() => {
     checkPatConfigured();
     loadExistingConfig();
-  }, [checkPatConfigured, loadExistingConfig]);
+  }, [checkPatConfigured, loadExistingConfig, patVersion]);
 
   useEffect(() => {
     if (isPatConfigured) {

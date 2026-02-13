@@ -219,6 +219,42 @@ describe("GitHubPatForm", () => {
     });
   });
 
+  it("calls onPatChange after saving PAT", async () => {
+    const onPatChange = vi.fn();
+    globalThis.fetch = mockFetch({
+      "PUT /api/settings/github-pat": { success: true },
+    });
+    render(<GitHubPatForm onPatChange={onPatChange} />);
+
+    fireEvent.change(screen.getByPlaceholderText("ghp_..."), {
+      target: { value: "ghp_test123" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+    await waitFor(() => {
+      expect(onPatChange).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("calls onPatChange after deleting PAT", async () => {
+    const onPatChange = vi.fn();
+    globalThis.fetch = mockFetch({
+      "GET /api/settings/github-pat": { configured: true },
+      "DELETE /api/settings/github-pat": { success: true },
+    });
+    render(<GitHubPatForm onPatChange={onPatChange} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /delete/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /delete/i }));
+
+    await waitFor(() => {
+      expect(onPatChange).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("calls DELETE when Delete is clicked", async () => {
     const fetchMock = mockFetch({
       "GET /api/settings/github-pat": { configured: true },
