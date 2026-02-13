@@ -9,7 +9,7 @@ As an engineering manager, I want to see the ratio of AI-generated vs. human-wri
 
 ## Dependencies
 
-- 🏗️ [US-010: Fetch Pull Requests](🏗️%20010-fetch-pull-requests.md) — PR data must be synced before it can be classified
+- ✅ [US-010: Fetch Pull Requests](✅%20010-fetch-pull-requests.md) — PR data must be synced before it can be classified
 - 🏗️ [US-019: Dashboard Period Selector](🏗️%20019-dashboard-period-selector.md) — period selector must exist to filter the data
 - ✅ [US-020: Define AI Authorship Heuristic](✅%20020-define-ai-authorship-heuristic.md) — heuristic rules must be configured to classify PRs
 

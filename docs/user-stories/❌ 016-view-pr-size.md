@@ -9,7 +9,7 @@ As an engineering manager, I want to see the average PR size (lines added/remove
 
 ## Dependencies
 
-- 🏗️ [US-010: Fetch Pull Requests](🏗️%20010-fetch-pull-requests.md) — PR data must be synced before it can be displayed
+- ✅ [US-010: Fetch Pull Requests](✅%20010-fetch-pull-requests.md) — PR data must be synced before it can be displayed
 - 🏗️ [US-019: Dashboard Period Selector](🏗️%20019-dashboard-period-selector.md) — period selector must exist to filter the data
 - ✅ [US-023: Application Shell](✅%20023-application-shell-navigation.md) — sidebar navigation to dashboard page
 

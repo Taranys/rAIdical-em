@@ -9,7 +9,7 @@ As an engineering manager, I want subsequent syncs to only fetch new or updated 
 
 ## Dependencies
 
-- 🏗️ [US-010: Fetch Pull Requests](🏗️%20010-fetch-pull-requests.md) — a full sync must have run at least once
+- ✅ [US-010: Fetch Pull Requests](✅%20010-fetch-pull-requests.md) — a full sync must have run at least once
 
 ## Acceptance Criteria
 

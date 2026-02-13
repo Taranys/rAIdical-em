@@ -9,7 +9,7 @@ As an engineering manager, I want the application to fetch all review comments f
 
 ## Dependencies
 
-- 🏗️ [US-010: Fetch Pull Requests](🏗️%20010-fetch-pull-requests.md) — PRs must be fetched first so comments can be linked to them
+- ✅ [US-010: Fetch Pull Requests](✅%20010-fetch-pull-requests.md) — PRs must be fetched first so comments can be linked to them
 
 ## Acceptance Criteria
 
