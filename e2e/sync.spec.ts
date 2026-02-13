@@ -1,4 +1,4 @@
-// US-010: Sync page E2E tests
+// US-010 + US-013: Sync page E2E tests
 import { test, expect } from "@playwright/test";
 
 test.describe("Sync Page", () => {
@@ -31,5 +31,15 @@ test.describe("Sync Page", () => {
     await expect(
       sidebar.getByRole("link", { name: "Sync" }),
     ).toHaveAttribute("data-active", "true");
+  });
+
+  // US-013: Sync history section
+  test("sync page shows sync history section", async ({ page }) => {
+    await page.goto("/sync");
+
+    await expect(page.getByText("Sync History")).toBeVisible();
+    await expect(
+      page.getByText("Last 10 sync runs with their status and counts."),
+    ).toBeVisible();
   });
 });

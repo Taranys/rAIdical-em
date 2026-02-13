@@ -1,7 +1,7 @@
 "use client";
 
-// US-010: Sync page — fetch PRs from GitHub with real-time progress
-import { useCallback, useEffect, useRef, useState } from "react";
+// US-010 + US-013: Sync page — fetch PRs from GitHub with real-time progress and history
+import { useCallback, useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -10,6 +10,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   RefreshCw,
   CheckCircle2,
@@ -17,15 +26,7 @@ import {
   Clock,
   Loader2,
 } from "lucide-react";
-
-interface SyncRun {
-  id: number;
-  status: "running" | "success" | "error";
-  prCount: number;
-  startedAt: string;
-  completedAt: string | null;
-  errorMessage: string | null;
-}
+import { useSyncStatus, type SyncRun } from "@/hooks/use-sync-status";
 
 interface RateLimit {
   limit: number;
@@ -35,6 +36,16 @@ interface RateLimit {
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString();
+}
+
+// US-013: Format duration between two ISO timestamps
+function formatDuration(start: string, end: string): string {
+  const ms = new Date(end).getTime() - new Date(start).getTime();
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}m ${remainingSeconds}s`;
 }
 
 function SyncStatusIndicator({ syncRun }: { syncRun: SyncRun | null }) {
@@ -61,7 +72,8 @@ function SyncStatusIndicator({ syncRun }: { syncRun: SyncRun | null }) {
             Syncing...
           </p>
           <p className="text-sm text-muted-foreground">
-            {syncRun.prCount} PRs fetched so far
+            {syncRun.prCount} PRs, {syncRun.commentCount} comments fetched so
+            far
           </p>
         </div>
       </div>
@@ -77,8 +89,8 @@ function SyncStatusIndicator({ syncRun }: { syncRun: SyncRun | null }) {
           <p className="text-sm text-destructive">{syncRun.errorMessage}</p>
           {syncRun.completedAt && (
             <p className="text-sm text-muted-foreground">
-              {formatDate(syncRun.completedAt)} — {syncRun.prCount} PRs fetched
-              before error
+              {formatDate(syncRun.completedAt)} — {syncRun.prCount} PRs,{" "}
+              {syncRun.commentCount} comments fetched before error
             </p>
           )}
         </div>
@@ -94,7 +106,7 @@ function SyncStatusIndicator({ syncRun }: { syncRun: SyncRun | null }) {
           Up to date
         </p>
         <p className="text-sm text-muted-foreground">
-          {syncRun.prCount} PRs synced
+          {syncRun.prCount} PRs, {syncRun.commentCount} comments synced
           {syncRun.completedAt && ` — ${formatDate(syncRun.completedAt)}`}
         </p>
       </div>
@@ -102,25 +114,62 @@ function SyncStatusIndicator({ syncRun }: { syncRun: SyncRun | null }) {
   );
 }
 
-export default function SyncPage() {
-  const [syncRun, setSyncRun] = useState<SyncRun | null>(null);
-  const [rateLimit, setRateLimit] = useState<RateLimit | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isTriggering, setIsTriggering] = useState(false);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+// US-013: Status badge for history table
+function StatusBadge({ status }: { status: string }) {
+  const variant =
+    status === "success"
+      ? "default"
+      : status === "error"
+        ? "destructive"
+        : "secondary";
+  return <Badge variant={variant}>{status}</Badge>;
+}
 
-  const fetchStatus = useCallback(async () => {
-    try {
-      const res = await fetch("/api/sync");
-      const data = await res.json();
-      setSyncRun(data.syncRun);
-      return data.syncRun as SyncRun | null;
-    } catch {
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+// US-013: Sync history table
+function SyncHistoryTable({ history }: { history: SyncRun[] }) {
+  if (history.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">No sync history yet.</p>
+    );
+  }
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Started</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead className="text-right">PRs</TableHead>
+          <TableHead className="text-right">Comments</TableHead>
+          <TableHead>Duration</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {history.map((run) => (
+          <TableRow key={run.id}>
+            <TableCell>{formatDate(run.startedAt)}</TableCell>
+            <TableCell>
+              <StatusBadge status={run.status} />
+            </TableCell>
+            <TableCell className="text-right">{run.prCount}</TableCell>
+            <TableCell className="text-right">{run.commentCount}</TableCell>
+            <TableCell>
+              {run.completedAt
+                ? formatDuration(run.startedAt, run.completedAt)
+                : "—"}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+export default function SyncPage() {
+  const { syncRun, history, isLoading, fetchStatus, startPolling } =
+    useSyncStatus();
+  const [rateLimit, setRateLimit] = useState<RateLimit | null>(null);
+  const [isTriggering, setIsTriggering] = useState(false);
 
   const fetchRateLimit = useCallback(async () => {
     try {
@@ -134,34 +183,9 @@ export default function SyncPage() {
     }
   }, []);
 
-  const startPolling = useCallback(() => {
-    if (pollRef.current) return;
-    pollRef.current = setInterval(async () => {
-      const run = await fetchStatus();
-      if (run && run.status !== "running") {
-        stopPolling();
-        fetchRateLimit();
-      }
-    }, 1000);
-  }, [fetchStatus, fetchRateLimit]);
-
-  function stopPolling() {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-  }
-
   useEffect(() => {
-    fetchStatus().then((run) => {
-      if (run && run.status === "running") {
-        startPolling();
-      }
-    });
     fetchRateLimit();
-
-    return () => stopPolling();
-  }, [fetchStatus, fetchRateLimit, startPolling]);
+  }, [fetchRateLimit]);
 
   async function handleSync() {
     setIsTriggering(true);
@@ -194,10 +218,7 @@ export default function SyncPage() {
                 Sync pull requests from your configured GitHub repository.
               </CardDescription>
             </div>
-            <Button
-              onClick={handleSync}
-              disabled={isTriggering || isSyncing}
-            >
+            <Button onClick={handleSync} disabled={isTriggering || isSyncing}>
               {isSyncing ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -221,6 +242,23 @@ export default function SyncPage() {
         </CardContent>
       </Card>
 
+      {/* US-013: Sync history */}
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>Sync History</CardTitle>
+          <CardDescription>
+            Last 10 sync runs with their status and counts.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <p className="text-muted-foreground">Loading...</p>
+          ) : (
+            <SyncHistoryTable history={history} />
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>GitHub API Rate Limit</CardTitle>
@@ -232,7 +270,9 @@ export default function SyncPage() {
           {rateLimit ? (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Requests remaining</span>
+                <span className="text-sm text-muted-foreground">
+                  Requests remaining
+                </span>
                 <span className="font-mono font-medium">
                   {rateLimit.remaining} / {rateLimit.limit}
                 </span>
