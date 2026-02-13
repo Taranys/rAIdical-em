@@ -20,6 +20,7 @@ As an engineering manager, I want to import team members from a GitHub organizat
   - Search by GitHub username — type-ahead search against the GitHub API
   - Browse organization members — list members of a GitHub organization accessible with the configured PAT
 - [x] Browse mode supports filtering members by name and a "Select All" button to import an entire team at once
+- [x] Browse mode supports browsing GitHub teams within an organization and importing all team members
 - [x] Selected users are added to the team_members table with their display name and avatar URL fetched from GitHub
 - [x] Already-existing team members are skipped with a clear indication
 - [x] The import respects GitHub API rate limits
@@ -33,6 +34,8 @@ As an engineering manager, I want to import team members from a GitHub organizat
 **API routes:**
 - `GET /api/team/github-search?q=<query>` — searches GitHub users via `octokit.rest.search.users`, returns users + rate limit info
 - `GET /api/team/github-org-members?org=<org>` — lists org members via `octokit.rest.orgs.listMembers`, returns members + rate limit info
+- `GET /api/team/github-org-teams?org=<org>` — lists teams in an org via `octokit.rest.teams.list`, returns teams + rate limit info
+- `GET /api/team/github-team-members?org=<org>&team=<slug>` — lists team members via `octokit.rest.teams.listMembersInOrg`, returns members + rate limit info
 
 **UI component:** `ImportGitHubSheet` — a Sheet with mode toggle, search/browse inputs, scrollable results list with checkboxes, and an import action bar.
 
@@ -48,16 +51,19 @@ As an engineering manager, I want to import team members from a GitHub organizat
 **Files created:**
 - `src/app/api/team/github-search/route.ts` + `route.test.ts` — GitHub user search API (5 unit tests)
 - `src/app/api/team/github-org-members/route.ts` + `route.test.ts` — GitHub org members API (6 unit tests)
-- `src/app/team/import-github-sheet.tsx` + `import-github-sheet.test.tsx` — Import Sheet component (11 unit tests)
+- `src/app/api/team/github-org-teams/route.ts` + `route.test.ts` — GitHub org teams API (5 unit tests)
+- `src/app/api/team/github-team-members/route.ts` + `route.test.ts` — GitHub team members API (6 unit tests)
+- `src/app/team/import-github-sheet.tsx` + `import-github-sheet.test.tsx` — Import Sheet component (16 unit tests)
 
 **Files modified:**
 - `src/app/team/page.tsx` — Added "Import from GitHub" button + Sheet integration
 - `src/app/team/page.test.tsx` — Added test for Import button (1 new test)
 - `e2e/team.spec.ts` — Added 2 E2E tests (button visibility + sheet opening)
 
-**Total new tests:** 24 unit tests + 2 E2E tests
+**Total new tests:** 35 unit tests + 2 E2E tests
 
 **Follow-up enhancements:**
 - Browse mode: client-side filter input to search within loaded org members
 - Browse mode: "Select All" button to select all importable (non-existing) members at once
+- Browse mode: team selector to browse and import GitHub team members
 - Settings page: repo form now auto-refreshes when PAT is saved or deleted (no page reload needed)

@@ -22,6 +22,12 @@ interface GitHubUser {
   avatarUrl: string;
 }
 
+interface GitHubTeam {
+  slug: string;
+  name: string;
+  description: string | null;
+}
+
 interface RateLimit {
   remaining: number;
   reset: number;
@@ -52,6 +58,8 @@ export function ImportGitHubSheet({
   const [rateLimit, setRateLimit] = useState<RateLimit | null>(null);
   const [orgs, setOrgs] = useState<{ login: string; type: string }[]>([]);
   const [selectedOrg, setSelectedOrg] = useState("");
+  const [teams, setTeams] = useState<GitHubTeam[]>([]);
+  const [selectedTeam, setSelectedTeam] = useState("");
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
   const [browseFilter, setBrowseFilter] = useState("");
 
@@ -87,6 +95,8 @@ export function ImportGitHubSheet({
       setImportResults(new Map());
       setRateLimit(null);
       setSelectedOrg("");
+      setTeams([]);
+      setSelectedTeam("");
       setBrowseFilter("");
       setMode("search");
     }
@@ -125,6 +135,36 @@ export function ImportGitHubSheet({
     }
   }
 
+  async function fetchTeams(org: string) {
+    try {
+      const res = await fetch(`/api/team/github-org-teams?org=${encodeURIComponent(org)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setTeams(data.teams);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  async function fetchTeamMembers(org: string, teamSlug: string) {
+    setIsSearching(true);
+    try {
+      const res = await fetch(
+        `/api/team/github-team-members?org=${encodeURIComponent(org)}&team=${encodeURIComponent(teamSlug)}`,
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setResults(data.members);
+        setRateLimit(data.rateLimit);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setIsSearching(false);
+    }
+  }
+
   function handleSearchChange(value: string) {
     setSearchQuery(value);
     setImportResults(new Map());
@@ -146,12 +186,29 @@ export function ImportGitHubSheet({
 
   function handleOrgChange(org: string) {
     setSelectedOrg(org);
+    setSelectedTeam("");
+    setTeams([]);
     setImportResults(new Map());
     setSelected(new Set());
+    setBrowseFilter("");
     if (org) {
       fetchOrgMembers(org);
+      fetchTeams(org);
     } else {
       setResults([]);
+    }
+  }
+
+  function handleTeamChange(teamSlug: string) {
+    setSelectedTeam(teamSlug);
+    setImportResults(new Map());
+    setSelected(new Set());
+    setBrowseFilter("");
+    if (teamSlug) {
+      fetchTeamMembers(selectedOrg, teamSlug);
+    } else {
+      // Back to all org members
+      fetchOrgMembers(selectedOrg);
     }
   }
 
@@ -282,6 +339,22 @@ export function ImportGitHubSheet({
                   </option>
                 ))}
               </select>
+              {teams.length > 0 && (
+                <select
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={selectedTeam}
+                  onChange={(e) => handleTeamChange(e.target.value)}
+                  disabled={isImporting}
+                  aria-label="Select a team"
+                >
+                  <option value="">All members</option>
+                  {teams.map((team) => (
+                    <option key={team.slug} value={team.slug}>
+                      {team.name}
+                    </option>
+                  ))}
+                </select>
+              )}
               {results.length > 0 && (
                 <Input
                   placeholder="Filter members..."

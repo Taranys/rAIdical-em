@@ -306,6 +306,9 @@ describe("ImportGitHubSheet", () => {
           rateLimit: { remaining: 4990, reset: 1700000000 },
         },
       },
+      "GET /api/team/github-org-teams": {
+        body: { teams: [], rateLimit: { remaining: 4989, reset: 1700000000 } },
+      },
     });
     globalThis.fetch = fetchMock;
 
@@ -355,6 +358,9 @@ describe("ImportGitHubSheet", () => {
           rateLimit: { remaining: 4990, reset: 1700000000 },
         },
       },
+      "GET /api/team/github-org-teams": {
+        body: { teams: [], rateLimit: { remaining: 4989, reset: 1700000000 } },
+      },
     });
     globalThis.fetch = fetchMock;
 
@@ -379,6 +385,211 @@ describe("ImportGitHubSheet", () => {
 
     // Should select 2 (not the existing-user)
     expect(screen.getByText(/2 selected/i)).toBeInTheDocument();
+  });
+
+  it("loads teams when org is selected and shows team selector", async () => {
+    const fetchMock = mockFetchResponses({
+      "GET /api/settings/github-owners": {
+        body: {
+          owners: [{ login: "my-org", type: "org" }],
+        },
+      },
+      "GET /api/team/github-org-members": {
+        body: {
+          members: [
+            { login: "alice", avatarUrl: "https://avatars.example.com/1" },
+          ],
+          rateLimit: { remaining: 4990, reset: 1700000000 },
+        },
+      },
+      "GET /api/team/github-org-teams": {
+        body: {
+          teams: [
+            { slug: "frontend", name: "Frontend Team", description: "UI squad" },
+            { slug: "backend", name: "Backend Team", description: null },
+          ],
+          rateLimit: { remaining: 4989, reset: 1700000000 },
+        },
+      },
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<ImportGitHubSheet {...defaultProps} />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /browse organization/i }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/select an organization/i)).toBeInTheDocument();
+    });
+
+    // Select org
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "my-org" } });
+
+    // Wait for members and teams to load
+    await waitFor(() => {
+      expect(screen.getByText("alice")).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/select a team/i)).toBeInTheDocument();
+    });
+
+    // Team selector should show options
+    const teamSelect = screen.getByLabelText(/select a team/i);
+    expect(teamSelect).toBeInTheDocument();
+    expect(screen.getByText("All members")).toBeInTheDocument();
+    expect(screen.getByText("Frontend Team")).toBeInTheDocument();
+    expect(screen.getByText("Backend Team")).toBeInTheDocument();
+  });
+
+  it("fetches team members when a team is selected", async () => {
+    const fetchMock = mockFetchResponses({
+      "GET /api/settings/github-owners": {
+        body: {
+          owners: [{ login: "my-org", type: "org" }],
+        },
+      },
+      "GET /api/team/github-org-members": {
+        body: {
+          members: [
+            { login: "alice", avatarUrl: "https://avatars.example.com/1" },
+            { login: "bob", avatarUrl: "https://avatars.example.com/2" },
+          ],
+          rateLimit: { remaining: 4990, reset: 1700000000 },
+        },
+      },
+      "GET /api/team/github-org-teams": {
+        body: {
+          teams: [
+            { slug: "frontend", name: "Frontend Team", description: null },
+          ],
+          rateLimit: { remaining: 4989, reset: 1700000000 },
+        },
+      },
+      "GET /api/team/github-team-members": {
+        body: {
+          members: [
+            { login: "alice", avatarUrl: "https://avatars.example.com/1" },
+          ],
+          rateLimit: { remaining: 4988, reset: 1700000000 },
+        },
+      },
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<ImportGitHubSheet {...defaultProps} />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /browse organization/i }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/select an organization/i)).toBeInTheDocument();
+    });
+
+    // Select org
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "my-org" } });
+
+    await waitFor(() => {
+      expect(screen.getByText("alice")).toBeInTheDocument();
+      expect(screen.getByText("bob")).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/select a team/i)).toBeInTheDocument();
+    });
+
+    // Select the frontend team
+    fireEvent.change(screen.getByLabelText(/select a team/i), {
+      target: { value: "frontend" },
+    });
+
+    // Should call the team members API
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/api/team/github-team-members?org=my-org&team=frontend"),
+      );
+    });
+  });
+
+  it("reverts to all org members when team is deselected", async () => {
+    const fetchMock = mockFetchResponses({
+      "GET /api/settings/github-owners": {
+        body: {
+          owners: [{ login: "my-org", type: "org" }],
+        },
+      },
+      "GET /api/team/github-org-members": {
+        body: {
+          members: [
+            { login: "alice", avatarUrl: "https://avatars.example.com/1" },
+            { login: "bob", avatarUrl: "https://avatars.example.com/2" },
+          ],
+          rateLimit: { remaining: 4990, reset: 1700000000 },
+        },
+      },
+      "GET /api/team/github-org-teams": {
+        body: {
+          teams: [
+            { slug: "frontend", name: "Frontend Team", description: null },
+          ],
+          rateLimit: { remaining: 4989, reset: 1700000000 },
+        },
+      },
+      "GET /api/team/github-team-members": {
+        body: {
+          members: [
+            { login: "alice", avatarUrl: "https://avatars.example.com/1" },
+          ],
+          rateLimit: { remaining: 4988, reset: 1700000000 },
+        },
+      },
+    });
+    globalThis.fetch = fetchMock;
+
+    render(<ImportGitHubSheet {...defaultProps} />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /browse organization/i }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/select an organization/i)).toBeInTheDocument();
+    });
+
+    // Select org
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "my-org" } });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/select a team/i)).toBeInTheDocument();
+    });
+
+    // Select team
+    fireEvent.change(screen.getByLabelText(/select a team/i), {
+      target: { value: "frontend" },
+    });
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/api/team/github-team-members"),
+      );
+    });
+
+    // Deselect team (back to "All members")
+    fireEvent.change(screen.getByLabelText(/select a team/i), {
+      target: { value: "" },
+    });
+
+    // Should fetch org members again
+    await waitFor(() => {
+      // Count calls to github-org-members: should be at least 2 (initial + revert)
+      const orgMembersCalls = fetchMock.mock.calls.filter(
+        (call: unknown[]) => typeof call[0] === "string" && call[0].includes("/api/team/github-org-members"),
+      );
+      expect(orgMembersCalls.length).toBeGreaterThanOrEqual(2);
+    });
   });
 
   it("displays rate limit info", async () => {
