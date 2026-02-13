@@ -127,11 +127,11 @@ describe("sync-runs DAL (integration)", () => {
 
     it("returns sync runs ordered by most recent first", () => {
       const first = createSyncRun("owner/repo", testDb);
-      completeSyncRun(first.id, "success", 10, null, testDb);
+      completeSyncRun(first.id, "success", 10, null, 0, testDb);
       const second = createSyncRun("owner/repo", testDb);
-      completeSyncRun(second.id, "error", 5, "Rate limit", testDb);
+      completeSyncRun(second.id, "error", 5, "Rate limit", 0, testDb);
       const third = createSyncRun("owner/repo", testDb);
-      completeSyncRun(third.id, "success", 20, null, testDb);
+      completeSyncRun(third.id, "success", 20, null, 0, testDb);
 
       const history = getSyncRunHistory("owner/repo", 10, testDb);
 
@@ -144,7 +144,7 @@ describe("sync-runs DAL (integration)", () => {
     it("respects the limit parameter", () => {
       for (let i = 0; i < 5; i++) {
         const run = createSyncRun("owner/repo", testDb);
-        completeSyncRun(run.id, "success", i * 10, null, testDb);
+        completeSyncRun(run.id, "success", i * 10, null, 0, testDb);
       }
 
       const history = getSyncRunHistory("owner/repo", 2, testDb);
@@ -157,9 +157,9 @@ describe("sync-runs DAL (integration)", () => {
 
     it("only returns runs for the specified repository", () => {
       const run1 = createSyncRun("owner/repo", testDb);
-      completeSyncRun(run1.id, "success", 10, null, testDb);
+      completeSyncRun(run1.id, "success", 10, null, 0, testDb);
       const run2 = createSyncRun("other/repo", testDb);
-      completeSyncRun(run2.id, "success", 20, null, testDb);
+      completeSyncRun(run2.id, "success", 20, null, 0, testDb);
 
       const history = getSyncRunHistory("owner/repo", 10, testDb);
 
