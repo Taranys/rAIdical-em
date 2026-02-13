@@ -36,8 +36,13 @@ interface VerifyResult {
   defaultBranch: string;
 }
 
-export function GitHubRepoForm() {
-  const [isPatConfigured, setIsPatConfigured] = useState(false);
+interface GitHubRepoFormProps {
+  isPatConfigured?: boolean;
+}
+
+export function GitHubRepoForm({ isPatConfigured: isPatConfiguredProp }: GitHubRepoFormProps) {
+  const [isPatConfiguredLocal, setIsPatConfiguredLocal] = useState(false);
+  const isPatConfigured = isPatConfiguredProp ?? isPatConfiguredLocal;
   const [isConfigured, setIsConfigured] = useState(false);
   const [owner, setOwner] = useState("");
   const [owners, setOwners] = useState<OwnerResult[]>([]);
@@ -55,7 +60,7 @@ export function GitHubRepoForm() {
     try {
       const res = await fetch("/api/settings/github-pat");
       const data = await res.json();
-      setIsPatConfigured(data.configured);
+      setIsPatConfiguredLocal(data.configured);
     } catch {
       // Ignore — assume not configured
     }

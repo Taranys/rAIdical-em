@@ -1,7 +1,8 @@
 "use client";
 
-// US-007, US-008: Team members page with add/remove member functionality
+// US-007, US-008, US-024: Team members page with add/remove/import member functionality
 import { useCallback, useEffect, useState } from "react";
+import { ImportGitHubSheet } from "./import-github-sheet";
 import {
   Card,
   CardContent,
@@ -64,6 +65,7 @@ export default function TeamPage() {
   const [removingId, setRemovingId] = useState<number | null>(null);
   const [memberToRemove, setMemberToRemove] = useState<TeamMember | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [isImportOpen, setIsImportOpen] = useState(false);
 
   const fetchMembers = useCallback(async () => {
     setIsLoading(true);
@@ -147,7 +149,13 @@ export default function TeamPage() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <h1 className="text-4xl font-bold tracking-tight mb-6">Team Members</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-4xl font-bold tracking-tight">Team Members</h1>
+        {/* US-024: Import from GitHub button */}
+        <Button variant="outline" onClick={() => setIsImportOpen(true)}>
+          Import from GitHub
+        </Button>
+      </div>
 
       <Card className="mb-8">
         <CardHeader>
@@ -293,6 +301,14 @@ export default function TeamPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* US-024: Import from GitHub sheet */}
+      <ImportGitHubSheet
+        open={isImportOpen}
+        onOpenChange={setIsImportOpen}
+        existingMembers={members.map((m) => m.githubUsername)}
+        onImportComplete={fetchMembers}
+      />
     </div>
   );
 }
