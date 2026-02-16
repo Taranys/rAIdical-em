@@ -1,4 +1,4 @@
-// US-010: Sync runs data access layer
+// US-010 / US-011: Sync runs data access layer
 import { db as defaultDb } from "./index";
 import { syncRuns } from "./schema";
 import { eq, and, desc } from "drizzle-orm";
@@ -16,6 +16,7 @@ export function createSyncRun(
       startedAt: new Date().toISOString(),
       status: "running",
       prCount: 0,
+      reviewCount: 0,
       commentCount: 0,
     })
     .returning()
@@ -27,6 +28,7 @@ export function completeSyncRun(
   status: "success" | "error",
   prCount: number,
   errorMessage: string | null,
+  reviewCount: number = 0,
   dbInstance: DbInstance = defaultDb,
 ) {
   return dbInstance
@@ -34,6 +36,7 @@ export function completeSyncRun(
     .set({
       status,
       prCount,
+      reviewCount,
       errorMessage,
       completedAt: new Date().toISOString(),
     })
@@ -45,11 +48,12 @@ export function completeSyncRun(
 export function updateSyncRunProgress(
   id: number,
   prCount: number,
+  reviewCount: number = 0,
   dbInstance: DbInstance = defaultDb,
 ) {
   return dbInstance
     .update(syncRuns)
-    .set({ prCount })
+    .set({ prCount, reviewCount })
     .where(eq(syncRuns.id, id))
     .returning()
     .get();

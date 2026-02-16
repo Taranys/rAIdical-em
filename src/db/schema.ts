@@ -115,6 +115,7 @@ export const syncRuns = sqliteTable(
     completedAt: text("completed_at"),
     status: text("status").notNull(), // running | success | error
     prCount: integer("pr_count").notNull().default(0),
+    reviewCount: integer("review_count").notNull().default(0),
     commentCount: integer("comment_count").notNull().default(0),
     errorMessage: text("error_message"),
   },

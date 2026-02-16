@@ -1,0 +1,1 @@
+ALTER TABLE `sync_runs` ADD `review_count` integer DEFAULT 0 NOT NULL;

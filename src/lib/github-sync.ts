@@ -1,6 +1,7 @@
-// US-010: GitHub sync service — fetch PRs and rate limit info
+// US-010 / US-011: GitHub sync service — fetch PRs, reviews, and rate limit info
 import { Octokit } from "octokit";
 import { upsertPullRequest } from "@/db/pull-requests";
+import { upsertReview } from "@/db/reviews";
 import { updateSyncRunProgress, completeSyncRun } from "@/db/sync-runs";
 
 
@@ -16,7 +17,8 @@ export async function syncPullRequests(
   syncRunId: number,
 ) {
   const octokit = new Octokit({ auth: token });
-  let count = 0;
+  let prCount = 0;
+  let reviewCount = 0;
 
   try {
     // List all PRs (doesn't include additions/deletions/changed_files)
@@ -33,33 +35,56 @@ export async function syncPullRequests(
         pull_number: item.number,
       });
 
-      upsertPullRequest({
+      const state = mapPRState(pr);
+      const dbPR = upsertPullRequest({
         githubId: pr.id,
         number: pr.number,
         title: pr.title,
         author: pr.user?.login ?? "unknown",
-        state: mapPRState(pr),
+        state,
         createdAt: pr.created_at,
         mergedAt: pr.merged_at,
         additions: pr.additions,
         deletions: pr.deletions,
         changedFiles: pr.changed_files,
       });
-      count++;
-      updateSyncRunProgress(syncRunId, count);
+      prCount++;
+
+      // US-011: Fetch reviews only for open PRs
+      if (state === "open") {
+        const { data: reviews } = await octokit.rest.pulls.listReviews({
+          owner,
+          repo,
+          pull_number: pr.number,
+        });
+
+        for (const review of reviews) {
+          upsertReview({
+            githubId: review.id,
+            pullRequestId: dbPR.id,
+            reviewer: review.user?.login ?? "unknown",
+            state: review.state,
+            submittedAt: review.submitted_at ?? new Date().toISOString(),
+          });
+          reviewCount++;
+        }
+      }
+
+      updateSyncRunProgress(syncRunId, prCount, reviewCount);
     }
 
-    completeSyncRun(syncRunId, "success", count, null);
+    completeSyncRun(syncRunId, "success", prCount, null, reviewCount);
   } catch (error) {
     completeSyncRun(
       syncRunId,
       "error",
-      count,
+      prCount,
       error instanceof Error ? error.message : "Unknown error",
+      reviewCount,
     );
   }
 
-  return count;
+  return prCount;
 }
 
 export async function fetchRateLimit(token: string) {

@@ -7,6 +7,7 @@ export interface SyncRun {
   id: number;
   status: "running" | "success" | "error";
   prCount: number;
+  reviewCount: number;
   commentCount: number;
   startedAt: string;
   completedAt: string | null;

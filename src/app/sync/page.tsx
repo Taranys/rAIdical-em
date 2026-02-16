@@ -1,6 +1,6 @@
 "use client";
 
-// US-010 + US-013: Sync page — fetch PRs from GitHub with real-time progress and history
+// US-010 + US-011 + US-013: Sync page — fetch PRs and reviews from GitHub with real-time progress and history
 import { useCallback, useEffect, useState } from "react";
 import {
   Card,
@@ -72,7 +72,7 @@ function SyncStatusIndicator({ syncRun }: { syncRun: SyncRun | null }) {
             Syncing...
           </p>
           <p className="text-sm text-muted-foreground">
-            {syncRun.prCount} PRs, {syncRun.commentCount} comments fetched so
+            {syncRun.prCount} PRs, {syncRun.reviewCount} reviews, {syncRun.commentCount} comments fetched so
             far
           </p>
         </div>
@@ -90,7 +90,7 @@ function SyncStatusIndicator({ syncRun }: { syncRun: SyncRun | null }) {
           {syncRun.completedAt && (
             <p className="text-sm text-muted-foreground">
               {formatDate(syncRun.completedAt)} — {syncRun.prCount} PRs,{" "}
-              {syncRun.commentCount} comments fetched before error
+              {syncRun.reviewCount} reviews, {syncRun.commentCount} comments fetched before error
             </p>
           )}
         </div>
@@ -106,7 +106,7 @@ function SyncStatusIndicator({ syncRun }: { syncRun: SyncRun | null }) {
           Up to date
         </p>
         <p className="text-sm text-muted-foreground">
-          {syncRun.prCount} PRs, {syncRun.commentCount} comments synced
+          {syncRun.prCount} PRs, {syncRun.reviewCount} reviews, {syncRun.commentCount} comments synced
           {syncRun.completedAt && ` — ${formatDate(syncRun.completedAt)}`}
         </p>
       </div>
@@ -140,6 +140,7 @@ function SyncHistoryTable({ history }: { history: SyncRun[] }) {
           <TableHead>Started</TableHead>
           <TableHead>Status</TableHead>
           <TableHead className="text-right">PRs</TableHead>
+          <TableHead className="text-right">Reviews</TableHead>
           <TableHead className="text-right">Comments</TableHead>
           <TableHead>Duration</TableHead>
         </TableRow>
@@ -152,6 +153,7 @@ function SyncHistoryTable({ history }: { history: SyncRun[] }) {
               <StatusBadge status={run.status} />
             </TableCell>
             <TableCell className="text-right">{run.prCount}</TableCell>
+            <TableCell className="text-right">{run.reviewCount}</TableCell>
             <TableCell className="text-right">{run.commentCount}</TableCell>
             <TableCell>
               {run.completedAt
