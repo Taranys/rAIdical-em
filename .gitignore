@@ -53,3 +53,14 @@ next-env.d.ts
 
 # drizzle (migration files are committed; only ignore generated studio files)
 /drizzle/meta/.drizzle/
+
+# Auto Claude data directory
+.auto-claude/
+
+# Auto Claude generated files
+.auto-claude-security.json
+.auto-claude-status
+.claude_settings.json
+.worktrees/
+.security-key
+logs/security/

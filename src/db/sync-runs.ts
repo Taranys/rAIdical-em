@@ -29,6 +29,7 @@ export function completeSyncRun(
   prCount: number,
   errorMessage: string | null,
   reviewCount: number = 0,
+  commentCount: number = 0,
   dbInstance: DbInstance = defaultDb,
 ) {
   return dbInstance
@@ -37,6 +38,7 @@ export function completeSyncRun(
       status,
       prCount,
       reviewCount,
+      commentCount,
       errorMessage,
       completedAt: new Date().toISOString(),
     })
@@ -49,11 +51,12 @@ export function updateSyncRunProgress(
   id: number,
   prCount: number,
   reviewCount: number = 0,
+  commentCount: number = 0,
   dbInstance: DbInstance = defaultDb,
 ) {
   return dbInstance
     .update(syncRuns)
-    .set({ prCount, reviewCount })
+    .set({ prCount, reviewCount, commentCount })
     .where(eq(syncRuns.id, id))
     .returning()
     .get();
@@ -68,6 +71,24 @@ export function getLatestSyncRun(
       .select()
       .from(syncRuns)
       .where(eq(syncRuns.repository, repository))
+      .orderBy(desc(syncRuns.id))
+      .limit(1)
+      .get() ?? null
+  );
+}
+
+// US-014: Get latest successful sync run for incremental sync
+export function getLatestSuccessfulSyncRun(
+  repository: string,
+  dbInstance: DbInstance = defaultDb,
+) {
+  return (
+    dbInstance
+      .select()
+      .from(syncRuns)
+      .where(
+        and(eq(syncRuns.repository, repository), eq(syncRuns.status, "success")),
+      )
       .orderBy(desc(syncRuns.id))
       .limit(1)
       .get() ?? null

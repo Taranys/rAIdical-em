@@ -1,9 +1,10 @@
-// US-010: Sync API — trigger and check sync status
+// US-010 / US-014: Sync API — trigger and check sync status
 import { NextResponse } from "next/server";
 import { getSetting } from "@/db/settings";
 import {
   createSyncRun,
   getLatestSyncRun,
+  getLatestSuccessfulSyncRun,
   getActiveSyncRun,
   getSyncRunHistory,
 } from "@/db/sync-runs";
@@ -40,8 +41,12 @@ export async function POST() {
 
   const syncRun = createSyncRun(repository);
 
+  // US-014: Incremental sync — use last successful sync's completedAt as since
+  const lastSuccessful = getLatestSuccessfulSyncRun(repository);
+  const since = lastSuccessful?.completedAt ?? undefined;
+
   // Start sync in background — don't await
-  syncPullRequests(owner, repo, token, syncRun.id);
+  syncPullRequests(owner, repo, token, syncRun.id, since);
 
   return NextResponse.json({ success: true, syncRunId: syncRun.id });
 }

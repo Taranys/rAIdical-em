@@ -1,4 +1,4 @@
-// US-010: Sync API route unit tests
+// US-010 / US-014: Sync API route unit tests
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/db/settings", () => ({
@@ -8,6 +8,7 @@ vi.mock("@/db/settings", () => ({
 vi.mock("@/db/sync-runs", () => ({
   createSyncRun: vi.fn(),
   getLatestSyncRun: vi.fn(),
+  getLatestSuccessfulSyncRun: vi.fn(),
   getActiveSyncRun: vi.fn(),
   getSyncRunHistory: vi.fn(),
 }));
@@ -21,10 +22,32 @@ import { getSetting } from "@/db/settings";
 import {
   createSyncRun,
   getLatestSyncRun,
+  getLatestSuccessfulSyncRun,
   getActiveSyncRun,
   getSyncRunHistory,
 } from "@/db/sync-runs";
 import { syncPullRequests } from "@/lib/github-sync";
+
+function setupValidSettings() {
+  vi.mocked(getSetting).mockImplementation((key: string) => {
+    if (key === "github_pat") return "ghp_token";
+    if (key === "github_owner") return "owner";
+    if (key === "github_repo") return "repo";
+    return null;
+  });
+}
+
+const mockSyncRun = {
+  id: 42,
+  repository: "owner/repo",
+  startedAt: "2024-06-01T10:00:00Z",
+  completedAt: null,
+  status: "running",
+  prCount: 0,
+  reviewCount: 0,
+  commentCount: 0,
+  errorMessage: null,
+};
 
 describe("POST /api/sync", () => {
   beforeEach(() => {
@@ -55,21 +78,11 @@ describe("POST /api/sync", () => {
   });
 
   it("returns 409 when sync already running", async () => {
-    vi.mocked(getSetting).mockImplementation((key: string) => {
-      if (key === "github_pat") return "ghp_token";
-      if (key === "github_owner") return "owner";
-      if (key === "github_repo") return "repo";
-      return null;
-    });
+    setupValidSettings();
     vi.mocked(getActiveSyncRun).mockReturnValue({
+      ...mockSyncRun,
       id: 1,
-      repository: "owner/repo",
-      startedAt: "2024-06-01T10:00:00Z",
-      completedAt: null,
       status: "running",
-      prCount: 0,
-      commentCount: 0,
-      errorMessage: null,
     });
 
     const res = await POST();
@@ -80,23 +93,10 @@ describe("POST /api/sync", () => {
   });
 
   it("starts sync and returns syncRunId on success", async () => {
-    vi.mocked(getSetting).mockImplementation((key: string) => {
-      if (key === "github_pat") return "ghp_token";
-      if (key === "github_owner") return "owner";
-      if (key === "github_repo") return "repo";
-      return null;
-    });
+    setupValidSettings();
     vi.mocked(getActiveSyncRun).mockReturnValue(null);
-    vi.mocked(createSyncRun).mockReturnValue({
-      id: 42,
-      repository: "owner/repo",
-      startedAt: "2024-06-01T10:00:00Z",
-      completedAt: null,
-      status: "running",
-      prCount: 0,
-      commentCount: 0,
-      errorMessage: null,
-    });
+    vi.mocked(getLatestSuccessfulSyncRun).mockReturnValue(null);
+    vi.mocked(createSyncRun).mockReturnValue(mockSyncRun);
     vi.mocked(syncPullRequests).mockResolvedValue(10);
 
     const res = await POST();
@@ -105,7 +105,45 @@ describe("POST /api/sync", () => {
     expect(res.status).toBe(200);
     expect(data.success).toBe(true);
     expect(data.syncRunId).toBe(42);
-    expect(syncPullRequests).toHaveBeenCalledWith("owner", "repo", "ghp_token", 42);
+    expect(syncPullRequests).toHaveBeenCalledWith("owner", "repo", "ghp_token", 42, undefined);
+  });
+
+  // US-014: Incremental sync tests
+  it("passes completedAt as since when previous successful sync exists", async () => {
+    setupValidSettings();
+    vi.mocked(getActiveSyncRun).mockReturnValue(null);
+    vi.mocked(getLatestSuccessfulSyncRun).mockReturnValue({
+      ...mockSyncRun,
+      id: 10,
+      status: "success",
+      completedAt: "2024-06-01T10:05:00Z",
+    });
+    vi.mocked(createSyncRun).mockReturnValue(mockSyncRun);
+    vi.mocked(syncPullRequests).mockResolvedValue(5);
+
+    const res = await POST();
+    await res.json();
+
+    expect(res.status).toBe(200);
+    expect(syncPullRequests).toHaveBeenCalledWith(
+      "owner",
+      "repo",
+      "ghp_token",
+      42,
+      "2024-06-01T10:05:00Z",
+    );
+  });
+
+  it("does full sync when no previous successful sync exists", async () => {
+    setupValidSettings();
+    vi.mocked(getActiveSyncRun).mockReturnValue(null);
+    vi.mocked(getLatestSuccessfulSyncRun).mockReturnValue(null);
+    vi.mocked(createSyncRun).mockReturnValue(mockSyncRun);
+    vi.mocked(syncPullRequests).mockResolvedValue(10);
+
+    await POST();
+
+    expect(syncPullRequests).toHaveBeenCalledWith("owner", "repo", "ghp_token", 42, undefined);
   });
 });
 
@@ -131,14 +169,11 @@ describe("GET /api/sync", () => {
       return null;
     });
     const mockRun = {
+      ...mockSyncRun,
       id: 1,
-      repository: "owner/repo",
-      startedAt: "2024-06-01T10:00:00Z",
       completedAt: "2024-06-01T10:05:00Z",
       status: "success",
       prCount: 42,
-      commentCount: 0,
-      errorMessage: null,
     };
     vi.mocked(getLatestSyncRun).mockReturnValue(mockRun);
     vi.mocked(getSyncRunHistory).mockReturnValue([mockRun]);
