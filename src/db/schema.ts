@@ -14,6 +14,7 @@ export const teamMembers = sqliteTable("team_members", {
   githubUsername: text("github_username").notNull().unique(),
   displayName: text("display_name").notNull(),
   avatarUrl: text("avatar_url"),
+  color: text("color").notNull().default("#E25A3B"),
   isActive: integer("is_active").notNull().default(1),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),

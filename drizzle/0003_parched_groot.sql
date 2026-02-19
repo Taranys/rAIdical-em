@@ -1,0 +1,1 @@
+ALTER TABLE `team_members` ADD `color` text DEFAULT '#E25A3B' NOT NULL;

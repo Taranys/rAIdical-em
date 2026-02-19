@@ -61,6 +61,7 @@ describe("DELETE /api/team/[id]", () => {
       githubUsername: "octocat",
       displayName: "The Octocat",
       avatarUrl: null,
+      color: "#E25A3B",
       isActive: 0,
       createdAt: "2024-01-01T00:00:00Z",
       updatedAt: "2024-01-02T00:00:00Z",

@@ -8,6 +8,7 @@ import {
   getTeamMemberByUsername,
   createTeamMember,
   deactivateTeamMember,
+  getActiveTeamMemberColors,
 } from "./team-members";
 
 describe("team-members DAL (integration)", () => {
@@ -25,6 +26,7 @@ describe("team-members DAL (integration)", () => {
         github_username TEXT NOT NULL UNIQUE,
         display_name TEXT NOT NULL,
         avatar_url TEXT,
+        color TEXT NOT NULL DEFAULT '#E25A3B',
         is_active INTEGER NOT NULL DEFAULT 1,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
@@ -46,6 +48,7 @@ describe("team-members DAL (integration)", () => {
         githubUsername: "octocat",
         displayName: "The Octocat",
         avatarUrl: "https://github.com/images/error/octocat_happy.gif",
+        color: "#E25A3B",
       },
       testDb,
     );
@@ -55,6 +58,7 @@ describe("team-members DAL (integration)", () => {
     expect(member.avatarUrl).toBe(
       "https://github.com/images/error/octocat_happy.gif",
     );
+    expect(member.color).toBe("#E25A3B");
     expect(member.isActive).toBe(1);
     expect(member.createdAt).toBeTruthy();
     expect(member.updatedAt).toBeTruthy();
@@ -62,13 +66,13 @@ describe("team-members DAL (integration)", () => {
 
   it("throws error when creating duplicate username", () => {
     createTeamMember(
-      { githubUsername: "octocat", displayName: "First", avatarUrl: null },
+      { githubUsername: "octocat", displayName: "First", avatarUrl: null, color: "#E25A3B" },
       testDb,
     );
 
     expect(() =>
       createTeamMember(
-        { githubUsername: "octocat", displayName: "Second", avatarUrl: null },
+        { githubUsername: "octocat", displayName: "Second", avatarUrl: null, color: "#2A9D8F" },
         testDb,
       ),
     ).toThrow();
@@ -76,11 +80,11 @@ describe("team-members DAL (integration)", () => {
 
   it("retrieves all team members ordered by display name", () => {
     createTeamMember(
-      { githubUsername: "user2", displayName: "Zoe", avatarUrl: null },
+      { githubUsername: "user2", displayName: "Zoe", avatarUrl: null, color: "#E25A3B" },
       testDb,
     );
     createTeamMember(
-      { githubUsername: "user1", displayName: "Alice", avatarUrl: null },
+      { githubUsername: "user1", displayName: "Alice", avatarUrl: null, color: "#2A9D8F" },
       testDb,
     );
 
@@ -92,11 +96,11 @@ describe("team-members DAL (integration)", () => {
 
   it("only returns active members", () => {
     createTeamMember(
-      { githubUsername: "active", displayName: "Active", avatarUrl: null },
+      { githubUsername: "active", displayName: "Active", avatarUrl: null, color: "#E25A3B" },
       testDb,
     );
     createTeamMember(
-      { githubUsername: "inactive", displayName: "Inactive", avatarUrl: null },
+      { githubUsername: "inactive", displayName: "Inactive", avatarUrl: null, color: "#2A9D8F" },
       testDb,
     );
     testSqlite.exec(
@@ -110,7 +114,7 @@ describe("team-members DAL (integration)", () => {
 
   it("retrieves a member by username", () => {
     createTeamMember(
-      { githubUsername: "octocat", displayName: "Octo", avatarUrl: null },
+      { githubUsername: "octocat", displayName: "Octo", avatarUrl: null, color: "#E25A3B" },
       testDb,
     );
 
@@ -125,7 +129,7 @@ describe("team-members DAL (integration)", () => {
 
   it("handles null avatar URL", () => {
     const member = createTeamMember(
-      { githubUsername: "user", displayName: "User", avatarUrl: null },
+      { githubUsername: "user", displayName: "User", avatarUrl: null, color: "#E25A3B" },
       testDb,
     );
     expect(member.avatarUrl).toBeNull();
@@ -134,7 +138,7 @@ describe("team-members DAL (integration)", () => {
   // US-008: deactivateTeamMember tests
   it("deactivates a team member (soft delete)", () => {
     const member = createTeamMember(
-      { githubUsername: "octocat", displayName: "Octo", avatarUrl: null },
+      { githubUsername: "octocat", displayName: "Octo", avatarUrl: null, color: "#E25A3B" },
       testDb,
     );
 
@@ -153,7 +157,7 @@ describe("team-members DAL (integration)", () => {
 
   it("returns null when deactivating already inactive member", () => {
     const member = createTeamMember(
-      { githubUsername: "octocat", displayName: "Octo", avatarUrl: null },
+      { githubUsername: "octocat", displayName: "Octo", avatarUrl: null, color: "#E25A3B" },
       testDb,
     );
     deactivateTeamMember(member.id, testDb);
@@ -164,12 +168,50 @@ describe("team-members DAL (integration)", () => {
 
   it("deactivated member is excluded from getAllTeamMembers", () => {
     const member = createTeamMember(
-      { githubUsername: "octocat", displayName: "Octo", avatarUrl: null },
+      { githubUsername: "octocat", displayName: "Octo", avatarUrl: null, color: "#E25A3B" },
       testDb,
     );
     deactivateTeamMember(member.id, testDb);
 
     const members = getAllTeamMembers(testDb);
     expect(members).toHaveLength(0);
+  });
+
+  // Color-related tests
+  it("stores and returns the assigned color", () => {
+    const member = createTeamMember(
+      { githubUsername: "octocat", displayName: "Octo", avatarUrl: null, color: "#3A86FF" },
+      testDb,
+    );
+    expect(member.color).toBe("#3A86FF");
+  });
+
+  it("getActiveTeamMemberColors returns colors of active members only", () => {
+    createTeamMember(
+      { githubUsername: "alice", displayName: "Alice", avatarUrl: null, color: "#E25A3B" },
+      testDb,
+    );
+    createTeamMember(
+      { githubUsername: "bob", displayName: "Bob", avatarUrl: null, color: "#2A9D8F" },
+      testDb,
+    );
+    createTeamMember(
+      { githubUsername: "charlie", displayName: "Charlie", avatarUrl: null, color: "#264653" },
+      testDb,
+    );
+    // Deactivate charlie
+    testSqlite.exec(
+      "UPDATE team_members SET is_active = 0 WHERE github_username = 'charlie'",
+    );
+
+    const colors = getActiveTeamMemberColors(testDb);
+    expect(colors).toHaveLength(2);
+    expect(colors).toContain("#E25A3B");
+    expect(colors).toContain("#2A9D8F");
+    expect(colors).not.toContain("#264653");
+  });
+
+  it("getActiveTeamMemberColors returns empty array when no members", () => {
+    expect(getActiveTeamMemberColors(testDb)).toEqual([]);
   });
 });

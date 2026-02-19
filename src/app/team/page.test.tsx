@@ -64,6 +64,7 @@ describe("TeamPage", () => {
             githubUsername: "octocat",
             displayName: "The Octocat",
             avatarUrl: "https://avatars.githubusercontent.com/u/583231",
+            color: "#E25A3B",
             isActive: 1,
             createdAt: "2024-01-01T00:00:00Z",
             updatedAt: "2024-01-01T00:00:00Z",
@@ -190,6 +191,7 @@ describe("TeamPage", () => {
             githubUsername: "octocat",
             displayName: "The Octocat",
             avatarUrl: null,
+            color: "#E25A3B",
             isActive: 1,
             createdAt: "2024-01-01T00:00:00Z",
             updatedAt: "2024-01-01T00:00:00Z",
@@ -221,6 +223,7 @@ describe("TeamPage", () => {
             githubUsername: "octocat",
             displayName: "The Octocat",
             avatarUrl: "https://avatars.githubusercontent.com/u/583231",
+            color: "#E25A3B",
             isActive: 1,
             createdAt: "2024-01-15T10:30:00Z",
             updatedAt: "2024-01-15T10:30:00Z",
@@ -252,6 +255,43 @@ describe("TeamPage", () => {
     });
   });
 
+  it("displays a colored dot for each team member", async () => {
+    globalThis.fetch = mockFetch({
+      "GET /api/team": {
+        members: [
+          {
+            id: 1,
+            githubUsername: "octocat",
+            displayName: "The Octocat",
+            avatarUrl: null,
+            color: "#E25A3B",
+            isActive: 1,
+            createdAt: "2024-01-01T00:00:00Z",
+            updatedAt: "2024-01-01T00:00:00Z",
+          },
+          {
+            id: 2,
+            githubUsername: "user2",
+            displayName: "User Two",
+            avatarUrl: null,
+            color: "#2A9D8F",
+            isActive: 1,
+            createdAt: "2024-01-01T00:00:00Z",
+            updatedAt: "2024-01-01T00:00:00Z",
+          },
+        ],
+      },
+    });
+    render(<TeamPage />);
+
+    await waitFor(() => {
+      const dots = screen.getAllByTestId("member-color-dot");
+      expect(dots).toHaveLength(2);
+      expect(dots[0]).toHaveStyle({ backgroundColor: "#E25A3B" });
+      expect(dots[1]).toHaveStyle({ backgroundColor: "#2A9D8F" });
+    });
+  });
+
   // US-008: Remove team member tests
   it("displays a remove button for each team member", async () => {
     globalThis.fetch = mockFetch({
@@ -262,6 +302,7 @@ describe("TeamPage", () => {
             githubUsername: "octocat",
             displayName: "The Octocat",
             avatarUrl: null,
+            color: "#E25A3B",
             isActive: 1,
             createdAt: "2024-01-01T00:00:00Z",
             updatedAt: "2024-01-01T00:00:00Z",
@@ -271,6 +312,7 @@ describe("TeamPage", () => {
             githubUsername: "user2",
             displayName: "User Two",
             avatarUrl: null,
+            color: "#2A9D8F",
             isActive: 1,
             createdAt: "2024-01-01T00:00:00Z",
             updatedAt: "2024-01-01T00:00:00Z",
@@ -295,6 +337,7 @@ describe("TeamPage", () => {
             githubUsername: "octocat",
             displayName: "The Octocat",
             avatarUrl: null,
+            color: "#E25A3B",
             isActive: 1,
             createdAt: "2024-01-01T00:00:00Z",
             updatedAt: "2024-01-01T00:00:00Z",
@@ -326,6 +369,7 @@ describe("TeamPage", () => {
             githubUsername: "octocat",
             displayName: "The Octocat",
             avatarUrl: null,
+            color: "#E25A3B",
             isActive: 1,
             createdAt: "2024-01-01T00:00:00Z",
             updatedAt: "2024-01-01T00:00:00Z",
@@ -383,6 +427,7 @@ describe("TeamPage", () => {
             githubUsername: "octocat",
             displayName: "The Octocat",
             avatarUrl: null,
+            color: "#E25A3B",
             isActive: 1,
             createdAt: "2024-01-01T00:00:00Z",
             updatedAt: "2024-01-01T00:00:00Z",

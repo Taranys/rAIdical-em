@@ -6,7 +6,9 @@ import {
   getAllTeamMembers,
   getTeamMemberByUsername,
   createTeamMember,
+  getActiveTeamMemberColors,
 } from "@/db/team-members";
+import { getNextColor } from "@/lib/team-colors";
 
 export const dynamic = "force-dynamic";
 
@@ -50,10 +52,14 @@ export async function POST(request: Request) {
       username: trimmedUsername,
     });
 
+    const existingColors = getActiveTeamMemberColors();
+    const color = getNextColor(existingColors);
+
     const member = createTeamMember({
       githubUsername: user.login,
       displayName: user.name ?? user.login,
       avatarUrl: user.avatar_url,
+      color,
     });
 
     return NextResponse.json({ member }, { status: 201 });

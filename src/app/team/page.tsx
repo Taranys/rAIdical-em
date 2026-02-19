@@ -38,6 +38,7 @@ interface TeamMember {
   githubUsername: string;
   displayName: string;
   avatarUrl: string | null;
+  color: string;
   isActive: number;
   createdAt: string;
   updatedAt: string;
@@ -242,6 +243,11 @@ export default function TeamPage() {
                               .toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
+                        <span
+                          className="inline-block h-3 w-3 rounded-full shrink-0"
+                          style={{ backgroundColor: member.color }}
+                          data-testid="member-color-dot"
+                        />
                         <span className="font-semibold">
                           {member.displayName}
                         </span>
