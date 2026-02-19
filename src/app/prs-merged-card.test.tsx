@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-// US-015: Tests for PRs opened card component
+// Tests for PRs merged card component
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
-import { PrsOpenedCard } from "./prs-opened-card";
+import { PrsMergedCard } from "./prs-merged-card";
 import { PeriodProvider } from "./dashboard-context";
 
 // Mock recharts to avoid canvas rendering issues in tests
@@ -33,7 +33,7 @@ function renderWithProvider(ui: React.ReactElement) {
   return render(<PeriodProvider>{ui}</PeriodProvider>);
 }
 
-describe("PrsOpenedCard", () => {
+describe("PrsMergedCard", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
@@ -43,8 +43,8 @@ describe("PrsOpenedCard", () => {
       () => new Promise(() => {}), // Never resolves
     );
 
-    renderWithProvider(<PrsOpenedCard />);
-    expect(screen.getByTestId("prs-opened-skeleton")).toBeInTheDocument();
+    renderWithProvider(<PrsMergedCard />);
+    expect(screen.getByTestId("prs-merged-skeleton")).toBeInTheDocument();
   });
 
   it("shows empty state when no data", async () => {
@@ -52,10 +52,10 @@ describe("PrsOpenedCard", () => {
       json: async () => ({ byMember: [], byWeek: [] }),
     } as Response);
 
-    renderWithProvider(<PrsOpenedCard />);
+    renderWithProvider(<PrsMergedCard />);
 
     await waitFor(() => {
-      expect(screen.getByText(/No PRs found/)).toBeInTheDocument();
+      expect(screen.getByText(/No merged PRs found/)).toBeInTheDocument();
     });
   });
 
@@ -73,7 +73,7 @@ describe("PrsOpenedCard", () => {
       }),
     } as Response);
 
-    renderWithProvider(<PrsOpenedCard />);
+    renderWithProvider(<PrsMergedCard />);
 
     await waitFor(() => {
       expect(screen.getByText("By team member")).toBeInTheDocument();
@@ -92,10 +92,10 @@ describe("PrsOpenedCard", () => {
       }),
     } as Response);
 
-    renderWithProvider(<PrsOpenedCard />);
+    renderWithProvider(<PrsMergedCard />);
 
     await waitFor(() => {
-      expect(screen.getByText(/8 PRs opened/)).toBeInTheDocument();
+      expect(screen.getByText(/8 PRs merged/)).toBeInTheDocument();
     });
   });
 });

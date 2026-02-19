@@ -1,4 +1,4 @@
-// US-010, US-015, US-016, US-025: Pull requests data access layer
+// US-010, US-016, US-025: Pull requests data access layer
 import { db as defaultDb } from "./index";
 import { pullRequests } from "./schema";
 import { count, and, gte, lt, inArray, eq, desc, sql } from "drizzle-orm";
@@ -65,8 +65,8 @@ export function getPullRequestCount(
   return result?.count ?? 0;
 }
 
-// US-015: Get PRs opened per team member within a date range
-export function getPRsOpenedByMember(
+// PRs merged per team member within a date range
+export function getPRsMergedByMember(
   teamUsernames: string[],
   startDate: string,
   endDate: string,
@@ -83,16 +83,17 @@ export function getPRsOpenedByMember(
     .where(
       and(
         inArray(pullRequests.author, teamUsernames),
-        gte(pullRequests.createdAt, startDate),
-        lt(pullRequests.createdAt, endDate),
+        eq(pullRequests.state, "merged"),
+        gte(pullRequests.mergedAt, startDate),
+        lt(pullRequests.mergedAt, endDate),
       ),
     )
     .groupBy(pullRequests.author)
     .all();
 }
 
-// US-015: Get PRs opened per week within a date range (for trend chart)
-export function getPRsOpenedPerWeek(
+// PRs merged per week within a date range (for trend chart)
+export function getPRsMergedPerWeek(
   teamUsernames: string[],
   startDate: string,
   endDate: string,
@@ -102,7 +103,7 @@ export function getPRsOpenedPerWeek(
 
   return dbInstance
     .select({
-      week: sql<string>`strftime('%Y-W%W', ${pullRequests.createdAt})`.as(
+      week: sql<string>`strftime('%Y-W%W', ${pullRequests.mergedAt})`.as(
         "week",
       ),
       count: count(),
@@ -111,12 +112,13 @@ export function getPRsOpenedPerWeek(
     .where(
       and(
         inArray(pullRequests.author, teamUsernames),
-        gte(pullRequests.createdAt, startDate),
-        lt(pullRequests.createdAt, endDate),
+        eq(pullRequests.state, "merged"),
+        gte(pullRequests.mergedAt, startDate),
+        lt(pullRequests.mergedAt, endDate),
       ),
     )
-    .groupBy(sql`strftime('%Y-W%W', ${pullRequests.createdAt})`)
-    .orderBy(sql`strftime('%Y-W%W', ${pullRequests.createdAt})`)
+    .groupBy(sql`strftime('%Y-W%W', ${pullRequests.mergedAt})`)
+    .orderBy(sql`strftime('%Y-W%W', ${pullRequests.mergedAt})`)
     .all();
 }
 

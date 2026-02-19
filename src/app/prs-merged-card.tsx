@@ -1,6 +1,6 @@
 "use client";
 
-// US-015: PRs opened per team member — bar chart + weekly trend
+// PRs merged per team member — bar chart + weekly trend
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   BarChart,
@@ -35,7 +35,7 @@ interface WeekData {
   count: number;
 }
 
-export function PrsOpenedCard() {
+export function PrsMergedCard() {
   const { period } = usePeriod();
   const colorMap = useTeamColors();
   const [byMember, setByMember] = useState<MemberData[]>([]);
@@ -47,7 +47,7 @@ export function PrsOpenedCard() {
     const id = ++fetchIdRef.current;
     const params = new URLSearchParams({ startDate, endDate });
 
-    fetch(`/api/dashboard/prs-opened?${params}`)
+    fetch(`/api/dashboard/prs-merged?${params}`)
       .then((res) => res.json())
       .then((data) => {
         if (id !== fetchIdRef.current) return; // stale
@@ -69,10 +69,10 @@ export function PrsOpenedCard() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>PRs Opened per Team Member</CardTitle>
+          <CardTitle>PRs Merged per Team Member</CardTitle>
         </CardHeader>
         <CardContent>
-          <Skeleton className="h-[300px] w-full" data-testid="prs-opened-skeleton" />
+          <Skeleton className="h-[300px] w-full" data-testid="prs-merged-skeleton" />
         </CardContent>
       </Card>
     );
@@ -83,15 +83,15 @@ export function PrsOpenedCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>PRs Opened per Team Member</CardTitle>
+        <CardTitle>PRs Merged per Team Member</CardTitle>
         <CardDescription>
-          {totalPRs} PR{totalPRs !== 1 ? "s" : ""} opened during {period.label}
+          {totalPRs} PR{totalPRs !== 1 ? "s" : ""} merged during {period.label}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-8">
         {byMember.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No PRs found for the selected period. Make sure you have team
+            No merged PRs found for the selected period. Make sure you have team
             members configured and have synced your GitHub data.
           </p>
         ) : (
