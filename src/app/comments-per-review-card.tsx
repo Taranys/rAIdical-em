@@ -45,7 +45,11 @@ export function CommentsPerReviewCard() {
       .then((res) => res.json())
       .then((json) => {
         if (id !== fetchIdRef.current) return;
-        setData(json.data ?? []);
+        setData(
+          (json.data ?? []).sort(
+            (a: MemberData, b: MemberData) => b.avg - a.avg,
+          ),
+        );
         setIsLoading(false);
       })
       .catch(() => {
