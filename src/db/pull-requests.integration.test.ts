@@ -8,6 +8,8 @@ import {
   getPullRequestCount,
   getPRsOpenedByMember,
   getPRsOpenedPerWeek,
+  getAvgPRSizeByMember,
+  getPRsByMember,
 } from "./pull-requests";
 
 describe("pull-requests DAL (integration)", () => {
@@ -218,6 +220,79 @@ describe("pull-requests DAL (integration)", () => {
         testDb,
       );
       expect(result).toEqual([]);
+    });
+  });
+
+  // US-016: getAvgPRSizeByMember
+  describe("getAvgPRSizeByMember", () => {
+    beforeEach(() => {
+      upsertPullRequest(
+        { ...samplePR, githubId: 20, number: 20, author: "alice", additions: 100, deletions: 20, createdAt: "2026-02-05T10:00:00Z" },
+        testDb,
+      );
+      upsertPullRequest(
+        { ...samplePR, githubId: 21, number: 21, author: "alice", additions: 200, deletions: 40, createdAt: "2026-02-10T10:00:00Z" },
+        testDb,
+      );
+      upsertPullRequest(
+        { ...samplePR, githubId: 22, number: 22, author: "bob", additions: 50, deletions: 10, createdAt: "2026-02-15T10:00:00Z" },
+        testDb,
+      );
+    });
+
+    it("returns correct averages per author", () => {
+      const result = getAvgPRSizeByMember(
+        ["alice", "bob"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+
+      const alice = result.find((r) => r.author === "alice");
+      expect(alice?.avgAdditions).toBe(150); // (100+200)/2
+      expect(alice?.avgDeletions).toBe(30); // (20+40)/2
+      expect(alice?.prCount).toBe(2);
+
+      const bob = result.find((r) => r.author === "bob");
+      expect(bob?.avgAdditions).toBe(50);
+      expect(bob?.prCount).toBe(1);
+    });
+
+    it("returns empty for empty team list", () => {
+      expect(getAvgPRSizeByMember([], "2026-02-01T00:00:00Z", "2026-03-01T00:00:00Z", testDb)).toEqual([]);
+    });
+  });
+
+  // US-016: getPRsByMember
+  describe("getPRsByMember", () => {
+    beforeEach(() => {
+      upsertPullRequest(
+        { ...samplePR, githubId: 30, number: 30, author: "alice", additions: 100, deletions: 20, changedFiles: 5, createdAt: "2026-02-05T10:00:00Z" },
+        testDb,
+      );
+      upsertPullRequest(
+        { ...samplePR, githubId: 31, number: 31, author: "alice", additions: 200, deletions: 40, changedFiles: 8, createdAt: "2026-02-10T10:00:00Z" },
+        testDb,
+      );
+      upsertPullRequest(
+        { ...samplePR, githubId: 32, number: 32, author: "bob", additions: 50, deletions: 10, createdAt: "2026-02-15T10:00:00Z" },
+        testDb,
+      );
+    });
+
+    it("returns PRs for a specific author ordered by date DESC", () => {
+      const result = getPRsByMember("alice", "2026-02-01T00:00:00Z", "2026-03-01T00:00:00Z", testDb);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].number).toBe(31); // More recent first
+      expect(result[1].number).toBe(30);
+      expect(result[0].additions).toBe(200);
+      expect(result[0].changedFiles).toBe(8);
+    });
+
+    it("does not return PRs from other authors", () => {
+      const result = getPRsByMember("alice", "2026-02-01T00:00:00Z", "2026-03-01T00:00:00Z", testDb);
+      expect(result.every((pr) => pr.number !== 32)).toBe(true);
     });
   });
 });
