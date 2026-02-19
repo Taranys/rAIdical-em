@@ -14,32 +14,52 @@ if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
-let sqlite = new Database(DB_PATH);
-sqlite.pragma("journal_mode = WAL");
+// Use a mutable container so that all modules importing `db` or `sqlite`
+// keep a reference to the *same* object. When replaceDatabase() swaps the
+// underlying connection, every consumer sees the new instance immediately.
+const _state = {
+  sqlite: new Database(DB_PATH),
+  db: null as unknown as ReturnType<typeof drizzle<typeof schema>>,
+};
+_state.sqlite.pragma("journal_mode = WAL");
+_state.db = drizzle(_state.sqlite, { schema });
 
-let db = drizzle(sqlite, { schema });
-export { db, sqlite };
+// Re-export as named getters so `import { db } from "@/db"` always
+// resolves to the current live instance, even after replaceDatabase().
+export const db: typeof _state.db = new Proxy({} as typeof _state.db, {
+  get(_target, prop) {
+    return Reflect.get(_state.db, prop, _state.db);
+  },
+});
+export const sqlite: typeof _state.sqlite = new Proxy(
+  {} as typeof _state.sqlite,
+  {
+    get(_target, prop) {
+      return Reflect.get(_state.sqlite, prop, _state.sqlite);
+    },
+  },
+);
 
 // Auto-run migrations on startup
 if (fs.existsSync(migrationsFolder)) {
-  migrate(db, { migrationsFolder });
+  migrate(_state.db, { migrationsFolder });
 }
 
 // US-2.17: Replace the active database with a new file
 export function replaceDatabase(newFilePath: string): void {
   // Close current connection
-  sqlite.close();
+  _state.sqlite.close();
 
   // Overwrite database file
   fs.copyFileSync(newFilePath, DB_PATH);
 
   // Reopen connection
-  sqlite = new Database(DB_PATH);
-  sqlite.pragma("journal_mode = WAL");
-  db = drizzle(sqlite, { schema });
+  _state.sqlite = new Database(DB_PATH);
+  _state.sqlite.pragma("journal_mode = WAL");
+  _state.db = drizzle(_state.sqlite, { schema });
 
   // Apply pending migrations
   if (fs.existsSync(migrationsFolder)) {
-    migrate(db, { migrationsFolder });
+    migrate(_state.db, { migrationsFolder });
   }
 }
