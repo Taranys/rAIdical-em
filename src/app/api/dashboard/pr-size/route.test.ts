@@ -9,8 +9,8 @@ vi.mock("@/db/team-members", () => ({
 }));
 
 vi.mock("@/db/pull-requests", () => ({
-  getAvgPRSizeByMember: vi.fn(() => [
-    { author: "alice", avgAdditions: 100, avgDeletions: 30, prCount: 5 },
+  getMedianPRSizeByMember: vi.fn(() => [
+    { author: "alice", medianAdditions: 100, medianDeletions: 30, prCount: 5 },
   ]),
 }));
 
@@ -32,7 +32,7 @@ describe("GET /api/dashboard/pr-size", () => {
     expect(res.status).toBe(400);
   });
 
-  it("returns byMember data", async () => {
+  it("returns byMember data with median values", async () => {
     const res = await GET(
       createRequest({
         startDate: "2026-02-01T00:00:00Z",
@@ -42,6 +42,6 @@ describe("GET /api/dashboard/pr-size", () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.byMember).toHaveLength(1);
-    expect(data.byMember[0].avgAdditions).toBe(100);
+    expect(data.byMember[0].medianAdditions).toBe(100);
   });
 });

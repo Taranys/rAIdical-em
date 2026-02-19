@@ -8,7 +8,7 @@ import {
   getPullRequestCount,
   getPRsMergedByMember,
   getPRsMergedPerWeek,
-  getAvgPRSizeByMember,
+  getMedianPRSizeByMember,
   getPRsByMember,
   getAiRatioByMember,
   getAiRatioTeamTotal,
@@ -245,8 +245,8 @@ describe("pull-requests DAL (integration)", () => {
     });
   });
 
-  // US-016: getAvgPRSizeByMember
-  describe("getAvgPRSizeByMember", () => {
+  // US-016: getMedianPRSizeByMember
+  describe("getMedianPRSizeByMember", () => {
     beforeEach(() => {
       upsertPullRequest(
         { ...samplePR, githubId: 20, number: 20, author: "alice", additions: 100, deletions: 20, createdAt: "2026-02-05T10:00:00Z" },
@@ -257,13 +257,17 @@ describe("pull-requests DAL (integration)", () => {
         testDb,
       );
       upsertPullRequest(
+        { ...samplePR, githubId: 23, number: 23, author: "alice", additions: 300, deletions: 60, createdAt: "2026-02-12T10:00:00Z" },
+        testDb,
+      );
+      upsertPullRequest(
         { ...samplePR, githubId: 22, number: 22, author: "bob", additions: 50, deletions: 10, createdAt: "2026-02-15T10:00:00Z" },
         testDb,
       );
     });
 
-    it("returns correct averages per author", () => {
-      const result = getAvgPRSizeByMember(
+    it("returns correct medians per author", () => {
+      const result = getMedianPRSizeByMember(
         ["alice", "bob"],
         "2026-02-01T00:00:00Z",
         "2026-03-01T00:00:00Z",
@@ -271,17 +275,50 @@ describe("pull-requests DAL (integration)", () => {
       );
 
       const alice = result.find((r) => r.author === "alice");
-      expect(alice?.avgAdditions).toBe(150); // (100+200)/2
-      expect(alice?.avgDeletions).toBe(30); // (20+40)/2
-      expect(alice?.prCount).toBe(2);
+      expect(alice?.medianAdditions).toBe(200); // median of [100, 200, 300]
+      expect(alice?.medianDeletions).toBe(40); // median of [20, 40, 60]
+      expect(alice?.prCount).toBe(3);
 
       const bob = result.find((r) => r.author === "bob");
-      expect(bob?.avgAdditions).toBe(50);
+      expect(bob?.medianAdditions).toBe(50);
       expect(bob?.prCount).toBe(1);
     });
 
+    it("sorts by median total descending", () => {
+      const result = getMedianPRSizeByMember(
+        ["alice", "bob"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+
+      // alice median total = 200+40 = 240, bob = 50+10 = 60
+      expect(result[0].author).toBe("alice");
+      expect(result[1].author).toBe("bob");
+    });
+
+    it("computes median correctly for even number of values", () => {
+      // Add a 4th PR for alice → even count [100, 200, 300, 400]
+      upsertPullRequest(
+        { ...samplePR, githubId: 24, number: 24, author: "alice", additions: 400, deletions: 80, createdAt: "2026-02-14T10:00:00Z" },
+        testDb,
+      );
+
+      const result = getMedianPRSizeByMember(
+        ["alice"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+
+      const alice = result.find((r) => r.author === "alice");
+      expect(alice?.medianAdditions).toBe(250); // (200+300)/2
+      expect(alice?.medianDeletions).toBe(50); // (40+60)/2
+      expect(alice?.prCount).toBe(4);
+    });
+
     it("returns empty for empty team list", () => {
-      expect(getAvgPRSizeByMember([], "2026-02-01T00:00:00Z", "2026-03-01T00:00:00Z", testDb)).toEqual([]);
+      expect(getMedianPRSizeByMember([], "2026-02-01T00:00:00Z", "2026-03-01T00:00:00Z", testDb)).toEqual([]);
     });
   });
 

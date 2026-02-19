@@ -25,8 +25,8 @@ const LARGE_PR_THRESHOLD = 500;
 
 interface MemberSize {
   author: string;
-  avgAdditions: number;
-  avgDeletions: number;
+  medianAdditions: number;
+  medianDeletions: number;
   prCount: number;
 }
 
@@ -111,7 +111,7 @@ export function PrSizeCard() {
       <CardHeader>
         <CardTitle>PR Size per Team Member</CardTitle>
         <CardDescription>
-          Average lines added/deleted per PR during {period.label}
+          Median lines added/deleted per PR during {period.label}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -125,16 +125,16 @@ export function PrSizeCard() {
               <TableRow>
                 <TableHead className="w-8"></TableHead>
                 <TableHead>Member</TableHead>
-                <TableHead className="text-right">Avg Additions</TableHead>
-                <TableHead className="text-right">Avg Deletions</TableHead>
-                <TableHead className="text-right">Avg Total</TableHead>
+                <TableHead className="text-right">Median Additions</TableHead>
+                <TableHead className="text-right">Median Deletions</TableHead>
+                <TableHead className="text-right">Median Total</TableHead>
                 <TableHead className="text-right">PRs</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {byMember.map((member) => {
-                const avgTotal = member.avgAdditions + member.avgDeletions;
-                const isLarge = avgTotal > LARGE_PR_THRESHOLD;
+                const medianTotal = member.medianAdditions + member.medianDeletions;
+                const isLarge = medianTotal > LARGE_PR_THRESHOLD;
                 const isExpanded = expandedAuthor === member.author;
 
                 return (
@@ -156,13 +156,13 @@ export function PrSizeCard() {
                         {member.author}
                       </TableCell>
                       <TableCell className="text-right text-green-600">
-                        +{member.avgAdditions}
+                        +{member.medianAdditions}
                       </TableCell>
                       <TableCell className="text-right text-red-600">
-                        -{member.avgDeletions}
+                        -{member.medianDeletions}
                       </TableCell>
                       <TableCell className={`text-right font-medium ${isLarge ? "text-red-600" : ""}`}>
-                        {avgTotal}
+                        {medianTotal}
                       </TableCell>
                       <TableCell className="text-right">
                         {member.prCount}
