@@ -44,7 +44,7 @@ test.describe("Application Shell and Navigation", () => {
     // Navigate back to Dashboard
     await sidebar.getByRole("link", { name: "Dashboard" }).click();
     await expect(page).toHaveURL("/");
-    await expect(page.getByRole("heading", { name: "em-control-tower" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
     await expect(sidebar.getByRole("link", { name: "Dashboard" })).toHaveAttribute("data-active", "true");
   });
 });

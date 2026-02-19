@@ -3,7 +3,12 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema";
-import { upsertPullRequest, getPullRequestCount } from "./pull-requests";
+import {
+  upsertPullRequest,
+  getPullRequestCount,
+  getPRsOpenedByMember,
+  getPRsOpenedPerWeek,
+} from "./pull-requests";
 
 describe("pull-requests DAL (integration)", () => {
   let testSqlite: InstanceType<typeof Database>;
@@ -97,5 +102,122 @@ describe("pull-requests DAL (integration)", () => {
   it("stores raw_json when not provided as null", () => {
     const result = upsertPullRequest(samplePR, testDb);
     expect(result.rawJson).toBeNull();
+  });
+
+  // US-015: getPRsOpenedByMember
+  describe("getPRsOpenedByMember", () => {
+    beforeEach(() => {
+      upsertPullRequest(
+        { ...samplePR, githubId: 1, number: 1, author: "alice", createdAt: "2026-02-05T10:00:00Z" },
+        testDb,
+      );
+      upsertPullRequest(
+        { ...samplePR, githubId: 2, number: 2, author: "alice", createdAt: "2026-02-10T10:00:00Z" },
+        testDb,
+      );
+      upsertPullRequest(
+        { ...samplePR, githubId: 3, number: 3, author: "bob", createdAt: "2026-02-15T10:00:00Z" },
+        testDb,
+      );
+      // Outside date range
+      upsertPullRequest(
+        { ...samplePR, githubId: 4, number: 4, author: "alice", createdAt: "2026-03-05T10:00:00Z" },
+        testDb,
+      );
+      // Not a team member
+      upsertPullRequest(
+        { ...samplePR, githubId: 5, number: 5, author: "stranger", createdAt: "2026-02-12T10:00:00Z" },
+        testDb,
+      );
+    });
+
+    it("returns correct counts per author within date range", () => {
+      const result = getPRsOpenedByMember(
+        ["alice", "bob"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+
+      const alice = result.find((r) => r.author === "alice");
+      const bob = result.find((r) => r.author === "bob");
+      expect(alice?.count).toBe(2);
+      expect(bob?.count).toBe(1);
+    });
+
+    it("excludes PRs outside date range", () => {
+      const result = getPRsOpenedByMember(
+        ["alice"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+      expect(result.find((r) => r.author === "alice")?.count).toBe(2);
+    });
+
+    it("excludes PRs by non-team members", () => {
+      const result = getPRsOpenedByMember(
+        ["alice", "bob"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+      expect(result.find((r) => r.author === "stranger")).toBeUndefined();
+    });
+
+    it("returns empty array for empty team list", () => {
+      const result = getPRsOpenedByMember(
+        [],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+      expect(result).toEqual([]);
+    });
+  });
+
+  // US-015: getPRsOpenedPerWeek
+  describe("getPRsOpenedPerWeek", () => {
+    beforeEach(() => {
+      // Week 5 (2026): around Feb 2
+      upsertPullRequest(
+        { ...samplePR, githubId: 10, number: 10, author: "alice", createdAt: "2026-02-02T10:00:00Z" },
+        testDb,
+      );
+      // Week 6 (2026): around Feb 9
+      upsertPullRequest(
+        { ...samplePR, githubId: 11, number: 11, author: "alice", createdAt: "2026-02-09T10:00:00Z" },
+        testDb,
+      );
+      upsertPullRequest(
+        { ...samplePR, githubId: 12, number: 12, author: "bob", createdAt: "2026-02-10T10:00:00Z" },
+        testDb,
+      );
+    });
+
+    it("groups PRs by week correctly", () => {
+      const result = getPRsOpenedPerWeek(
+        ["alice", "bob"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+
+      expect(result.length).toBeGreaterThanOrEqual(2);
+      // Weeks should be ordered
+      for (let i = 1; i < result.length; i++) {
+        expect(result[i].week >= result[i - 1].week).toBe(true);
+      }
+    });
+
+    it("returns empty array for empty team list", () => {
+      const result = getPRsOpenedPerWeek(
+        [],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+      expect(result).toEqual([]);
+    });
   });
 });
