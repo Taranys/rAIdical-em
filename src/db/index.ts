@@ -26,16 +26,20 @@ _state.db = drizzle(_state.sqlite, { schema });
 
 // Re-export as named getters so `import { db } from "@/db"` always
 // resolves to the current live instance, even after replaceDatabase().
+// Methods are bound to the real target so `this` context stays correct
+// when Drizzle chains calls (e.g. db.select().from().where()).
 export const db: typeof _state.db = new Proxy({} as typeof _state.db, {
   get(_target, prop) {
-    return Reflect.get(_state.db, prop, _state.db);
+    const value = Reflect.get(_state.db, prop, _state.db);
+    return typeof value === "function" ? value.bind(_state.db) : value;
   },
 });
 export const sqlite: typeof _state.sqlite = new Proxy(
   {} as typeof _state.sqlite,
   {
     get(_target, prop) {
-      return Reflect.get(_state.sqlite, prop, _state.sqlite);
+      const value = Reflect.get(_state.sqlite, prop, _state.sqlite);
+      return typeof value === "function" ? value.bind(_state.sqlite) : value;
     },
   },
 );
