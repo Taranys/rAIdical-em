@@ -1,4 +1,4 @@
-// US-010 / US-014: Sync API route unit tests
+// US-010 / US-014 / US-025: Sync API route unit tests
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/db/settings", () => ({
@@ -37,6 +37,18 @@ function setupValidSettings() {
   });
 }
 
+// US-025: Helper to create a Request with JSON body
+function createPostRequest(body?: Record<string, unknown>) {
+  if (body) {
+    return new Request("http://localhost/api/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+  return new Request("http://localhost/api/sync", { method: "POST" });
+}
+
 const mockSyncRun = {
   id: 42,
   repository: "owner/repo",
@@ -57,7 +69,7 @@ describe("POST /api/sync", () => {
   it("returns 400 when no PAT configured", async () => {
     vi.mocked(getSetting).mockReturnValue(null);
 
-    const res = await POST();
+    const res = await POST(createPostRequest());
     const data = await res.json();
 
     expect(res.status).toBe(400);
@@ -70,7 +82,7 @@ describe("POST /api/sync", () => {
       return null;
     });
 
-    const res = await POST();
+    const res = await POST(createPostRequest());
     const data = await res.json();
 
     expect(res.status).toBe(400);
@@ -85,7 +97,7 @@ describe("POST /api/sync", () => {
       status: "running",
     });
 
-    const res = await POST();
+    const res = await POST(createPostRequest());
     const data = await res.json();
 
     expect(res.status).toBe(409);
@@ -99,7 +111,7 @@ describe("POST /api/sync", () => {
     vi.mocked(createSyncRun).mockReturnValue(mockSyncRun);
     vi.mocked(syncPullRequests).mockResolvedValue(10);
 
-    const res = await POST();
+    const res = await POST(createPostRequest());
     const data = await res.json();
 
     expect(res.status).toBe(200);
@@ -121,7 +133,7 @@ describe("POST /api/sync", () => {
     vi.mocked(createSyncRun).mockReturnValue(mockSyncRun);
     vi.mocked(syncPullRequests).mockResolvedValue(5);
 
-    const res = await POST();
+    const res = await POST(createPostRequest());
     await res.json();
 
     expect(res.status).toBe(200);
@@ -141,9 +153,56 @@ describe("POST /api/sync", () => {
     vi.mocked(createSyncRun).mockReturnValue(mockSyncRun);
     vi.mocked(syncPullRequests).mockResolvedValue(10);
 
-    await POST();
+    await POST(createPostRequest());
 
     expect(syncPullRequests).toHaveBeenCalledWith("owner", "repo", "ghp_token", 42, undefined);
+  });
+
+  // US-025: sinceDate from request body
+  it("uses sinceDate from request body when provided", async () => {
+    setupValidSettings();
+    vi.mocked(getActiveSyncRun).mockReturnValue(null);
+    vi.mocked(createSyncRun).mockReturnValue(mockSyncRun);
+    vi.mocked(syncPullRequests).mockResolvedValue(10);
+
+    const res = await POST(
+      createPostRequest({ sinceDate: "2025-10-01T00:00:00Z" }),
+    );
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.success).toBe(true);
+    expect(syncPullRequests).toHaveBeenCalledWith(
+      "owner",
+      "repo",
+      "ghp_token",
+      42,
+      "2025-10-01T00:00:00Z",
+    );
+  });
+
+  it("sinceDate overrides incremental sync", async () => {
+    setupValidSettings();
+    vi.mocked(getActiveSyncRun).mockReturnValue(null);
+    vi.mocked(getLatestSuccessfulSyncRun).mockReturnValue({
+      ...mockSyncRun,
+      id: 10,
+      status: "success",
+      completedAt: "2024-06-01T10:05:00Z",
+    });
+    vi.mocked(createSyncRun).mockReturnValue(mockSyncRun);
+    vi.mocked(syncPullRequests).mockResolvedValue(10);
+
+    await POST(createPostRequest({ sinceDate: "2025-10-01T00:00:00Z" }));
+
+    // Should use sinceDate from body, NOT completedAt from last successful sync
+    expect(syncPullRequests).toHaveBeenCalledWith(
+      "owner",
+      "repo",
+      "ghp_token",
+      42,
+      "2025-10-01T00:00:00Z",
+    );
   });
 });
 

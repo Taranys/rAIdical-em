@@ -1,4 +1,4 @@
-// US-010 / US-014: Sync API — trigger and check sync status
+// US-010 / US-014 / US-025: Sync API — trigger and check sync status
 import { NextResponse } from "next/server";
 import { getSetting } from "@/db/settings";
 import {
@@ -12,7 +12,7 @@ import { syncPullRequests } from "@/lib/github-sync";
 
 export const dynamic = "force-dynamic";
 
-export async function POST() {
+export async function POST(request: Request) {
   const token = getSetting("github_pat");
   if (!token) {
     return NextResponse.json(
@@ -41,9 +41,22 @@ export async function POST() {
 
   const syncRun = createSyncRun(repository);
 
-  // US-014: Incremental sync — use last successful sync's completedAt as since
-  const lastSuccessful = getLatestSuccessfulSyncRun(repository);
-  const since = lastSuccessful?.completedAt ?? undefined;
+  // US-025: Accept sinceDate from request body to override incremental sync
+  let since: string | undefined;
+  try {
+    const body = await request.json();
+    if (body.sinceDate) {
+      since = body.sinceDate;
+    }
+  } catch {
+    // No body or invalid JSON — fall back to incremental sync
+  }
+
+  // US-014: Fallback to last successful sync's completedAt for incremental sync
+  if (!since) {
+    const lastSuccessful = getLatestSuccessfulSyncRun(repository);
+    since = lastSuccessful?.completedAt ?? undefined;
+  }
 
   // Start sync in background — don't await
   syncPullRequests(owner, repo, token, syncRun.id, since);

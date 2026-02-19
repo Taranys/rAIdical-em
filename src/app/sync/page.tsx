@@ -1,7 +1,7 @@
 "use client";
 
-// US-010 + US-011 + US-013: Sync page — fetch PRs and reviews from GitHub with real-time progress and history
-import { useCallback, useEffect, useState } from "react";
+// US-010 + US-011 + US-013 + US-025: Sync page — fetch PRs and reviews from GitHub with real-time progress, history, and quarter selector
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Card,
   CardContent,
@@ -11,6 +11,13 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -25,13 +32,27 @@ import {
   AlertCircle,
   Clock,
   Loader2,
+  Users,
 } from "lucide-react";
 import { useSyncStatus, type SyncRun } from "@/hooks/use-sync-status";
+import { getQuarterOptions, getDefaultQuarter } from "@/lib/date-periods";
 
 interface RateLimit {
   limit: number;
   remaining: number;
   resetAt: string;
+}
+
+interface TeamMember {
+  id: number;
+  githubUsername: string;
+  displayName: string;
+}
+
+interface ProgressData {
+  teamProgress: { author: string; count: number }[];
+  nonTeamCount: number;
+  totalCount: number;
 }
 
 function formatDate(iso: string) {
@@ -167,11 +188,59 @@ function SyncHistoryTable({ history }: { history: SyncRun[] }) {
   );
 }
 
+// US-025: Progress per team member
+function SyncProgressCard({
+  progress,
+  isLoading,
+}: {
+  progress: ProgressData | null;
+  isLoading: boolean;
+}) {
+  if (isLoading || !progress) return null;
+  if (progress.totalCount === 0) return null;
+
+  return (
+    <Card className="mb-8">
+      <CardHeader>
+        <CardTitle>Sync Progress by Team Member</CardTitle>
+        <CardDescription>
+          Total: {progress.totalCount} PRs
+          {progress.nonTeamCount > 0 &&
+            ` | ${progress.nonTeamCount} from non-team members`}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+          {progress.teamProgress.map((member) => (
+            <div
+              key={member.author}
+              className="flex items-center justify-between py-1"
+            >
+              <span className="text-sm font-medium">{member.author}</span>
+              <Badge variant="secondary">{member.count} PRs</Badge>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function SyncPage() {
   const { syncRun, history, isLoading, fetchStatus, startPolling } =
     useSyncStatus();
   const [rateLimit, setRateLimit] = useState<RateLimit | null>(null);
   const [isTriggering, setIsTriggering] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [teamLoading, setTeamLoading] = useState(true);
+  const [progress, setProgress] = useState<ProgressData | null>(null);
+
+  // US-025: Quarter selector state
+  const quarterOptions = getQuarterOptions();
+  const [selectedQuarter, setSelectedQuarter] = useState(getDefaultQuarter());
+  const selectedOption = quarterOptions.find(
+    (q) => q.value === selectedQuarter,
+  );
 
   const fetchRateLimit = useCallback(async () => {
     try {
@@ -185,14 +254,74 @@ export default function SyncPage() {
     }
   }, []);
 
+  // US-025: Fetch team members to check if any exist
+  const fetchTeamMembers = useCallback(async () => {
+    try {
+      const res = await fetch("/api/team");
+      const data = await res.json();
+      setTeamMembers(data.members ?? []);
+    } catch {
+      // Ignore — will show empty state
+    } finally {
+      setTeamLoading(false);
+    }
+  }, []);
+
+  // US-025: Fetch progress per member
+  const progressPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const fetchProgress = useCallback(
+    async (sinceDate: string) => {
+      try {
+        const params = new URLSearchParams({ sinceDate });
+        const res = await fetch(`/api/sync/progress?${params}`);
+        const data = await res.json();
+        setProgress(data);
+      } catch {
+        // Ignore
+      }
+    },
+    [],
+  );
+
   useEffect(() => {
     fetchRateLimit();
-  }, [fetchRateLimit]);
+    fetchTeamMembers();
+  }, [fetchRateLimit, fetchTeamMembers]);
+
+  // US-025: Poll progress while sync is running
+  useEffect(() => {
+    if (syncRun?.status === "running" && selectedOption) {
+      fetchProgress(selectedOption.startDate);
+      progressPollRef.current = setInterval(() => {
+        fetchProgress(selectedOption.startDate);
+      }, 2000);
+    } else if (syncRun?.status !== "running" && progressPollRef.current) {
+      clearInterval(progressPollRef.current);
+      progressPollRef.current = null;
+      // Final fetch after sync completes
+      if (selectedOption) {
+        fetchProgress(selectedOption.startDate);
+      }
+    }
+
+    return () => {
+      if (progressPollRef.current) {
+        clearInterval(progressPollRef.current);
+        progressPollRef.current = null;
+      }
+    };
+  }, [syncRun?.status, selectedOption, fetchProgress]);
 
   async function handleSync() {
+    if (!selectedOption) return;
     setIsTriggering(true);
     try {
-      const res = await fetch("/api/sync", { method: "POST" });
+      const res = await fetch("/api/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sinceDate: selectedOption.startDate }),
+      });
       const data = await res.json();
       if (data.success) {
         await fetchStatus();
@@ -206,6 +335,7 @@ export default function SyncPage() {
   }
 
   const isSyncing = syncRun?.status === "running";
+  const hasTeamMembers = teamMembers.length > 0;
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -220,29 +350,76 @@ export default function SyncPage() {
                 Sync pull requests from your configured GitHub repository.
               </CardDescription>
             </div>
-            <Button onClick={handleSync} disabled={isTriggering || isSyncing}>
-              {isSyncing ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Syncing...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="h-4 w-4" />
-                  Sync Now
-                </>
-              )}
-            </Button>
+            <div className="flex items-center gap-3">
+              {/* US-025: Quarter selector */}
+              <Select
+                value={selectedQuarter}
+                onValueChange={setSelectedQuarter}
+                disabled={isSyncing}
+              >
+                <SelectTrigger className="w-[200px]" data-testid="quarter-selector">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {quarterOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                onClick={handleSync}
+                disabled={isTriggering || isSyncing || !hasTeamMembers}
+              >
+                {isSyncing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Syncing...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4" />
+                    Sync Now
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
+          {/* US-025: Team member check */}
+          {!teamLoading && !hasTeamMembers ? (
+            <div className="flex items-center gap-3">
+              <Users className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="font-medium text-muted-foreground">
+                  No team members configured
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  <a
+                    href="/team"
+                    className="text-primary underline underline-offset-4"
+                  >
+                    Add team members
+                  </a>{" "}
+                  before syncing to track per-member progress.
+                </p>
+              </div>
+            </div>
+          ) : isLoading ? (
             <p className="text-muted-foreground">Loading...</p>
           ) : (
             <SyncStatusIndicator syncRun={syncRun} />
           )}
         </CardContent>
       </Card>
+
+      {/* US-025: Progress per team member */}
+      <SyncProgressCard
+        progress={progress}
+        isLoading={isLoading}
+      />
 
       {/* US-013: Sync history */}
       <Card className="mb-8">
