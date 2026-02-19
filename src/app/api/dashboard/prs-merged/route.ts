@@ -1,7 +1,7 @@
-// US-015: API route — PRs opened per team member
+// API route — PRs merged per team member
 import { NextResponse } from "next/server";
 import { getAllTeamMembers } from "@/db/team-members";
-import { getPRsOpenedByMember, getPRsOpenedPerWeek } from "@/db/pull-requests";
+import { getPRsMergedByMember, getPRsMergedPerWeek } from "@/db/pull-requests";
 
 export const dynamic = "force-dynamic";
 
@@ -20,8 +20,8 @@ export async function GET(request: Request) {
   const members = getAllTeamMembers();
   const teamUsernames = members.map((m) => m.githubUsername);
 
-  const byMember = getPRsOpenedByMember(teamUsernames, startDate, endDate);
-  const byWeek = getPRsOpenedPerWeek(teamUsernames, startDate, endDate);
+  const byMember = getPRsMergedByMember(teamUsernames, startDate, endDate);
+  const byWeek = getPRsMergedPerWeek(teamUsernames, startDate, endDate);
 
   return NextResponse.json({ byMember, byWeek });
 }

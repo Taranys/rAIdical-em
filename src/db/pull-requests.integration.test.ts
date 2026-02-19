@@ -6,8 +6,8 @@ import * as schema from "./schema";
 import {
   upsertPullRequest,
   getPullRequestCount,
-  getPRsOpenedByMember,
-  getPRsOpenedPerWeek,
+  getPRsMergedByMember,
+  getPRsMergedPerWeek,
   getAvgPRSizeByMember,
   getPRsByMember,
   getAiRatioByMember,
@@ -108,35 +108,42 @@ describe("pull-requests DAL (integration)", () => {
     expect(result.rawJson).toBeNull();
   });
 
-  // US-015: getPRsOpenedByMember
-  describe("getPRsOpenedByMember", () => {
+  // getPRsMergedByMember
+  describe("getPRsMergedByMember", () => {
+    const mergedPR = { ...samplePR, state: "merged" as const };
+
     beforeEach(() => {
       upsertPullRequest(
-        { ...samplePR, githubId: 1, number: 1, author: "alice", createdAt: "2026-02-05T10:00:00Z" },
+        { ...mergedPR, githubId: 1, number: 1, author: "alice", createdAt: "2026-01-20T10:00:00Z", mergedAt: "2026-02-05T10:00:00Z" },
         testDb,
       );
       upsertPullRequest(
-        { ...samplePR, githubId: 2, number: 2, author: "alice", createdAt: "2026-02-10T10:00:00Z" },
+        { ...mergedPR, githubId: 2, number: 2, author: "alice", createdAt: "2026-01-25T10:00:00Z", mergedAt: "2026-02-10T10:00:00Z" },
         testDb,
       );
       upsertPullRequest(
-        { ...samplePR, githubId: 3, number: 3, author: "bob", createdAt: "2026-02-15T10:00:00Z" },
+        { ...mergedPR, githubId: 3, number: 3, author: "bob", createdAt: "2026-02-01T10:00:00Z", mergedAt: "2026-02-15T10:00:00Z" },
         testDb,
       );
-      // Outside date range
+      // Merged outside date range
       upsertPullRequest(
-        { ...samplePR, githubId: 4, number: 4, author: "alice", createdAt: "2026-03-05T10:00:00Z" },
+        { ...mergedPR, githubId: 4, number: 4, author: "alice", createdAt: "2026-02-20T10:00:00Z", mergedAt: "2026-03-05T10:00:00Z" },
+        testDb,
+      );
+      // Not merged (open PR)
+      upsertPullRequest(
+        { ...samplePR, githubId: 5, number: 5, author: "alice", createdAt: "2026-02-12T10:00:00Z", mergedAt: null },
         testDb,
       );
       // Not a team member
       upsertPullRequest(
-        { ...samplePR, githubId: 5, number: 5, author: "stranger", createdAt: "2026-02-12T10:00:00Z" },
+        { ...mergedPR, githubId: 6, number: 6, author: "stranger", createdAt: "2026-02-01T10:00:00Z", mergedAt: "2026-02-12T10:00:00Z" },
         testDb,
       );
     });
 
     it("returns correct counts per author within date range", () => {
-      const result = getPRsOpenedByMember(
+      const result = getPRsMergedByMember(
         ["alice", "bob"],
         "2026-02-01T00:00:00Z",
         "2026-03-01T00:00:00Z",
@@ -149,8 +156,19 @@ describe("pull-requests DAL (integration)", () => {
       expect(bob?.count).toBe(1);
     });
 
-    it("excludes PRs outside date range", () => {
-      const result = getPRsOpenedByMember(
+    it("excludes PRs merged outside date range", () => {
+      const result = getPRsMergedByMember(
+        ["alice"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+      expect(result.find((r) => r.author === "alice")?.count).toBe(2);
+    });
+
+    it("excludes non-merged PRs", () => {
+      // alice has 3 total PRs in range but only 2 are merged
+      const result = getPRsMergedByMember(
         ["alice"],
         "2026-02-01T00:00:00Z",
         "2026-03-01T00:00:00Z",
@@ -160,7 +178,7 @@ describe("pull-requests DAL (integration)", () => {
     });
 
     it("excludes PRs by non-team members", () => {
-      const result = getPRsOpenedByMember(
+      const result = getPRsMergedByMember(
         ["alice", "bob"],
         "2026-02-01T00:00:00Z",
         "2026-03-01T00:00:00Z",
@@ -170,7 +188,7 @@ describe("pull-requests DAL (integration)", () => {
     });
 
     it("returns empty array for empty team list", () => {
-      const result = getPRsOpenedByMember(
+      const result = getPRsMergedByMember(
         [],
         "2026-02-01T00:00:00Z",
         "2026-03-01T00:00:00Z",
@@ -180,27 +198,29 @@ describe("pull-requests DAL (integration)", () => {
     });
   });
 
-  // US-015: getPRsOpenedPerWeek
-  describe("getPRsOpenedPerWeek", () => {
+  // getPRsMergedPerWeek
+  describe("getPRsMergedPerWeek", () => {
+    const mergedPR = { ...samplePR, state: "merged" as const };
+
     beforeEach(() => {
-      // Week 5 (2026): around Feb 2
+      // Merged in week 5 (2026): around Feb 2
       upsertPullRequest(
-        { ...samplePR, githubId: 10, number: 10, author: "alice", createdAt: "2026-02-02T10:00:00Z" },
+        { ...mergedPR, githubId: 10, number: 10, author: "alice", createdAt: "2026-01-20T10:00:00Z", mergedAt: "2026-02-02T10:00:00Z" },
         testDb,
       );
-      // Week 6 (2026): around Feb 9
+      // Merged in week 6 (2026): around Feb 9
       upsertPullRequest(
-        { ...samplePR, githubId: 11, number: 11, author: "alice", createdAt: "2026-02-09T10:00:00Z" },
+        { ...mergedPR, githubId: 11, number: 11, author: "alice", createdAt: "2026-01-25T10:00:00Z", mergedAt: "2026-02-09T10:00:00Z" },
         testDb,
       );
       upsertPullRequest(
-        { ...samplePR, githubId: 12, number: 12, author: "bob", createdAt: "2026-02-10T10:00:00Z" },
+        { ...mergedPR, githubId: 12, number: 12, author: "bob", createdAt: "2026-02-01T10:00:00Z", mergedAt: "2026-02-10T10:00:00Z" },
         testDb,
       );
     });
 
-    it("groups PRs by week correctly", () => {
-      const result = getPRsOpenedPerWeek(
+    it("groups PRs by merge week correctly", () => {
+      const result = getPRsMergedPerWeek(
         ["alice", "bob"],
         "2026-02-01T00:00:00Z",
         "2026-03-01T00:00:00Z",
@@ -215,7 +235,7 @@ describe("pull-requests DAL (integration)", () => {
     });
 
     it("returns empty array for empty team list", () => {
-      const result = getPRsOpenedPerWeek(
+      const result = getPRsMergedPerWeek(
         [],
         "2026-02-01T00:00:00Z",
         "2026-03-01T00:00:00Z",

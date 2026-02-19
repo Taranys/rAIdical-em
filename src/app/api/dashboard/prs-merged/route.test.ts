@@ -1,4 +1,4 @@
-// US-015: Tests for PRs opened API route
+// Tests for PRs merged API route
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GET } from "./route";
 
@@ -10,25 +10,25 @@ vi.mock("@/db/team-members", () => ({
 }));
 
 vi.mock("@/db/pull-requests", () => ({
-  getPRsOpenedByMember: vi.fn(() => [
+  getPRsMergedByMember: vi.fn(() => [
     { author: "alice", count: 5 },
     { author: "bob", count: 3 },
   ]),
-  getPRsOpenedPerWeek: vi.fn(() => [
+  getPRsMergedPerWeek: vi.fn(() => [
     { week: "2026-W06", count: 4 },
     { week: "2026-W07", count: 4 },
   ]),
 }));
 
 function createRequest(params: Record<string, string>) {
-  const url = new URL("http://localhost/api/dashboard/prs-opened");
+  const url = new URL("http://localhost/api/dashboard/prs-merged");
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, value);
   }
   return new Request(url.toString()) as Parameters<typeof GET>[0];
 }
 
-describe("GET /api/dashboard/prs-opened", () => {
+describe("GET /api/dashboard/prs-merged", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
