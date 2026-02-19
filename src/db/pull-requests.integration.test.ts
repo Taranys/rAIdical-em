@@ -10,6 +10,8 @@ import {
   getPRsOpenedPerWeek,
   getAvgPRSizeByMember,
   getPRsByMember,
+  getAiRatioByMember,
+  getAiRatioTeamTotal,
 } from "./pull-requests";
 
 describe("pull-requests DAL (integration)", () => {
@@ -34,7 +36,7 @@ describe("pull-requests DAL (integration)", () => {
         additions INTEGER NOT NULL DEFAULT 0,
         deletions INTEGER NOT NULL DEFAULT 0,
         changed_files INTEGER NOT NULL DEFAULT 0,
-        ai_generated INTEGER NOT NULL DEFAULT 0,
+        ai_generated TEXT NOT NULL DEFAULT 'human',
         raw_json TEXT
       );
     `);
@@ -293,6 +295,95 @@ describe("pull-requests DAL (integration)", () => {
     it("does not return PRs from other authors", () => {
       const result = getPRsByMember("alice", "2026-02-01T00:00:00Z", "2026-03-01T00:00:00Z", testDb);
       expect(result.every((pr) => pr.number !== 32)).toBe(true);
+    });
+  });
+
+  // US-021: getAiRatioByMember / getAiRatioTeamTotal
+  describe("getAiRatioByMember / getAiRatioTeamTotal", () => {
+    beforeEach(() => {
+      // alice: 2 human, 1 ai, 1 mixed
+      testSqlite.exec(`
+        INSERT INTO pull_requests (github_id, number, title, author, state, created_at, ai_generated)
+        VALUES
+          (100, 100, 'PR1', 'alice', 'merged', '2026-02-05T10:00:00Z', 'human'),
+          (101, 101, 'PR2', 'alice', 'merged', '2026-02-06T10:00:00Z', 'human'),
+          (102, 102, 'PR3', 'alice', 'merged', '2026-02-07T10:00:00Z', 'ai'),
+          (103, 103, 'PR4', 'alice', 'merged', '2026-02-08T10:00:00Z', 'mixed');
+      `);
+      // bob: 1 human, 2 ai
+      testSqlite.exec(`
+        INSERT INTO pull_requests (github_id, number, title, author, state, created_at, ai_generated)
+        VALUES
+          (200, 200, 'PR5', 'bob', 'merged', '2026-02-10T10:00:00Z', 'human'),
+          (201, 201, 'PR6', 'bob', 'merged', '2026-02-11T10:00:00Z', 'ai'),
+          (202, 202, 'PR7', 'bob', 'merged', '2026-02-12T10:00:00Z', 'ai');
+      `);
+      // stranger (not team) and outside range
+      testSqlite.exec(`
+        INSERT INTO pull_requests (github_id, number, title, author, state, created_at, ai_generated)
+        VALUES
+          (300, 300, 'PR8', 'stranger', 'merged', '2026-02-15T10:00:00Z', 'ai'),
+          (301, 301, 'PR9', 'alice', 'merged', '2026-03-05T10:00:00Z', 'ai');
+      `);
+    });
+
+    it("returns correct AI ratio per member", () => {
+      const result = getAiRatioByMember(
+        ["alice", "bob"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+
+      const aliceHuman = result.find((r) => r.author === "alice" && r.aiGenerated === "human");
+      const aliceAi = result.find((r) => r.author === "alice" && r.aiGenerated === "ai");
+      const aliceMixed = result.find((r) => r.author === "alice" && r.aiGenerated === "mixed");
+      const bobHuman = result.find((r) => r.author === "bob" && r.aiGenerated === "human");
+      const bobAi = result.find((r) => r.author === "bob" && r.aiGenerated === "ai");
+
+      expect(aliceHuman?.count).toBe(2);
+      expect(aliceAi?.count).toBe(1);
+      expect(aliceMixed?.count).toBe(1);
+      expect(bobHuman?.count).toBe(1);
+      expect(bobAi?.count).toBe(2);
+    });
+
+    it("returns correct team totals", () => {
+      const result = getAiRatioTeamTotal(
+        ["alice", "bob"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+
+      const human = result.find((r) => r.aiGenerated === "human");
+      const ai = result.find((r) => r.aiGenerated === "ai");
+      const mixed = result.find((r) => r.aiGenerated === "mixed");
+
+      expect(human?.count).toBe(3); // alice 2 + bob 1
+      expect(ai?.count).toBe(3); // alice 1 + bob 2
+      expect(mixed?.count).toBe(1); // alice 1
+    });
+
+    it("excludes non-team members and out-of-range PRs", () => {
+      const result = getAiRatioByMember(
+        ["alice", "bob"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+
+      expect(result.find((r) => r.author === "stranger")).toBeUndefined();
+      // alice should have 4 total (not 5 — the out-of-range one is excluded)
+      const aliceTotal = result
+        .filter((r) => r.author === "alice")
+        .reduce((sum, r) => sum + r.count, 0);
+      expect(aliceTotal).toBe(4);
+    });
+
+    it("returns empty array for empty team list", () => {
+      expect(getAiRatioByMember([], "2026-02-01T00:00:00Z", "2026-03-01T00:00:00Z", testDb)).toEqual([]);
+      expect(getAiRatioTeamTotal([], "2026-02-01T00:00:00Z", "2026-03-01T00:00:00Z", testDb)).toEqual([]);
     });
   });
 });

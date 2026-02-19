@@ -176,3 +176,56 @@ export function getPRsByMember(
     .orderBy(desc(pullRequests.createdAt))
     .all();
 }
+
+// US-021: Get AI vs human authorship ratio per team member
+export function getAiRatioByMember(
+  teamUsernames: string[],
+  startDate: string,
+  endDate: string,
+  dbInstance: DbInstance = defaultDb,
+): { author: string; aiGenerated: string; count: number }[] {
+  if (teamUsernames.length === 0) return [];
+
+  return dbInstance
+    .select({
+      author: pullRequests.author,
+      aiGenerated: pullRequests.aiGenerated,
+      count: count(),
+    })
+    .from(pullRequests)
+    .where(
+      and(
+        inArray(pullRequests.author, teamUsernames),
+        gte(pullRequests.createdAt, startDate),
+        lt(pullRequests.createdAt, endDate),
+      ),
+    )
+    .groupBy(pullRequests.author, pullRequests.aiGenerated)
+    .all();
+}
+
+// US-021: Get team-level AI vs human totals
+export function getAiRatioTeamTotal(
+  teamUsernames: string[],
+  startDate: string,
+  endDate: string,
+  dbInstance: DbInstance = defaultDb,
+): { aiGenerated: string; count: number }[] {
+  if (teamUsernames.length === 0) return [];
+
+  return dbInstance
+    .select({
+      aiGenerated: pullRequests.aiGenerated,
+      count: count(),
+    })
+    .from(pullRequests)
+    .where(
+      and(
+        inArray(pullRequests.author, teamUsernames),
+        gte(pullRequests.createdAt, startDate),
+        lt(pullRequests.createdAt, endDate),
+      ),
+    )
+    .groupBy(pullRequests.aiGenerated)
+    .all();
+}

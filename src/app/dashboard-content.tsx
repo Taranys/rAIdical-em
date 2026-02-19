@@ -1,12 +1,13 @@
 "use client";
 
-// US-019 + US-015 + US-016 + US-017 + US-018: Dashboard client shell — wraps metric cards in PeriodProvider
+// US-019 + US-015 + US-016 + US-017 + US-018 + US-021: Dashboard client shell — wraps metric cards in PeriodProvider
 import { PeriodProvider } from "./dashboard-context";
 import { PeriodSelector } from "./period-selector";
 import { PrsOpenedCard } from "./prs-opened-card";
 import { PrSizeCard } from "./pr-size-card";
 import { PrsReviewedCard } from "./prs-reviewed-card";
 import { CommentsPerReviewCard } from "./comments-per-review-card";
+import { AiRatioCard } from "./ai-ratio-card";
 
 export function DashboardContent() {
   return (
@@ -20,6 +21,7 @@ export function DashboardContent() {
         <PrSizeCard />
         <PrsReviewedCard />
         <CommentsPerReviewCard />
+        <AiRatioCard />
       </div>
     </PeriodProvider>
   );
