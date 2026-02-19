@@ -1,7 +1,7 @@
 // US-010, US-015, US-016, US-021: Pull requests data access layer
 import { db as defaultDb } from "./index";
 import { pullRequests } from "./schema";
-import { count, and, gte, lt, inArray, sql } from "drizzle-orm";
+import { count, and, gte, lt, inArray, eq, desc, sql } from "drizzle-orm";
 
 type DbInstance = typeof defaultDb;
 
@@ -117,5 +117,62 @@ export function getPRsOpenedPerWeek(
     )
     .groupBy(sql`strftime('%Y-W%W', ${pullRequests.createdAt})`)
     .orderBy(sql`strftime('%Y-W%W', ${pullRequests.createdAt})`)
+    .all();
+}
+
+// US-016: Get average PR size per team member
+export function getAvgPRSizeByMember(
+  teamUsernames: string[],
+  startDate: string,
+  endDate: string,
+  dbInstance: DbInstance = defaultDb,
+): { author: string; avgAdditions: number; avgDeletions: number; prCount: number }[] {
+  if (teamUsernames.length === 0) return [];
+
+  return dbInstance
+    .select({
+      author: pullRequests.author,
+      avgAdditions: sql<number>`CAST(AVG(${pullRequests.additions}) AS INTEGER)`.as("avg_additions"),
+      avgDeletions: sql<number>`CAST(AVG(${pullRequests.deletions}) AS INTEGER)`.as("avg_deletions"),
+      prCount: count(),
+    })
+    .from(pullRequests)
+    .where(
+      and(
+        inArray(pullRequests.author, teamUsernames),
+        gte(pullRequests.createdAt, startDate),
+        lt(pullRequests.createdAt, endDate),
+      ),
+    )
+    .groupBy(pullRequests.author)
+    .all();
+}
+
+// US-016: Get individual PRs for a specific member (drill-down)
+export function getPRsByMember(
+  author: string,
+  startDate: string,
+  endDate: string,
+  dbInstance: DbInstance = defaultDb,
+) {
+  return dbInstance
+    .select({
+      id: pullRequests.id,
+      number: pullRequests.number,
+      title: pullRequests.title,
+      additions: pullRequests.additions,
+      deletions: pullRequests.deletions,
+      changedFiles: pullRequests.changedFiles,
+      createdAt: pullRequests.createdAt,
+    })
+    .from(pullRequests)
+    .where(
+      and(
+        eq(pullRequests.author, author),
+        gte(pullRequests.createdAt, startDate),
+        lt(pullRequests.createdAt, endDate),
+      ),
+    )
+    .orderBy(desc(pullRequests.createdAt))
     .all();
 }
