@@ -8,11 +8,16 @@ import { PeriodProvider } from "./dashboard-context";
 vi.mock("recharts", () => ({
   ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div data-testid="responsive-container">{children}</div>,
   BarChart: ({ children }: { children: React.ReactNode }) => <div data-testid="bar-chart">{children}</div>,
-  Bar: () => <div data-testid="bar" />,
+  Bar: ({ children }: { children?: React.ReactNode }) => <div data-testid="bar">{children}</div>,
+  Cell: () => null,
   XAxis: () => null,
   YAxis: () => null,
   CartesianGrid: () => null,
   Tooltip: () => null,
+}));
+
+vi.mock("./team-colors-context", () => ({
+  useTeamColors: () => ({}),
 }));
 
 function renderWithProvider(ui: React.ReactElement) {

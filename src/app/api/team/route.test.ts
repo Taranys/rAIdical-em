@@ -5,6 +5,7 @@ const mockGetByUsername = vi.fn();
 
 vi.mock("@/db/team-members");
 vi.mock("@/db/settings");
+vi.mock("@/lib/team-colors");
 vi.mock("octokit", () => ({
   Octokit: class MockOctokit {
     rest = { users: { getByUsername: mockGetByUsername } };
@@ -14,6 +15,7 @@ vi.mock("octokit", () => ({
 import { GET, POST } from "./route";
 import * as teamMembersDAL from "@/db/team-members";
 import * as settingsDAL from "@/db/settings";
+import * as teamColors from "@/lib/team-colors";
 
 function makeRequest(body: unknown) {
   return new Request("http://localhost/api/team", {
@@ -35,6 +37,7 @@ describe("GET /api/team", () => {
         githubUsername: "octocat",
         displayName: "The Octocat",
         avatarUrl: "https://avatars.githubusercontent.com/u/583231",
+        color: "#E25A3B",
         isActive: 1,
         createdAt: "2024-01-01T00:00:00Z",
         updatedAt: "2024-01-01T00:00:00Z",
@@ -63,6 +66,8 @@ describe("GET /api/team", () => {
 describe("POST /api/team", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(teamMembersDAL.getActiveTeamMemberColors).mockReturnValue([]);
+    vi.mocked(teamColors.getNextColor).mockReturnValue("#E25A3B");
   });
 
   it("returns 400 when username is missing", async () => {
@@ -98,6 +103,7 @@ describe("POST /api/team", () => {
       githubUsername: "octocat",
       displayName: "Octo",
       avatarUrl: null,
+      color: "#E25A3B",
       isActive: 1,
       createdAt: "2024-01-01T00:00:00Z",
       updatedAt: "2024-01-01T00:00:00Z",
@@ -126,9 +132,11 @@ describe("POST /api/team", () => {
     expect(data.error).toMatch(/not found/i);
   });
 
-  it("creates team member on success", async () => {
+  it("creates team member with assigned color", async () => {
     vi.mocked(settingsDAL.getSetting).mockReturnValue("ghp_test");
     vi.mocked(teamMembersDAL.getTeamMemberByUsername).mockReturnValue(null);
+    vi.mocked(teamMembersDAL.getActiveTeamMemberColors).mockReturnValue(["#E25A3B"]);
+    vi.mocked(teamColors.getNextColor).mockReturnValue("#2A9D8F");
 
     mockGetByUsername.mockResolvedValue({
       data: {
@@ -143,6 +151,7 @@ describe("POST /api/team", () => {
       githubUsername: "octocat",
       displayName: "The Octocat",
       avatarUrl: "https://avatars.githubusercontent.com/u/583231",
+      color: "#2A9D8F",
       isActive: 1,
       createdAt: "2024-01-01T00:00:00Z",
       updatedAt: "2024-01-01T00:00:00Z",
@@ -153,11 +162,12 @@ describe("POST /api/team", () => {
 
     expect(response.status).toBe(201);
     expect(data.member.githubUsername).toBe("octocat");
-    expect(data.member.displayName).toBe("The Octocat");
+    expect(teamColors.getNextColor).toHaveBeenCalledWith(["#E25A3B"]);
     expect(teamMembersDAL.createTeamMember).toHaveBeenCalledWith({
       githubUsername: "octocat",
       displayName: "The Octocat",
       avatarUrl: "https://avatars.githubusercontent.com/u/583231",
+      color: "#2A9D8F",
     });
   });
 
@@ -178,6 +188,7 @@ describe("POST /api/team", () => {
       githubUsername: "octocat",
       displayName: "octocat",
       avatarUrl: "https://avatars.githubusercontent.com/u/583231",
+      color: "#E25A3B",
       isActive: 1,
       createdAt: "2024-01-01T00:00:00Z",
       updatedAt: "2024-01-01T00:00:00Z",
@@ -209,6 +220,7 @@ describe("POST /api/team", () => {
       githubUsername: "octocat",
       displayName: "Octo",
       avatarUrl: "https://avatars.githubusercontent.com/u/583231",
+      color: "#E25A3B",
       isActive: 1,
       createdAt: "2024-01-01T00:00:00Z",
       updatedAt: "2024-01-01T00:00:00Z",

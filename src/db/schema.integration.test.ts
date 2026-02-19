@@ -27,6 +27,7 @@ describe("Phase 1 schema (integration)", () => {
         github_username TEXT NOT NULL UNIQUE,
         display_name TEXT NOT NULL,
         avatar_url TEXT,
+        color TEXT NOT NULL DEFAULT '#E25A3B',
         is_active INTEGER NOT NULL DEFAULT 1,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL

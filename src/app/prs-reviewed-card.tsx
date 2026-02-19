@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   BarChart,
   Bar,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -28,6 +29,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePeriod } from "./dashboard-context";
+import { useTeamColors } from "./team-colors-context";
 
 interface MemberReviewData {
   reviewer: string;
@@ -36,6 +38,7 @@ interface MemberReviewData {
 
 export function PrsReviewedCard() {
   const { period } = usePeriod();
+  const colorMap = useTeamColors();
   const [byMember, setByMember] = useState<MemberReviewData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const fetchIdRef = useRef(0);
@@ -112,9 +115,12 @@ export function PrsReviewedCard() {
                   <Bar
                     dataKey="count"
                     name="PRs reviewed"
-                    fill="hsl(var(--primary))"
                     radius={[0, 4, 4, 0]}
-                  />
+                  >
+                    {byMember.map((entry) => (
+                      <Cell key={entry.reviewer} fill={colorMap[entry.reviewer] ?? "hsl(var(--primary))"} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>

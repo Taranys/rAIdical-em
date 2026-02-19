@@ -9,6 +9,7 @@ export interface TeamMemberInput {
   githubUsername: string;
   displayName: string;
   avatarUrl: string | null;
+  color: string;
 }
 
 export function getAllTeamMembers(dbInstance: DbInstance = defaultDb) {
@@ -45,12 +46,24 @@ export function createTeamMember(
       githubUsername: input.githubUsername,
       displayName: input.displayName,
       avatarUrl: input.avatarUrl,
+      color: input.color,
       isActive: 1,
       createdAt: now,
       updatedAt: now,
     })
     .returning()
     .get();
+}
+
+export function getActiveTeamMemberColors(
+  dbInstance: DbInstance = defaultDb,
+): string[] {
+  return dbInstance
+    .select({ color: teamMembers.color })
+    .from(teamMembers)
+    .where(eq(teamMembers.isActive, 1))
+    .all()
+    .map((row) => row.color);
 }
 
 // US-008: Soft-delete a team member (set isActive = 0)

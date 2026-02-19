@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   BarChart,
   Bar,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -22,6 +23,7 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePeriod } from "./dashboard-context";
+import { useTeamColors } from "./team-colors-context";
 
 interface MemberData {
   author: string;
@@ -35,6 +37,7 @@ interface WeekData {
 
 export function PrsOpenedCard() {
   const { period } = usePeriod();
+  const colorMap = useTeamColors();
   const [byMember, setByMember] = useState<MemberData[]>([]);
   const [byWeek, setByWeek] = useState<WeekData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -106,7 +109,11 @@ export function PrsOpenedCard() {
                   <XAxis type="number" allowDecimals={false} />
                   <YAxis dataKey="author" type="category" width={120} />
                   <Tooltip />
-                  <Bar dataKey="count" name="PRs" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="count" name="PRs" radius={[0, 4, 4, 0]}>
+                    {byMember.map((entry) => (
+                      <Cell key={entry.author} fill={colorMap[entry.author] ?? "hsl(var(--primary))"} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
