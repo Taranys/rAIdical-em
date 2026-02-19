@@ -1,4 +1,4 @@
-// US-022: Phase 1 database schema
+// US-022: Phase 1 database schema / US-2.03: Phase 2 schema extension
 import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
 
 // Key/value store for app settings (PAT, org, repo, etc.)
@@ -123,5 +123,86 @@ export const syncRuns = sqliteTable(
   (table) => [
     index("idx_sync_runs_repository").on(table.repository),
     index("idx_sync_runs_status").on(table.status),
+  ]
+);
+
+// --- Phase 2: Review Quality Analysis ---
+
+// US-2.03: Batch classification job tracking
+export const classificationRuns = sqliteTable(
+  "classification_runs",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    startedAt: text("started_at").notNull(),
+    completedAt: text("completed_at"),
+    status: text("status").notNull(), // pending | running | success | error
+    commentsProcessed: integer("comments_processed").notNull().default(0),
+    errors: integer("errors").notNull().default(0),
+    modelUsed: text("model_used").notNull(),
+  },
+  (table) => [
+    index("idx_classification_runs_status").on(table.status),
+  ]
+);
+
+// US-2.03: Comment → category classification (polymorphic: review_comment | pr_comment)
+export const commentClassifications = sqliteTable(
+  "comment_classifications",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    commentType: text("comment_type").notNull(), // 'review_comment' | 'pr_comment'
+    commentId: integer("comment_id").notNull(),
+    category: text("category").notNull(),
+    confidence: integer("confidence").notNull(), // 0-100
+    modelUsed: text("model_used").notNull(),
+    classificationRunId: integer("classification_run_id")
+      .references(() => classificationRuns.id),
+    classifiedAt: text("classified_at").notNull(),
+  },
+  (table) => [
+    index("idx_comment_classifications_comment").on(table.commentType, table.commentId),
+    index("idx_comment_classifications_category").on(table.category),
+    index("idx_comment_classifications_run_id").on(table.classificationRunId),
+  ]
+);
+
+// US-2.03: Per-member seniority profile by competency dimension
+export const seniorityProfiles = sqliteTable(
+  "seniority_profiles",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    teamMemberId: integer("team_member_id")
+      .notNull()
+      .references(() => teamMembers.id),
+    dimensionName: text("dimension_name").notNull(),
+    dimensionFamily: text("dimension_family").notNull(), // 'technical' | 'soft_skill'
+    maturityLevel: text("maturity_level").notNull(), // 'junior' | 'experienced' | 'senior'
+    lastComputedAt: text("last_computed_at").notNull(),
+    supportingMetrics: text("supporting_metrics"), // JSON string
+  },
+  (table) => [
+    index("idx_seniority_profiles_team_member").on(table.teamMemberId),
+    index("idx_seniority_profiles_dimension").on(table.dimensionFamily, table.dimensionName),
+  ]
+);
+
+// US-2.03: Flagged comments for 1:1 prep (polymorphic comment reference)
+export const highlights = sqliteTable(
+  "highlights",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    commentType: text("comment_type").notNull(), // 'review_comment' | 'pr_comment'
+    commentId: integer("comment_id").notNull(),
+    highlightType: text("highlight_type").notNull(), // 'best_comment' | 'growth_opportunity'
+    reasoning: text("reasoning").notNull(),
+    teamMemberId: integer("team_member_id")
+      .notNull()
+      .references(() => teamMembers.id),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    index("idx_highlights_team_member").on(table.teamMemberId),
+    index("idx_highlights_type").on(table.highlightType),
+    index("idx_highlights_comment").on(table.commentType, table.commentId),
   ]
 );
