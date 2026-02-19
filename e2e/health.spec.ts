@@ -1,22 +1,11 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Homepage", () => {
-  test("displays the application title and status cards", async ({ page }) => {
+  test("displays the dashboard heading", async ({ page }) => {
     await page.goto("/");
 
     await expect(
-      page.getByRole("heading", { name: "em-control-tower" })
-    ).toBeVisible();
-
-    // Verify tech stack cards are rendered
-    await expect(page.getByText("App Router + Server Components")).toBeVisible();
-    await expect(page.getByText("Utility-first CSS framework")).toBeVisible();
-    await expect(page.getByText("Accessible component library")).toBeVisible();
-    await expect(page.getByText("Strict type checking enabled")).toBeVisible();
-
-    // Verify phase indicator
-    await expect(
-      page.getByText("Phase 0 — Project skeleton. All technical bricks verified.")
+      page.getByRole("heading", { name: "Dashboard" })
     ).toBeVisible();
   });
 });
