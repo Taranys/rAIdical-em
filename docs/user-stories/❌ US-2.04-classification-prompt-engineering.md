@@ -10,7 +10,7 @@ As a developer, I want a well-tested prompt template for classifying review comm
 
 ## Dependencies
 
-- ❌ [US-2.02: LLM Abstraction Layer](❌%20US-2.02-llm-abstraction-layer.md) — LLM service must be available
+- 🏗️ [US-2.02: LLM Abstraction Layer](🏗️%20US-2.02-llm-abstraction-layer.md) — LLM service must be available
 
 ## Acceptance Criteria
 
