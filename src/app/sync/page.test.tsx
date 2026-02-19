@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// US-010 + US-011 + US-013: Sync page component tests
+// US-010 + US-011 + US-013 + US-025: Sync page component tests
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
@@ -20,6 +20,58 @@ function mockRateLimit(rateLimit: Record<string, unknown> | null) {
   return rateLimit ? { rateLimit } : { error: "No PAT" };
 }
 
+function mockTeamMembers(members: Record<string, unknown>[] = []) {
+  return { members };
+}
+
+function mockProgress(
+  teamProgress: Record<string, unknown>[] = [],
+  nonTeamCount = 0,
+  totalCount = 0,
+) {
+  return { teamProgress, nonTeamCount, totalCount };
+}
+
+// Default mock that handles all endpoints
+function setupDefaultMocks(overrides: {
+  syncResponse?: ReturnType<typeof mockSyncResponse>;
+  rateLimitResponse?: ReturnType<typeof mockRateLimit>;
+  teamMembersResponse?: ReturnType<typeof mockTeamMembers>;
+  progressResponse?: ReturnType<typeof mockProgress>;
+} = {}) {
+  const syncResp = overrides.syncResponse ?? mockSyncResponse(null);
+  const rateLimitResp = overrides.rateLimitResponse ?? mockRateLimit(null);
+  const teamResp = overrides.teamMembersResponse ?? mockTeamMembers([
+    { id: 1, githubUsername: "alice", displayName: "Alice" },
+  ]);
+  const progressResp = overrides.progressResponse ?? mockProgress();
+
+  mockFetch.mockImplementation((url: string) => {
+    if (url.includes("rate-limit")) {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(rateLimitResp),
+      });
+    }
+    if (url.includes("/api/sync/progress")) {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(progressResp),
+      });
+    }
+    if (url.includes("/api/team")) {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(teamResp),
+      });
+    }
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve(syncResp),
+    });
+  });
+}
+
 describe("SyncPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -31,10 +83,7 @@ describe("SyncPage", () => {
   });
 
   it("renders the page title", async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockSyncResponse(null)),
-    });
+    setupDefaultMocks();
 
     render(<SyncPage />);
 
@@ -42,18 +91,7 @@ describe("SyncPage", () => {
   });
 
   it("shows never synced state when no sync runs exist", async () => {
-    mockFetch.mockImplementation((url: string) => {
-      if (url.includes("rate-limit")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockRateLimit({ limit: 5000, remaining: 4500, resetAt: "2024-06-01T11:00:00Z" })),
-        });
-      }
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(mockSyncResponse(null)),
-      });
-    });
+    setupDefaultMocks();
 
     render(<SyncPage />);
 
@@ -73,17 +111,8 @@ describe("SyncPage", () => {
       completedAt: "2024-06-01T10:05:00Z",
       errorMessage: null,
     };
-    mockFetch.mockImplementation((url: string) => {
-      if (url.includes("rate-limit")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockRateLimit({ limit: 5000, remaining: 4500, resetAt: "2024-06-01T11:00:00Z" })),
-        });
-      }
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(mockSyncResponse(syncRun, [syncRun])),
-      });
+    setupDefaultMocks({
+      syncResponse: mockSyncResponse(syncRun, [syncRun]),
     });
 
     render(<SyncPage />);
@@ -95,29 +124,17 @@ describe("SyncPage", () => {
   });
 
   it("shows error state with error message", async () => {
-    mockFetch.mockImplementation((url: string) => {
-      if (url.includes("rate-limit")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockRateLimit({ limit: 5000, remaining: 4500, resetAt: "2024-06-01T11:00:00Z" })),
-        });
-      }
-      return Promise.resolve({
-        ok: true,
-        json: () =>
-          Promise.resolve(
-            mockSyncResponse({
-              id: 1,
-              status: "error",
-              prCount: 10,
-              reviewCount: 0,
-              commentCount: 0,
-              startedAt: "2024-06-01T10:00:00Z",
-              completedAt: "2024-06-01T10:01:00Z",
-              errorMessage: "Rate limit exceeded",
-            }),
-          ),
-      });
+    setupDefaultMocks({
+      syncResponse: mockSyncResponse({
+        id: 1,
+        status: "error",
+        prCount: 10,
+        reviewCount: 0,
+        commentCount: 0,
+        startedAt: "2024-06-01T10:00:00Z",
+        completedAt: "2024-06-01T10:01:00Z",
+        errorMessage: "Rate limit exceeded",
+      }),
     });
 
     render(<SyncPage />);
@@ -133,7 +150,21 @@ describe("SyncPage", () => {
       if (url.includes("rate-limit")) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve(mockRateLimit({ limit: 5000, remaining: 4500, resetAt: "2024-06-01T11:00:00Z" })),
+          json: () => Promise.resolve(mockRateLimit(null)),
+        });
+      }
+      if (url.includes("/api/team")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockTeamMembers([
+            { id: 1, githubUsername: "alice", displayName: "Alice" },
+          ])),
+        });
+      }
+      if (url.includes("/api/sync/progress")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockProgress()),
         });
       }
       if (opts?.method === "POST") {
@@ -157,7 +188,10 @@ describe("SyncPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /sync now/i }));
 
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith("/api/sync", expect.objectContaining({ method: "POST" }));
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/sync",
+        expect.objectContaining({ method: "POST" }),
+      );
     });
   });
 
@@ -173,17 +207,8 @@ describe("SyncPage", () => {
       completedAt: "2024-06-01T10:05:00Z",
       errorMessage: null,
     };
-    mockFetch.mockImplementation((url: string) => {
-      if (url.includes("rate-limit")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockRateLimit({ limit: 5000, remaining: 4500, resetAt: "2024-06-01T11:00:00Z" })),
-        });
-      }
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(mockSyncResponse(syncRun, [syncRun])),
-      });
+    setupDefaultMocks({
+      syncResponse: mockSyncResponse(syncRun, [syncRun]),
     });
 
     render(<SyncPage />);
@@ -195,29 +220,17 @@ describe("SyncPage", () => {
   });
 
   it("shows review count in running state", async () => {
-    mockFetch.mockImplementation((url: string) => {
-      if (url.includes("rate-limit")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockRateLimit({ limit: 5000, remaining: 4500, resetAt: "2024-06-01T11:00:00Z" })),
-        });
-      }
-      return Promise.resolve({
-        ok: true,
-        json: () =>
-          Promise.resolve(
-            mockSyncResponse({
-              id: 1,
-              status: "running",
-              prCount: 10,
-              reviewCount: 25,
-              commentCount: 3,
-              startedAt: "2024-06-01T10:00:00Z",
-              completedAt: null,
-              errorMessage: null,
-            }),
-          ),
-      });
+    setupDefaultMocks({
+      syncResponse: mockSyncResponse({
+        id: 1,
+        status: "running",
+        prCount: 10,
+        reviewCount: 25,
+        commentCount: 3,
+        startedAt: "2024-06-01T10:00:00Z",
+        completedAt: null,
+        errorMessage: null,
+      }),
     });
 
     render(<SyncPage />);
@@ -229,24 +242,12 @@ describe("SyncPage", () => {
   });
 
   it("shows rate limit information", async () => {
-    mockFetch.mockImplementation((url: string) => {
-      if (url.includes("rate-limit")) {
-        return Promise.resolve({
-          ok: true,
-          json: () =>
-            Promise.resolve(
-              mockRateLimit({
-                limit: 5000,
-                remaining: 4500,
-                resetAt: "2024-06-01T11:00:00Z",
-              }),
-            ),
-        });
-      }
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(mockSyncResponse(null)),
-      });
+    setupDefaultMocks({
+      rateLimitResponse: mockRateLimit({
+        limit: 5000,
+        remaining: 4500,
+        resetAt: "2024-06-01T11:00:00Z",
+      }),
     });
 
     render(<SyncPage />);
@@ -265,17 +266,8 @@ describe("SyncPage", () => {
       { id: 1, status: "success", prCount: 20, reviewCount: 8, commentCount: 3, startedAt: "2024-06-01T10:00:00Z", completedAt: "2024-06-01T10:03:00Z", errorMessage: null },
     ];
 
-    mockFetch.mockImplementation((url: string) => {
-      if (url.includes("rate-limit")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockRateLimit(null)),
-        });
-      }
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(mockSyncResponse(history[0], history)),
-      });
+    setupDefaultMocks({
+      syncResponse: mockSyncResponse(history[0], history),
     });
 
     render(<SyncPage />);
@@ -301,18 +293,8 @@ describe("SyncPage", () => {
       completedAt: "2024-06-01T10:05:00Z",
       errorMessage: null,
     };
-
-    mockFetch.mockImplementation((url: string) => {
-      if (url.includes("rate-limit")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockRateLimit(null)),
-        });
-      }
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(mockSyncResponse(syncRun, [syncRun])),
-      });
+    setupDefaultMocks({
+      syncResponse: mockSyncResponse(syncRun, [syncRun]),
     });
 
     render(<SyncPage />);
@@ -323,23 +305,48 @@ describe("SyncPage", () => {
   });
 
   it("shows empty state when no sync history", async () => {
-    mockFetch.mockImplementation((url: string) => {
-      if (url.includes("rate-limit")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockRateLimit(null)),
-        });
-      }
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(mockSyncResponse(null, [])),
-      });
-    });
+    setupDefaultMocks();
 
     render(<SyncPage />);
 
     await waitFor(() => {
       expect(screen.getByText("No sync history yet.")).toBeInTheDocument();
+    });
+  });
+
+  // US-025: Quarter selector and team member check tests
+  it("shows no team members message when team is empty", async () => {
+    setupDefaultMocks({
+      teamMembersResponse: mockTeamMembers([]),
+    });
+
+    render(<SyncPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/No team members configured/)).toBeInTheDocument();
+      expect(screen.getByText(/Add team members/)).toBeInTheDocument();
+    });
+  });
+
+  it("disables sync button when no team members", async () => {
+    setupDefaultMocks({
+      teamMembersResponse: mockTeamMembers([]),
+    });
+
+    render(<SyncPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /sync now/i })).toBeDisabled();
+    });
+  });
+
+  it("renders quarter selector", async () => {
+    setupDefaultMocks();
+
+    render(<SyncPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("quarter-selector")).toBeInTheDocument();
     });
   });
 });

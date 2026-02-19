@@ -1,4 +1,4 @@
-// US-010, US-015, US-016, US-021: Pull requests data access layer
+// US-010, US-015, US-016, US-025: Pull requests data access layer
 import { db as defaultDb } from "./index";
 import { pullRequests } from "./schema";
 import { count, and, gte, lt, inArray, eq, desc, sql } from "drizzle-orm";
@@ -227,5 +227,21 @@ export function getAiRatioTeamTotal(
       ),
     )
     .groupBy(pullRequests.aiGenerated)
+    .all();
+}
+
+// US-025: Get PR count by author (for sync progress tracking)
+export function getPRCountByAuthor(
+  startDate: string,
+  dbInstance: DbInstance = defaultDb,
+): { author: string; count: number }[] {
+  return dbInstance
+    .select({
+      author: pullRequests.author,
+      count: count(),
+    })
+    .from(pullRequests)
+    .where(gte(pullRequests.createdAt, startDate))
+    .groupBy(pullRequests.author)
     .all();
 }
