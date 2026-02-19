@@ -1,7 +1,7 @@
-// US-011: Reviews data access layer
+// US-011, US-017: Reviews data access layer
 import { db as defaultDb } from "./index";
 import { reviews } from "./schema";
-import { count } from "drizzle-orm";
+import { count, and, gte, lt, inArray, sql } from "drizzle-orm";
 
 type DbInstance = typeof defaultDb;
 
@@ -48,4 +48,31 @@ export function getReviewCount(
     .get();
 
   return result?.count ?? 0;
+}
+
+// US-017: Count of distinct PRs reviewed per team member within a date range
+export function getPRsReviewedByMember(
+  teamUsernames: string[],
+  startDate: string,
+  endDate: string,
+  dbInstance: DbInstance = defaultDb,
+): { reviewer: string; count: number }[] {
+  if (teamUsernames.length === 0) return [];
+
+  return dbInstance
+    .select({
+      reviewer: reviews.reviewer,
+      count: sql<number>`COUNT(DISTINCT ${reviews.pullRequestId})`.as("count"),
+    })
+    .from(reviews)
+    .where(
+      and(
+        inArray(reviews.reviewer, teamUsernames),
+        gte(reviews.submittedAt, startDate),
+        lt(reviews.submittedAt, endDate),
+      ),
+    )
+    .groupBy(reviews.reviewer)
+    .orderBy(sql`COUNT(DISTINCT ${reviews.pullRequestId}) DESC`)
+    .all();
 }

@@ -1,10 +1,11 @@
 "use client";
 
-// US-019 + US-015 + US-016: Dashboard client shell — wraps metric cards in PeriodProvider
+// US-019 + US-015 + US-016 + US-017: Dashboard client shell — wraps metric cards in PeriodProvider
 import { PeriodProvider } from "./dashboard-context";
 import { PeriodSelector } from "./period-selector";
 import { PrsOpenedCard } from "./prs-opened-card";
 import { PrSizeCard } from "./pr-size-card";
+import { PrsReviewedCard } from "./prs-reviewed-card";
 
 export function DashboardContent() {
   return (
@@ -16,6 +17,7 @@ export function DashboardContent() {
       <div className="grid gap-6">
         <PrsOpenedCard />
         <PrSizeCard />
+        <PrsReviewedCard />
       </div>
     </PeriodProvider>
   );

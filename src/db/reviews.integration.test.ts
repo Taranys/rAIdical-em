@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema";
-import { upsertReview, getReviewCount } from "./reviews";
+import { upsertReview, getReviewCount, getPRsReviewedByMember } from "./reviews";
 
 describe("reviews DAL (integration)", () => {
   let testSqlite: InstanceType<typeof Database>;
@@ -104,6 +104,68 @@ describe("reviews DAL (integration)", () => {
         testDb,
       );
       expect(result.state).toBe(state);
+    });
+  });
+
+  // US-017: getPRsReviewedByMember
+  describe("getPRsReviewedByMember", () => {
+    beforeEach(() => {
+      // Insert a second PR
+      testSqlite.exec(`
+        INSERT INTO pull_requests (github_id, number, title, author, state, created_at)
+        VALUES (12346, 2, 'Another feature', 'octocat', 'open', '2026-02-05T10:00:00Z');
+      `);
+
+      // alice reviewed PR 1 twice (2 reviews on same PR = 1 distinct PR)
+      upsertReview({ githubId: 200001, pullRequestId: 1, reviewer: "alice", state: "COMMENTED", submittedAt: "2026-02-10T10:00:00Z" }, testDb);
+      upsertReview({ githubId: 200002, pullRequestId: 1, reviewer: "alice", state: "APPROVED", submittedAt: "2026-02-11T10:00:00Z" }, testDb);
+      // alice also reviewed PR 2
+      upsertReview({ githubId: 200003, pullRequestId: 2, reviewer: "alice", state: "APPROVED", submittedAt: "2026-02-12T10:00:00Z" }, testDb);
+      // bob reviewed PR 1 only
+      upsertReview({ githubId: 200004, pullRequestId: 1, reviewer: "bob", state: "APPROVED", submittedAt: "2026-02-13T10:00:00Z" }, testDb);
+      // stranger reviewed PR 1 (not a team member)
+      upsertReview({ githubId: 200005, pullRequestId: 1, reviewer: "stranger", state: "COMMENTED", submittedAt: "2026-02-14T10:00:00Z" }, testDb);
+    });
+
+    it("counts distinct PRs reviewed per team member", () => {
+      const result = getPRsReviewedByMember(
+        ["alice", "bob"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+
+      const alice = result.find((r) => r.reviewer === "alice");
+      expect(alice?.count).toBe(2); // reviewed 2 distinct PRs
+
+      const bob = result.find((r) => r.reviewer === "bob");
+      expect(bob?.count).toBe(1); // reviewed 1 PR
+    });
+
+    it("orders by count DESC (most active first)", () => {
+      const result = getPRsReviewedByMember(
+        ["alice", "bob"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+
+      expect(result[0].reviewer).toBe("alice");
+      expect(result[1].reviewer).toBe("bob");
+    });
+
+    it("excludes non-team members", () => {
+      const result = getPRsReviewedByMember(
+        ["alice", "bob"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+      expect(result.find((r) => r.reviewer === "stranger")).toBeUndefined();
+    });
+
+    it("returns empty for empty team list", () => {
+      expect(getPRsReviewedByMember([], "2026-02-01T00:00:00Z", "2026-03-01T00:00:00Z", testDb)).toEqual([]);
     });
   });
 });
