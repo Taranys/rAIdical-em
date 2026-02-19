@@ -89,6 +89,7 @@ export function getPRsMergedByMember(
       ),
     )
     .groupBy(pullRequests.author)
+    .orderBy(desc(count()))
     .all();
 }
 

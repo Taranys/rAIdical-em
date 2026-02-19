@@ -142,7 +142,7 @@ describe("pull-requests DAL (integration)", () => {
       );
     });
 
-    it("returns correct counts per author within date range", () => {
+    it("returns correct counts per author within date range, sorted by count descending", () => {
       const result = getPRsMergedByMember(
         ["alice", "bob"],
         "2026-02-01T00:00:00Z",
@@ -150,10 +150,10 @@ describe("pull-requests DAL (integration)", () => {
         testDb,
       );
 
-      const alice = result.find((r) => r.author === "alice");
-      const bob = result.find((r) => r.author === "bob");
-      expect(alice?.count).toBe(2);
-      expect(bob?.count).toBe(1);
+      expect(result).toEqual([
+        { author: "alice", count: 2 },
+        { author: "bob", count: 1 },
+      ]);
     });
 
     it("excludes PRs merged outside date range", () => {
