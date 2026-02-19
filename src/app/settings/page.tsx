@@ -1,11 +1,12 @@
 "use client";
 
-// US-005, US-006, US-020, US-2.01: Settings page
+// US-005, US-006, US-020, US-2.01, US-2.17: Settings page
 import { useState } from "react";
 import { GitHubPatForm } from "./github-pat-form";
 import { GitHubRepoForm } from "./github-repo-form";
 import { AiHeuristicsForm } from "./ai-heuristics-form";
 import { LlmProviderForm } from "./llm-provider-form";
+import { DatabaseImportForm } from "./database-import-form";
 
 export default function SettingsPage() {
   const [isPatConfigured, setIsPatConfigured] = useState<boolean | undefined>(undefined);
@@ -18,6 +19,7 @@ export default function SettingsPage() {
         <GitHubRepoForm isPatConfigured={isPatConfigured} />
         <AiHeuristicsForm />
         <LlmProviderForm />
+        <DatabaseImportForm />
       </div>
     </div>
   );
