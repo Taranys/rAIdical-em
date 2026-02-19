@@ -10,9 +10,9 @@ As an engineering manager, I want to classify all unclassified review comments i
 
 ## Dependencies
 
-- 🏗️ [US-2.03: Phase 2 Database Schema](🏗️%20US-2.03-phase2-database-schema.md) — classification tables must exist
+- ✅ [US-2.03: Phase 2 Database Schema](✅%20US-2.03-phase2-database-schema.md) — classification tables must exist
 - ❌ [US-2.04: Classification Prompt Engineering](❌%20US-2.04-classification-prompt-engineering.md) — prompt template must be ready
-- 🏗️ [US-012: Fetch PR Review Comments](🏗️%20012-fetch-pr-review-comments.md) — review comments must be synced from GitHub
+- ✅ [US-012: Fetch PR Review Comments](✅%20012-fetch-pr-review-comments.md) — review comments must be synced from GitHub
 
 ## Acceptance Criteria
 

@@ -11,7 +11,7 @@ As an engineering manager, I want to view the history of classification runs so 
 ## Dependencies
 
 - ❌ [US-2.05: Batch Classify Comments](❌%20US-2.05-batch-classify-comments.md) — classification runs must be recorded
-- 🏗️ [US-2.03: Phase 2 Database Schema](🏗️%20US-2.03-phase2-database-schema.md) — classification_runs table
+- ✅ [US-2.03: Phase 2 Database Schema](✅%20US-2.03-phase2-database-schema.md) — classification_runs table
 
 ## Acceptance Criteria
 

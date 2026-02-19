@@ -10,7 +10,7 @@ As a developer, I want a provider-agnostic abstraction layer for LLM calls so th
 
 ## Dependencies
 
-- 🏗️ [US-2.01: Configure LLM Provider](🏗️%20US-2.01-configure-llm-provider.md) — provider config must be stored and retrievable
+- ✅ [US-2.01: Configure LLM Provider](✅%20US-2.01-configure-llm-provider.md) — provider config must be stored and retrievable
 
 ## Acceptance Criteria
 
