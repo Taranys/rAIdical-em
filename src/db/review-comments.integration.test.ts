@@ -7,6 +7,7 @@ import {
   upsertReviewComment,
   getReviewCommentCount,
   getReviewCommentsByPR,
+  getAvgCommentsPerReviewByMember,
 } from "./review-comments";
 
 describe("review-comments DAL (integration)", () => {
@@ -137,5 +138,111 @@ describe("review-comments DAL (integration)", () => {
   it("returns empty array when no comments exist for PR", () => {
     const comments = getReviewCommentsByPR(999, testDb);
     expect(comments).toEqual([]);
+  });
+
+  // US-018: getAvgCommentsPerReviewByMember
+  describe("getAvgCommentsPerReviewByMember", () => {
+    beforeEach(() => {
+      // Insert a second PR
+      testSqlite.exec(`
+        INSERT INTO pull_requests (github_id, number, title, author, state, created_at)
+        VALUES (12346, 2, 'Fix bug', 'bob', 'open', '2026-02-05T10:00:00Z');
+      `);
+
+      // alice: 3 comments on PR 1, 2 comments on PR 2 = 5 total, 2 PRs → avg 2.5
+      upsertReviewComment(
+        { ...sampleComment, githubId: 400001, pullRequestId: 1, reviewer: "alice", createdAt: "2026-02-05T10:00:00Z", updatedAt: "2026-02-05T10:00:00Z" },
+        testDb,
+      );
+      upsertReviewComment(
+        { ...sampleComment, githubId: 400002, pullRequestId: 1, reviewer: "alice", createdAt: "2026-02-06T10:00:00Z", updatedAt: "2026-02-06T10:00:00Z" },
+        testDb,
+      );
+      upsertReviewComment(
+        { ...sampleComment, githubId: 400003, pullRequestId: 1, reviewer: "alice", createdAt: "2026-02-07T10:00:00Z", updatedAt: "2026-02-07T10:00:00Z" },
+        testDb,
+      );
+      upsertReviewComment(
+        { ...sampleComment, githubId: 400004, pullRequestId: 2, reviewer: "alice", createdAt: "2026-02-08T10:00:00Z", updatedAt: "2026-02-08T10:00:00Z" },
+        testDb,
+      );
+      upsertReviewComment(
+        { ...sampleComment, githubId: 400005, pullRequestId: 2, reviewer: "alice", createdAt: "2026-02-09T10:00:00Z", updatedAt: "2026-02-09T10:00:00Z" },
+        testDb,
+      );
+
+      // bob: 1 comment on PR 1 = 1 total, 1 PR → avg 1.0
+      upsertReviewComment(
+        { ...sampleComment, githubId: 400006, pullRequestId: 1, reviewer: "bob", createdAt: "2026-02-10T10:00:00Z", updatedAt: "2026-02-10T10:00:00Z" },
+        testDb,
+      );
+
+      // stranger (not team): 2 comments on PR 1
+      upsertReviewComment(
+        { ...sampleComment, githubId: 400007, pullRequestId: 1, reviewer: "stranger", createdAt: "2026-02-11T10:00:00Z", updatedAt: "2026-02-11T10:00:00Z" },
+        testDb,
+      );
+      upsertReviewComment(
+        { ...sampleComment, githubId: 400008, pullRequestId: 1, reviewer: "stranger", createdAt: "2026-02-12T10:00:00Z", updatedAt: "2026-02-12T10:00:00Z" },
+        testDb,
+      );
+
+      // alice: 1 comment outside date range
+      upsertReviewComment(
+        { ...sampleComment, githubId: 400009, pullRequestId: 1, reviewer: "alice", createdAt: "2026-03-05T10:00:00Z", updatedAt: "2026-03-05T10:00:00Z" },
+        testDb,
+      );
+    });
+
+    it("returns correct avg comments per review per member", () => {
+      const result = getAvgCommentsPerReviewByMember(
+        ["alice", "bob"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+
+      const alice = result.find((r) => r.reviewer === "alice");
+      const bob = result.find((r) => r.reviewer === "bob");
+
+      expect(alice?.totalComments).toBe(5);
+      expect(alice?.prsReviewed).toBe(2);
+      expect(alice?.avg).toBeCloseTo(2.5);
+
+      expect(bob?.totalComments).toBe(1);
+      expect(bob?.prsReviewed).toBe(1);
+      expect(bob?.avg).toBeCloseTo(1.0);
+    });
+
+    it("excludes comments outside date range", () => {
+      const result = getAvgCommentsPerReviewByMember(
+        ["alice"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+      const alice = result.find((r) => r.reviewer === "alice");
+      expect(alice?.totalComments).toBe(5); // not 6
+    });
+
+    it("excludes comments by non-team members", () => {
+      const result = getAvgCommentsPerReviewByMember(
+        ["alice", "bob"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+      expect(result.find((r) => r.reviewer === "stranger")).toBeUndefined();
+    });
+
+    it("returns empty array for empty team list", () => {
+      const result = getAvgCommentsPerReviewByMember(
+        [],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+      expect(result).toEqual([]);
+    });
   });
 });

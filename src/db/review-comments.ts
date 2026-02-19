@@ -1,7 +1,7 @@
-// US-012: Review comments data access layer
+// US-012, US-018: Review comments data access layer
 import { db as defaultDb } from "./index";
 import { reviewComments } from "./schema";
-import { count, eq } from "drizzle-orm";
+import { count, eq, and, gte, lt, inArray, sql } from "drizzle-orm";
 
 type DbInstance = typeof defaultDb;
 
@@ -67,5 +67,33 @@ export function getReviewCommentsByPR(
     .select()
     .from(reviewComments)
     .where(eq(reviewComments.pullRequestId, pullRequestId))
+    .all();
+}
+
+// US-018: Average comments per review per team member
+export function getAvgCommentsPerReviewByMember(
+  teamUsernames: string[],
+  startDate: string,
+  endDate: string,
+  dbInstance: DbInstance = defaultDb,
+) {
+  if (teamUsernames.length === 0) return [];
+
+  return dbInstance
+    .select({
+      reviewer: reviewComments.reviewer,
+      totalComments: count(),
+      prsReviewed: sql<number>`COUNT(DISTINCT ${reviewComments.pullRequestId})`,
+      avg: sql<number>`CAST(COUNT(*) AS REAL) / COUNT(DISTINCT ${reviewComments.pullRequestId})`,
+    })
+    .from(reviewComments)
+    .where(
+      and(
+        inArray(reviewComments.reviewer, teamUsernames),
+        gte(reviewComments.createdAt, startDate),
+        lt(reviewComments.createdAt, endDate),
+      ),
+    )
+    .groupBy(reviewComments.reviewer)
     .all();
 }
