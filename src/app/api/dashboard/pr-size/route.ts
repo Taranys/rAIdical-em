@@ -1,7 +1,7 @@
-// US-016: API route — average PR size per team member
+// US-016: API route — median PR size per team member
 import { NextResponse } from "next/server";
 import { getAllTeamMembers } from "@/db/team-members";
-import { getAvgPRSizeByMember } from "@/db/pull-requests";
+import { getMedianPRSizeByMember } from "@/db/pull-requests";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
   const members = getAllTeamMembers();
   const teamUsernames = members.map((m) => m.githubUsername);
 
-  const byMember = getAvgPRSizeByMember(teamUsernames, startDate, endDate);
+  const byMember = getMedianPRSizeByMember(teamUsernames, startDate, endDate);
 
   return NextResponse.json({ byMember });
 }

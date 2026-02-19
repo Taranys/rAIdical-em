@@ -123,21 +123,29 @@ export function getPRsMergedPerWeek(
     .all();
 }
 
-// US-016: Get average PR size per team member
-export function getAvgPRSizeByMember(
+// US-016: Get median PR size per team member, sorted by median total desc
+function median(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 !== 0
+    ? sorted[mid]
+    : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
+}
+
+export function getMedianPRSizeByMember(
   teamUsernames: string[],
   startDate: string,
   endDate: string,
   dbInstance: DbInstance = defaultDb,
-): { author: string; avgAdditions: number; avgDeletions: number; prCount: number }[] {
+): { author: string; medianAdditions: number; medianDeletions: number; prCount: number }[] {
   if (teamUsernames.length === 0) return [];
 
-  return dbInstance
+  const rows = dbInstance
     .select({
       author: pullRequests.author,
-      avgAdditions: sql<number>`CAST(AVG(${pullRequests.additions}) AS INTEGER)`.as("avg_additions"),
-      avgDeletions: sql<number>`CAST(AVG(${pullRequests.deletions}) AS INTEGER)`.as("avg_deletions"),
-      prCount: count(),
+      additions: pullRequests.additions,
+      deletions: pullRequests.deletions,
     })
     .from(pullRequests)
     .where(
@@ -147,8 +155,31 @@ export function getAvgPRSizeByMember(
         lt(pullRequests.createdAt, endDate),
       ),
     )
-    .groupBy(pullRequests.author)
     .all();
+
+  // Group by author
+  const byAuthor = new Map<string, { additions: number[]; deletions: number[] }>();
+  for (const row of rows) {
+    let entry = byAuthor.get(row.author);
+    if (!entry) {
+      entry = { additions: [], deletions: [] };
+      byAuthor.set(row.author, entry);
+    }
+    entry.additions.push(row.additions);
+    entry.deletions.push(row.deletions);
+  }
+
+  const result = Array.from(byAuthor.entries()).map(([author, data]) => ({
+    author,
+    medianAdditions: median(data.additions),
+    medianDeletions: median(data.deletions),
+    prCount: data.additions.length,
+  }));
+
+  // Sort by median total (additions + deletions) descending
+  result.sort((a, b) => (b.medianAdditions + b.medianDeletions) - (a.medianAdditions + a.medianDeletions));
+
+  return result;
 }
 
 // US-016: Get individual PRs for a specific member (drill-down)

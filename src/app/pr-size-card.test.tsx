@@ -35,8 +35,8 @@ describe("PrSizeCard", () => {
     vi.spyOn(global, "fetch").mockResolvedValue({
       json: async () => ({
         byMember: [
-          { author: "alice", avgAdditions: 100, avgDeletions: 30, prCount: 5 },
-          { author: "bob", avgAdditions: 600, avgDeletions: 200, prCount: 3 },
+          { author: "alice", medianAdditions: 100, medianDeletions: 30, prCount: 5 },
+          { author: "bob", medianAdditions: 600, medianDeletions: 200, prCount: 3 },
         ],
       }),
     } as Response);
@@ -52,14 +52,14 @@ describe("PrSizeCard", () => {
     vi.spyOn(global, "fetch").mockResolvedValue({
       json: async () => ({
         byMember: [
-          { author: "bob", avgAdditions: 600, avgDeletions: 200, prCount: 3 },
+          { author: "bob", medianAdditions: 600, medianDeletions: 200, prCount: 3 },
         ],
       }),
     } as Response);
 
     renderWithProvider(<PrSizeCard />);
     await waitFor(() => {
-      // bob's avg total is 800 > 500 threshold
+      // bob's median total is 800 > 500 threshold
       const row = screen.getByTestId("member-row-bob");
       expect(row.className).toContain("bg-red");
     });
@@ -70,7 +70,7 @@ describe("PrSizeCard", () => {
       .mockResolvedValueOnce({
         json: async () => ({
           byMember: [
-            { author: "alice", avgAdditions: 100, avgDeletions: 30, prCount: 2 },
+            { author: "alice", medianAdditions: 100, medianDeletions: 30, prCount: 2 },
           ],
         }),
       } as Response)
