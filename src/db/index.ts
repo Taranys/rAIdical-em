@@ -49,10 +49,22 @@ if (fs.existsSync(migrationsFolder)) {
   migrate(_state.db, { migrationsFolder });
 }
 
-// US-2.17: Replace the active database with a new file
+// US-2.17: Replace the active database with a new file.
+// The imported file must already contain the expected schema (validated
+// by the API route before calling this function).
 export function replaceDatabase(newFilePath: string): void {
-  // Close current connection
+  // Close current connection (also checkpoints WAL → main file)
   _state.sqlite.close();
+
+  // Remove stale WAL/SHM files left by the old connection so the new
+  // DB file is read cleanly without inheriting leftover WAL state.
+  for (const suffix of ["-wal", "-shm"]) {
+    try {
+      fs.unlinkSync(DB_PATH + suffix);
+    } catch {
+      // May not exist — that's fine
+    }
+  }
 
   // Overwrite database file
   fs.copyFileSync(newFilePath, DB_PATH);
@@ -61,9 +73,4 @@ export function replaceDatabase(newFilePath: string): void {
   _state.sqlite = new Database(DB_PATH);
   _state.sqlite.pragma("journal_mode = WAL");
   _state.db = drizzle(_state.sqlite, { schema });
-
-  // Apply pending migrations
-  if (fs.existsSync(migrationsFolder)) {
-    migrate(_state.db, { migrationsFolder });
-  }
 }
