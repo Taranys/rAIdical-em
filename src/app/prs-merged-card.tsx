@@ -111,7 +111,7 @@ export function PrsMergedCard() {
                   <Tooltip />
                   <Bar dataKey="count" name="PRs" radius={[0, 4, 4, 0]}>
                     {byMember.map((entry) => (
-                      <Cell key={entry.author} fill={colorMap[entry.author] ?? "hsl(var(--primary))"} />
+                      <Cell key={entry.author} fill={colorMap[entry.author] ?? "var(--primary)"} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -132,7 +132,7 @@ export function PrsMergedCard() {
                       type="monotone"
                       dataKey="count"
                       name="PRs"
-                      stroke="hsl(var(--primary))"
+                      stroke="var(--primary)"
                       strokeWidth={2}
                       dot={{ r: 4 }}
                     />
