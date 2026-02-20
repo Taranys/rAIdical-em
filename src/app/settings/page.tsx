@@ -4,7 +4,6 @@
 import { useState } from "react";
 import { GitHubPatForm } from "./github-pat-form";
 import { GitHubRepoForm } from "./github-repo-form";
-import { AiHeuristicsForm } from "./ai-heuristics-form";
 import { LlmProviderForm } from "./llm-provider-form";
 import { DatabaseImportForm } from "./database-import-form";
 
@@ -17,7 +16,6 @@ export default function SettingsPage() {
       <div className="space-y-6">
         <GitHubPatForm onPatChange={setIsPatConfigured} />
         <GitHubRepoForm isPatConfigured={isPatConfigured} />
-        <AiHeuristicsForm />
         <LlmProviderForm />
         <DatabaseImportForm />
       </div>

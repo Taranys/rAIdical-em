@@ -23,6 +23,7 @@ import {
   PROVIDER_IDS,
   type LlmProvider,
 } from "@/lib/llm-providers";
+import { AiHeuristicsForm } from "./ai-heuristics-form";
 
 interface Feedback {
   type: "success" | "error";
@@ -301,6 +302,15 @@ export function LlmProviderForm() {
             {feedback.message}
           </p>
         )}
+
+        {/* AI Detection Rules — embedded sub-section */}
+        <div className="border-t pt-4 mt-4">
+          <h3 className="text-lg font-semibold mb-1">AI Detection Rules</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Configure which heuristics determine whether a PR is AI-generated.
+          </p>
+          <AiHeuristicsForm embedded />
+        </div>
       </CardContent>
     </Card>
   );
