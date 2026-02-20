@@ -237,28 +237,37 @@ export function LlmProviderForm() {
           </div>
         </div>
 
-        <div>
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-medium">API Key</label>
+        <div className="space-y-3">
+          <label className="text-sm font-medium">API Key</label>
+          <div className="rounded-md border p-3 space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Auto-detect the API key stored by Claude Code on this machine.
+            </p>
             <Button
-              variant="ghost"
-              size="sm"
+              variant="secondary"
               onClick={handleImportClaudeCode}
               disabled={isImporting}
-              className="text-xs h-7"
             >
               {isImporting ? "Importing..." : "Import from Claude Code"}
             </Button>
+          </div>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">or enter manually</span>
+            </div>
           </div>
           <Input
             type="password"
             placeholder={currentProvider?.placeholder ?? "API key"}
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
-            className="mt-2 font-mono"
+            className="font-mono"
           />
           {isConfigured && !apiKey && (
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground">
               A key is already configured. Enter a new one to replace it.
             </p>
           )}
