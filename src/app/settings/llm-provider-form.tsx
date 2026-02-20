@@ -37,6 +37,7 @@ export function LlmProviderForm() {
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
 
   const checkConfigured = useCallback(async () => {
@@ -152,6 +153,41 @@ export function LlmProviderForm() {
     }
   }
 
+  async function handleImportClaudeCode() {
+    setIsImporting(true);
+    setFeedback(null);
+
+    try {
+      const res = await fetch("/api/settings/llm-provider/import-claude-code", {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setProvider(data.provider);
+        setModel(data.model);
+        setApiKey("");
+        setIsConfigured(true);
+        setFeedback({
+          type: "success",
+          message: data.message || "API key imported from Claude Code.",
+        });
+      } else {
+        setFeedback({
+          type: "error",
+          message: data.error || "Failed to import from Claude Code.",
+        });
+      }
+    } catch {
+      setFeedback({
+        type: "error",
+        message: "Failed to import from Claude Code.",
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -201,7 +237,18 @@ export function LlmProviderForm() {
         </div>
 
         <div>
-          <label className="text-sm font-medium">API Key</label>
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium">API Key</label>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleImportClaudeCode}
+              disabled={isImporting}
+              className="text-xs h-7"
+            >
+              {isImporting ? "Importing..." : "Import from Claude Code"}
+            </Button>
+          </div>
           <Input
             type="password"
             placeholder={currentProvider?.placeholder ?? "API key"}
@@ -229,7 +276,7 @@ export function LlmProviderForm() {
               onClick={handleTestConnection}
               disabled={isTesting}
             >
-              {isTesting ? "Testing..." : "Test Connection"}
+              {isTesting ? "Verifying..." : "Verify Key"}
             </Button>
           )}
           {isConfigured && (

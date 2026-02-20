@@ -53,7 +53,7 @@ describe("LlmProviderForm", () => {
     expect(screen.getByRole("button", { name: /save/i })).toBeInTheDocument();
   });
 
-  it("shows Test Connection and Delete buttons when configured", async () => {
+  it("shows Verify Key and Delete buttons when configured", async () => {
     globalThis.fetch = mockFetch({
       "GET /api/settings/llm-provider": {
         configured: true,
@@ -64,7 +64,7 @@ describe("LlmProviderForm", () => {
     render(<LlmProviderForm />);
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: /test connection/i }),
+        screen.getByRole("button", { name: /verify key/i }),
       ).toBeInTheDocument();
       expect(
         screen.getByRole("button", { name: /delete/i }),
@@ -72,14 +72,14 @@ describe("LlmProviderForm", () => {
     });
   });
 
-  it("hides Test Connection and Delete buttons when not configured", async () => {
+  it("hides Verify Key and Delete buttons when not configured", async () => {
     globalThis.fetch = mockFetch({
       "GET /api/settings/llm-provider": { configured: false },
     });
     render(<LlmProviderForm />);
     await waitFor(() => {
       expect(
-        screen.queryByRole("button", { name: /test connection/i }),
+        screen.queryByRole("button", { name: /verify key/i }),
       ).not.toBeInTheDocument();
       expect(
         screen.queryByRole("button", { name: /delete/i }),
@@ -109,7 +109,7 @@ describe("LlmProviderForm", () => {
     // will cover the full flow.
   });
 
-  it("calls POST /test when Test Connection is clicked", async () => {
+  it("calls POST /test when Verify Key is clicked", async () => {
     const fetchMock = mockFetch({
       "GET /api/settings/llm-provider": {
         configured: true,
@@ -128,11 +128,11 @@ describe("LlmProviderForm", () => {
     render(<LlmProviderForm />);
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: /test connection/i }),
+        screen.getByRole("button", { name: /verify key/i }),
       ).toBeInTheDocument();
     });
     fireEvent.click(
-      screen.getByRole("button", { name: /test connection/i }),
+      screen.getByRole("button", { name: /verify key/i }),
     );
 
     await waitFor(() => {
@@ -160,11 +160,11 @@ describe("LlmProviderForm", () => {
     render(<LlmProviderForm />);
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: /test connection/i }),
+        screen.getByRole("button", { name: /verify key/i }),
       ).toBeInTheDocument();
     });
     fireEvent.click(
-      screen.getByRole("button", { name: /test connection/i }),
+      screen.getByRole("button", { name: /verify key/i }),
     );
 
     await waitFor(() => {
