@@ -120,8 +120,8 @@ export function PrsMergedCard() {
 
             {/* Weekly trend */}
             {byWeek.length > 1 && (
-              <div>
-                <h3 className="text-sm font-medium mb-4">Weekly trend</h3>
+              <div className="text-primary">
+                <h3 className="text-sm font-medium mb-4 text-foreground">Weekly trend</h3>
                 <ResponsiveContainer width="100%" height={200}>
                   <LineChart data={byWeek} margin={{ left: 20, right: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -132,7 +132,7 @@ export function PrsMergedCard() {
                       type="monotone"
                       dataKey="count"
                       name="PRs"
-                      stroke="var(--primary)"
+                      stroke="currentColor"
                       strokeWidth={2}
                       dot={{ r: 4 }}
                     />
