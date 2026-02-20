@@ -106,9 +106,12 @@ test.describe("GitHub Repository Configuration", () => {
     await expect(page.getByLabel(/owner/i)).toBeVisible();
     await expect(page.getByLabel(/repository/i)).toBeVisible();
 
-    // Verify and Save buttons
+    // Verify and Save buttons (scoped to repo card to avoid matching LLM "Verify Key")
+    const repoCard = page
+      .locator('[data-slot="card"]')
+      .filter({ hasText: "Target Repository" });
     await expect(
-      page.getByRole("button", { name: /verify/i }),
+      repoCard.getByRole("button", { name: /verify/i }),
     ).toBeVisible();
 
     // Clean up
@@ -158,11 +161,11 @@ test.describe("AI Detection Rules", () => {
     await coAuthorInput.clear();
     await coAuthorInput.fill("*MyCustomBot*");
 
-    // Click Save within the AI Detection Rules card
-    const aiCard = page
-      .locator('[data-slot="card"]')
+    // Click Save within the AI Detection Rules section (embedded inside AI/LLM card)
+    const aiSection = page
+      .locator("div.border-t")
       .filter({ hasText: "AI Detection Rules" });
-    await aiCard.getByRole("button", { name: /^save$/i }).click();
+    await aiSection.getByRole("button", { name: /^save$/i }).click();
 
     // Verify success message
     await expect(page.getByText(/configuration saved/i)).toBeVisible();
