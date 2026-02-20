@@ -31,7 +31,7 @@ function joinList(items: string[]): string {
   return items.join(", ");
 }
 
-export function AiHeuristicsForm() {
+export function AiHeuristicsForm({ embedded = false }: { embedded?: boolean }) {
   const [config, setConfig] = useState<AiHeuristicsConfig | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
@@ -124,6 +124,9 @@ export function AiHeuristicsForm() {
   }
 
   if (!config) {
+    if (embedded) {
+      return <p className="text-sm text-muted-foreground">Loading detection rules...</p>;
+    }
     return (
       <Card>
         <CardHeader>
@@ -136,16 +139,8 @@ export function AiHeuristicsForm() {
     );
   }
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>AI Detection Rules</CardTitle>
-        <CardDescription>
-          Configure which heuristics determine whether a PR is AI-generated.
-          Multiple rules can be active simultaneously.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
+  const content = (
+    <div className="space-y-6">
         {/* Co-Author Pattern */}
         <div className="space-y-2">
           <div className="flex items-center gap-2">
@@ -278,7 +273,21 @@ export function AiHeuristicsForm() {
             {feedback.message}
           </p>
         )}
-      </CardContent>
+    </div>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>AI Detection Rules</CardTitle>
+        <CardDescription>
+          Configure which heuristics determine whether a PR is AI-generated.
+          Multiple rules can be active simultaneously.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>{content}</CardContent>
     </Card>
   );
 }

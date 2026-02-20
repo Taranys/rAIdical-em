@@ -23,6 +23,7 @@ import {
   PROVIDER_IDS,
   type LlmProvider,
 } from "@/lib/llm-providers";
+import { AiHeuristicsForm } from "./ai-heuristics-form";
 
 interface Feedback {
   type: "success" | "error";
@@ -37,6 +38,7 @@ export function LlmProviderForm() {
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
 
   const checkConfigured = useCallback(async () => {
@@ -152,6 +154,41 @@ export function LlmProviderForm() {
     }
   }
 
+  async function handleImportClaudeCode() {
+    setIsImporting(true);
+    setFeedback(null);
+
+    try {
+      const res = await fetch("/api/settings/llm-provider/import-claude-code", {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setProvider(data.provider);
+        setModel(data.model);
+        setApiKey("");
+        setIsConfigured(true);
+        setFeedback({
+          type: "success",
+          message: data.message || "API key imported from Claude Code.",
+        });
+      } else {
+        setFeedback({
+          type: "error",
+          message: data.error || "Failed to import from Claude Code.",
+        });
+      }
+    } catch {
+      setFeedback({
+        type: "error",
+        message: "Failed to import from Claude Code.",
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -200,17 +237,37 @@ export function LlmProviderForm() {
           </div>
         </div>
 
-        <div>
+        <div className="space-y-3">
           <label className="text-sm font-medium">API Key</label>
+          <div className="rounded-md border p-3 space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Auto-detect the API key stored by Claude Code on this machine.
+            </p>
+            <Button
+              variant="secondary"
+              onClick={handleImportClaudeCode}
+              disabled={isImporting}
+            >
+              {isImporting ? "Importing..." : "Import from Claude Code"}
+            </Button>
+          </div>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">or enter manually</span>
+            </div>
+          </div>
           <Input
             type="password"
             placeholder={currentProvider?.placeholder ?? "API key"}
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
-            className="mt-2 font-mono"
+            className="font-mono"
           />
           {isConfigured && !apiKey && (
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground">
               A key is already configured. Enter a new one to replace it.
             </p>
           )}
@@ -229,7 +286,7 @@ export function LlmProviderForm() {
               onClick={handleTestConnection}
               disabled={isTesting}
             >
-              {isTesting ? "Testing..." : "Test Connection"}
+              {isTesting ? "Verifying..." : "Verify Key"}
             </Button>
           )}
           {isConfigured && (
@@ -254,6 +311,15 @@ export function LlmProviderForm() {
             {feedback.message}
           </p>
         )}
+
+        {/* AI Detection Rules — embedded sub-section */}
+        <div className="border-t pt-4 mt-4">
+          <h3 className="text-lg font-semibold mb-1">AI Detection Rules</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Configure which heuristics determine whether a PR is AI-generated.
+          </p>
+          <AiHeuristicsForm embedded />
+        </div>
       </CardContent>
     </Card>
   );
