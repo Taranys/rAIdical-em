@@ -126,7 +126,7 @@ export function CommentsPerReviewCard() {
                     radius={[0, 4, 4, 0]}
                   >
                     {data.map((entry) => (
-                      <Cell key={entry.reviewer} fill={colorMap[entry.reviewer] ?? "hsl(var(--primary))"} />
+                      <Cell key={entry.reviewer} fill={colorMap[entry.reviewer] ?? "var(--primary)"} />
                     ))}
                   </Bar>
                 </BarChart>

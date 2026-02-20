@@ -17,12 +17,25 @@ if (!fs.existsSync(dataDir)) {
 // Use a mutable container so that all modules importing `db` or `sqlite`
 // keep a reference to the *same* object. When replaceDatabase() swaps the
 // underlying connection, every consumer sees the new instance immediately.
-const _state = {
-  sqlite: new Database(DB_PATH),
-  db: null as unknown as ReturnType<typeof drizzle<typeof schema>>,
+//
+// Persist on globalThis so Next.js dev-mode HMR doesn't create a second
+// connection (the old one would become stale after replaceDatabase()).
+type DbState = {
+  sqlite: InstanceType<typeof Database>;
+  db: ReturnType<typeof drizzle<typeof schema>>;
 };
-_state.sqlite.pragma("journal_mode = WAL");
-_state.db = drizzle(_state.sqlite, { schema });
+const globalKey = "__em_ct_db_state__" as const;
+const _existing = (globalThis as Record<string, unknown>)[globalKey] as DbState | undefined;
+
+let _state: DbState;
+if (_existing?.sqlite?.open) {
+  _state = _existing;
+} else {
+  const sq = new Database(DB_PATH);
+  sq.pragma("journal_mode = WAL");
+  _state = { sqlite: sq, db: drizzle(sq, { schema }) };
+  (globalThis as Record<string, unknown>)[globalKey] = _state;
+}
 
 // Re-export as named getters so `import { db } from "@/db"` always
 // resolves to the current live instance, even after replaceDatabase().
@@ -53,8 +66,12 @@ if (fs.existsSync(migrationsFolder)) {
 // The imported file must already contain the expected schema (validated
 // by the API route before calling this function).
 export function replaceDatabase(newFilePath: string): void {
-  // Close current connection (also checkpoints WAL → main file)
-  _state.sqlite.close();
+  // Keep old connection alive until the new one is ready so concurrent
+  // requests never hit a closed database (race condition fix).
+  const oldSqlite = _state.sqlite;
+
+  // Close old connection (checkpoints WAL → main file)
+  oldSqlite.close();
 
   // Remove stale WAL/SHM files left by the old connection so the new
   // DB file is read cleanly without inheriting leftover WAL state.
@@ -69,10 +86,12 @@ export function replaceDatabase(newFilePath: string): void {
   // Overwrite database file
   fs.copyFileSync(newFilePath, DB_PATH);
 
-  // Reopen connection
-  _state.sqlite = new Database(DB_PATH);
-  _state.sqlite.pragma("journal_mode = WAL");
-  _state.db = drizzle(_state.sqlite, { schema });
+  // Open new connection and swap atomically — the Proxy ensures all
+  // consumers see the new instance as soon as _state is updated.
+  const newSqlite = new Database(DB_PATH);
+  newSqlite.pragma("journal_mode = WAL");
+  _state.sqlite = newSqlite;
+  _state.db = drizzle(newSqlite, { schema });
 }
 
 // Backfill team member colors (one-time, idempotent)

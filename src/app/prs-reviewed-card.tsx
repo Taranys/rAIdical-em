@@ -118,7 +118,7 @@ export function PrsReviewedCard() {
                     radius={[0, 4, 4, 0]}
                   >
                     {byMember.map((entry) => (
-                      <Cell key={entry.reviewer} fill={colorMap[entry.reviewer] ?? "hsl(var(--primary))"} />
+                      <Cell key={entry.reviewer} fill={colorMap[entry.reviewer] ?? "var(--primary)"} />
                     ))}
                   </Bar>
                 </BarChart>
