@@ -16,6 +16,7 @@ export interface PullRequestInput {
   additions: number;
   deletions: number;
   changedFiles: number;
+  aiGenerated: "ai" | "human" | "mixed";
 }
 
 export function upsertPullRequest(
@@ -35,6 +36,7 @@ export function upsertPullRequest(
       additions: input.additions,
       deletions: input.deletions,
       changedFiles: input.changedFiles,
+      aiGenerated: input.aiGenerated,
     })
     .onConflictDoUpdate({
       target: pullRequests.githubId,
@@ -48,6 +50,7 @@ export function upsertPullRequest(
         additions: input.additions,
         deletions: input.deletions,
         changedFiles: input.changedFiles,
+        aiGenerated: input.aiGenerated,
       },
     })
     .returning()

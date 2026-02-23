@@ -34,3 +34,10 @@ As an engineering manager, I want to configure the rules that determine whether 
 - **API route** (`src/app/api/settings/ai-heuristics/route.ts`): GET/PUT/DELETE for heuristic config.
 - **Settings UI** (`src/app/settings/ai-heuristics-form.tsx`): Card with 4 heuristic sections, save/reset buttons.
 - **Tests:** 32 unit tests (classification logic), 8 unit tests (API), 10 unit tests (UI), 1 integration test, 2 E2E tests.
+
+### Sync integration (added later)
+
+The classification engine was initially implemented without being wired into the sync pipeline (`aiGenerated` defaulted to `"human"` on every insert). This was later fixed by:
+- **Sync service** (`src/lib/github-sync.ts`): Loads AI heuristics config once at sync start, then for each PR fetches commits via `pulls.listCommits`, extracts `head.ref` (branch name) and `labels` from `pulls.get`, and calls `classifyPullRequest()`. The result is passed to `upsertPullRequest()`.
+- **DAL** (`src/db/pull-requests.ts`): `PullRequestInput` now includes `aiGenerated`, and `upsertPullRequest()` sets it on both insert and conflict update.
+- **Tests:** 7 new unit tests for classification integration in sync, 1 new integration test for `aiGenerated` persistence.
