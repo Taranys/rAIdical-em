@@ -5,6 +5,7 @@ const mockPaginate = vi.fn();
 const mockPullsGet = vi.fn();
 const mockPullsListReviews = vi.fn();
 const mockPullsListReviewComments = vi.fn();
+const mockPullsListCommits = vi.fn();
 const mockIssuesListComments = vi.fn();
 const mockGetRateLimit = vi.fn();
 
@@ -17,6 +18,7 @@ vi.mock("octokit", () => ({
         get: mockPullsGet,
         listReviews: mockPullsListReviews,
         listReviewComments: mockPullsListReviewComments,
+        listCommits: mockPullsListCommits,
       },
       issues: {
         listComments: mockIssuesListComments,
@@ -47,12 +49,29 @@ vi.mock("@/db/sync-runs", () => ({
   completeSyncRun: vi.fn(),
 }));
 
+vi.mock("@/lib/ai-detection", () => ({
+  classifyPullRequest: vi.fn(),
+  DEFAULT_AI_HEURISTICS: {
+    coAuthorPatterns: ["*Claude*"],
+    authorBotList: ["dependabot"],
+    branchNamePatterns: ["ai/*"],
+    labels: ["ai-generated"],
+    enabled: { coAuthor: true, authorBot: true, branchName: true, label: true },
+  },
+}));
+
+vi.mock("@/db/settings", () => ({
+  getSetting: vi.fn(),
+}));
+
 import { syncPullRequests, fetchRateLimit } from "./github-sync";
 import { upsertPullRequest } from "@/db/pull-requests";
 import { upsertReview } from "@/db/reviews";
 import { upsertReviewComment } from "@/db/review-comments";
 import { upsertPrComment } from "@/db/pr-comments";
 import { updateSyncRunProgress, completeSyncRun } from "@/db/sync-runs";
+import { classifyPullRequest } from "@/lib/ai-detection";
+import { getSetting } from "@/db/settings";
 
 function makeListItem(overrides: Record<string, unknown> = {}) {
   return {
@@ -79,6 +98,8 @@ function makeDetailPR(overrides: Record<string, unknown> = {}) {
     additions: 50,
     deletions: 10,
     changed_files: 3,
+    head: { ref: "feature/my-thing" },
+    labels: [],
     ...overrides,
   };
 }
@@ -152,6 +173,10 @@ describe("syncPullRequests", () => {
     mockPullsListReviews.mockResolvedValue({ data: [] });
     mockPullsListReviewComments.mockResolvedValue({ data: [] });
     mockIssuesListComments.mockResolvedValue({ data: [] });
+    // US-020: Default classification mocks
+    mockPullsListCommits.mockResolvedValue({ data: [] });
+    vi.mocked(classifyPullRequest).mockReturnValue("human");
+    vi.mocked(getSetting).mockReturnValue(null);
   });
 
   it("fetches PRs and upserts each one", async () => {
@@ -255,6 +280,7 @@ describe("syncPullRequests", () => {
       additions: 50,
       deletions: 10,
       changedFiles: 3,
+      aiGenerated: "human",
     });
   });
 
@@ -492,6 +518,116 @@ describe("syncPullRequests", () => {
 
     expect(upsertReviewComment).toHaveBeenCalledWith(
       expect.objectContaining({ filePath: null, line: null }),
+    );
+  });
+
+  // US-020: AI classification integration tests
+  it("calls listCommits for each PR", async () => {
+    mockPaginate.mockResolvedValue([makeListItem()]);
+    mockPullsGet.mockResolvedValue({ data: makeDetailPR() });
+
+    await syncPullRequests("owner", "repo", "ghp_token", 1);
+
+    expect(mockPullsListCommits).toHaveBeenCalledWith({
+      owner: "owner",
+      repo: "repo",
+      pull_number: 1,
+    });
+  });
+
+  it("passes PR data and commits to classifyPullRequest", async () => {
+    mockPaginate.mockResolvedValue([makeListItem()]);
+    mockPullsGet.mockResolvedValue({
+      data: makeDetailPR({
+        head: { ref: "ai/my-feature" },
+        labels: [{ name: "ai-generated" }],
+      }),
+    });
+    mockPullsListCommits.mockResolvedValue({
+      data: [
+        { commit: { message: "Fix bug\n\nCo-Authored-By: Claude <noreply>" } },
+      ],
+    });
+
+    await syncPullRequests("owner", "repo", "ghp_token", 1);
+
+    expect(classifyPullRequest).toHaveBeenCalledWith(
+      { author: "octocat", branchName: "ai/my-feature", labels: ["ai-generated"] },
+      [{ message: "Fix bug\n\nCo-Authored-By: Claude <noreply>" }],
+      expect.any(Object),
+    );
+  });
+
+  it("passes classification result to upsertPullRequest", async () => {
+    mockPaginate.mockResolvedValue([makeListItem()]);
+    mockPullsGet.mockResolvedValue({ data: makeDetailPR() });
+    vi.mocked(classifyPullRequest).mockReturnValue("ai");
+
+    await syncPullRequests("owner", "repo", "ghp_token", 1);
+
+    expect(upsertPullRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ aiGenerated: "ai" }),
+    );
+  });
+
+  it("passes 'mixed' classification through to upsert", async () => {
+    mockPaginate.mockResolvedValue([makeListItem()]);
+    mockPullsGet.mockResolvedValue({ data: makeDetailPR() });
+    vi.mocked(classifyPullRequest).mockReturnValue("mixed");
+
+    await syncPullRequests("owner", "repo", "ghp_token", 1);
+
+    expect(upsertPullRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ aiGenerated: "mixed" }),
+    );
+  });
+
+  it("defaults to 'human' when listCommits fails", async () => {
+    mockPaginate.mockResolvedValue([makeListItem()]);
+    mockPullsGet.mockResolvedValue({ data: makeDetailPR() });
+    mockPullsListCommits.mockRejectedValue(new Error("Commits fetch failed"));
+
+    await syncPullRequests("owner", "repo", "ghp_token", 1);
+
+    expect(upsertPullRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ aiGenerated: "human" }),
+    );
+    // Sync should still succeed
+    expect(completeSyncRun).toHaveBeenCalledWith(1, "success", 1, null, 0, 0);
+  });
+
+  it("loads custom heuristics config from settings", async () => {
+    const customConfig = {
+      coAuthorPatterns: ["*MyBot*"],
+      authorBotList: ["custom-bot"],
+      branchNamePatterns: ["bot/*"],
+      labels: ["automated"],
+      enabled: { coAuthor: true, authorBot: true, branchName: true, label: true },
+    };
+    vi.mocked(getSetting).mockReturnValue(JSON.stringify(customConfig));
+    mockPaginate.mockResolvedValue([makeListItem()]);
+    mockPullsGet.mockResolvedValue({ data: makeDetailPR() });
+
+    await syncPullRequests("owner", "repo", "ghp_token", 1);
+
+    expect(classifyPullRequest).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.any(Array),
+      customConfig,
+    );
+  });
+
+  it("uses default heuristics when settings returns null", async () => {
+    vi.mocked(getSetting).mockReturnValue(null);
+    mockPaginate.mockResolvedValue([makeListItem()]);
+    mockPullsGet.mockResolvedValue({ data: makeDetailPR() });
+
+    await syncPullRequests("owner", "repo", "ghp_token", 1);
+
+    expect(classifyPullRequest).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.any(Array),
+      expect.objectContaining({ coAuthorPatterns: expect.any(Array) }),
     );
   });
 

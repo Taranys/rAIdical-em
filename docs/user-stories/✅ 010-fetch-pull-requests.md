@@ -35,7 +35,7 @@ As an engineering manager, I want the application to fetch all pull requests fro
 **Changes:**
 - **Pull requests DAL** (`src/db/pull-requests.ts`): `upsertPullRequest()` with `onConflictDoUpdate` on `githubId`, `getPullRequestCount()`. Accepts optional `dbInstance` for testability.
 - **Sync runs DAL** (`src/db/sync-runs.ts`): `createSyncRun()`, `completeSyncRun()` (handles success/error), `updateSyncRunProgress()`, `getLatestSyncRun()`, `getActiveSyncRun()`.
-- **Sync service** (`src/lib/github-sync.ts`): `syncPullRequests()` uses `octokit.paginate(pulls.list)` for pagination, then `pulls.get` per PR for additions/deletions/changed_files (list endpoint doesn't include these). `fetchRateLimit()` returns current API usage.
+- **Sync service** (`src/lib/github-sync.ts`): `syncPullRequests()` uses `octokit.paginate(pulls.list)` for pagination, then `pulls.get` per PR for additions/deletions/changed_files (list endpoint doesn't include these), and `pulls.listCommits` per PR for AI classification. `fetchRateLimit()` returns current API usage.
 - **API routes**: `POST /api/sync` (validates PAT/repo, prevents concurrent syncs with 409), `GET /api/sync` (latest sync run for polling), `GET /api/sync/rate-limit` (GitHub API rate limit info).
 - **Sync page** (`src/app/sync/page.tsx`): Client component with status indicator (never synced/syncing/up to date/error), "Sync Now" button, rate limit progress bar. Uses lucide-react icons.
 - **Sidebar** (`src/components/app-sidebar.tsx`): Added "Sync" nav item with RefreshCw icon between Team and Settings.
@@ -44,4 +44,4 @@ As an engineering manager, I want the application to fetch all pull requests fro
 **Key decisions:**
 - Polling over SSE/WebSocket for simplicity (KISS)
 - Per-PR detail fetch (`pulls.get`) needed because `pulls.list` doesn't return `additions`/`deletions`/`changed_files`
-- `aiGenerated` field left as default — classification handled by US-020
+- `aiGenerated` field is now set during sync by calling `classifyPullRequest()` from US-020 (fetches commits, branch name, and labels per PR)

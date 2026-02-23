@@ -57,6 +57,7 @@ describe("pull-requests DAL (integration)", () => {
     additions: 50,
     deletions: 10,
     changedFiles: 3,
+    aiGenerated: "human" as const,
   };
 
   it("inserts a new pull request", () => {
@@ -106,6 +107,15 @@ describe("pull-requests DAL (integration)", () => {
   it("stores raw_json when not provided as null", () => {
     const result = upsertPullRequest(samplePR, testDb);
     expect(result.rawJson).toBeNull();
+  });
+
+  it("stores and updates aiGenerated field", () => {
+    const result = upsertPullRequest({ ...samplePR, aiGenerated: "ai" as const }, testDb);
+    expect(result.aiGenerated).toBe("ai");
+
+    const updated = upsertPullRequest({ ...samplePR, aiGenerated: "mixed" as const }, testDb);
+    expect(updated.aiGenerated).toBe("mixed");
+    expect(getPullRequestCount(testDb)).toBe(1);
   });
 
   // getPRsMergedByMember

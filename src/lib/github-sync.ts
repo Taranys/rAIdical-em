@@ -1,10 +1,12 @@
-// US-010 / US-011 / US-012: GitHub sync service — fetch PRs, reviews, comments, and rate limit info
+// US-010 / US-011 / US-012 / US-020: GitHub sync service — fetch PRs, reviews, comments, and rate limit info
 import { Octokit } from "octokit";
 import { upsertPullRequest } from "@/db/pull-requests";
 import { upsertReview } from "@/db/reviews";
 import { upsertReviewComment } from "@/db/review-comments";
 import { upsertPrComment } from "@/db/pr-comments";
 import { updateSyncRunProgress, completeSyncRun } from "@/db/sync-runs";
+import { classifyPullRequest, DEFAULT_AI_HEURISTICS, type AiHeuristicsConfig } from "@/lib/ai-detection";
+import { getSetting } from "@/db/settings";
 
 
 function mapPRState(pr: { state: string; merged_at: string | null }): "open" | "closed" | "merged" {
@@ -23,6 +25,17 @@ export async function syncPullRequests(
   let prCount = 0;
   let reviewCount = 0;
   let commentCount = 0;
+
+  // US-020: Load AI heuristics config once for the entire sync
+  let aiConfig: AiHeuristicsConfig = DEFAULT_AI_HEURISTICS;
+  try {
+    const stored = getSetting("ai_heuristics");
+    if (stored) {
+      aiConfig = JSON.parse(stored) as AiHeuristicsConfig;
+    }
+  } catch {
+    // Fall back to defaults if config can't be loaded
+  }
 
   try {
     // List all PRs (doesn't include additions/deletions/changed_files)
@@ -50,6 +63,29 @@ export async function syncPullRequests(
       });
 
       const state = mapPRState(pr);
+
+      // US-020: Classify PR as ai/human/mixed
+      let aiGenerated: "ai" | "human" | "mixed" = "human";
+      try {
+        const { data: commits } = await octokit.rest.pulls.listCommits({
+          owner,
+          repo,
+          pull_number: item.number,
+        });
+
+        aiGenerated = classifyPullRequest(
+          {
+            author: pr.user?.login ?? "unknown",
+            branchName: pr.head?.ref ?? null,
+            labels: (pr.labels ?? []).map((l: { name?: string }) => l.name ?? ""),
+          },
+          commits.map((c: { commit: { message: string } }) => ({ message: c.commit.message })),
+          aiConfig,
+        );
+      } catch {
+        // Continue with default "human" if classification fails
+      }
+
       const dbPR = upsertPullRequest({
         githubId: pr.id,
         number: pr.number,
@@ -61,6 +97,7 @@ export async function syncPullRequests(
         additions: pr.additions,
         deletions: pr.deletions,
         changedFiles: pr.changed_files,
+        aiGenerated,
       });
       prCount++;
 
