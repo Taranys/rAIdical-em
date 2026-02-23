@@ -10,7 +10,7 @@ As an engineering manager, I want each team member to have a "review depth" scor
 
 ## Dependencies
 
-- ❌ [US-2.05: Batch Classify Comments](❌%20US-2.05-batch-classify-comments.md) — classified comments needed for scoring
+- ✅ [US-2.05: Batch Classify Comments](✅%20US-2.05-batch-classify-comments.md) — classified comments needed for scoring
 - ✅ [US-2.03: Phase 2 Database Schema](✅%20US-2.03-phase2-database-schema.md) — seniority profiles table
 
 ## Acceptance Criteria

@@ -10,7 +10,7 @@ As an engineering manager, I want to view the classification of each review comm
 
 ## Dependencies
 
-- ❌ [US-2.05: Batch Classify Comments](❌%20US-2.05-batch-classify-comments.md) — classified data must exist
+- ✅ [US-2.05: Batch Classify Comments](✅%20US-2.05-batch-classify-comments.md) — classified data must exist
 - ✅ [US-023: Application Shell](✅%20023-application-shell-navigation.md) — sidebar navigation
 
 ## Acceptance Criteria

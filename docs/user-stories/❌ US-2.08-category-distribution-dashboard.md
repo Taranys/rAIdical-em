@@ -10,7 +10,7 @@ As an engineering manager, I want to see how review comment categories are distr
 
 ## Dependencies
 
-- ❌ [US-2.07: View Classification Results](❌%20US-2.07-view-classification-results.md) — classification data must be viewable
+- 🏗️ [US-2.07: View Classification Results](🏗️%20US-2.07-view-classification-results.md) — classification data must be viewable
 - ✅ [US-019: Dashboard Period Selector](✅%20019-dashboard-period-selector.md) — period filter must be reusable
 
 ## Acceptance Criteria
