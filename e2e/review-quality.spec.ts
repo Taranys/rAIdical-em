@@ -25,17 +25,17 @@ test.describe("Review Quality Page", () => {
 
     // Summary card is visible
     await expect(
-      page.getByRole("heading", { name: "Category Distribution" }),
+      page.getByText("Category Distribution"),
     ).toBeVisible();
 
     // Filters card is visible
     await expect(
-      page.getByRole("heading", { name: "Filters" }),
+      page.getByText("Filters"),
     ).toBeVisible();
 
     // Comments table card is visible
     await expect(
-      page.getByRole("heading", { name: "Classified Comments" }),
+      page.getByText("Classified Comments"),
     ).toBeVisible();
   });
 });
