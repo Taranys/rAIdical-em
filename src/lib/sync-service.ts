@@ -49,6 +49,7 @@ export function mapPullRequest(pr: GitHubPR): PullRequestInput {
     additions: pr.additions ?? 0,
     deletions: pr.deletions ?? 0,
     changedFiles: pr.changed_files ?? 0,
+    aiGenerated: "human",
   };
 }
 
