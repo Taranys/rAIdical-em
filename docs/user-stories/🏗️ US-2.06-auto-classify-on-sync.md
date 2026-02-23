@@ -10,7 +10,7 @@ As an engineering manager, I want newly synced review comments to be automatical
 
 ## Dependencies
 
-- ❌ [US-2.05: Batch Classify Comments](❌%20US-2.05-batch-classify-comments.md) — batch classification logic must exist
+- ✅ [US-2.05: Batch Classify Comments](✅%20US-2.05-batch-classify-comments.md) — batch classification logic must exist
 - ✅ [US-2.01: Configure LLM Provider](✅%20US-2.01-configure-llm-provider.md) — LLM must be configured
 - ✅ [US-010: Fetch Pull Requests](✅%20010-fetch-pull-requests.md) — sync pipeline must exist
 
