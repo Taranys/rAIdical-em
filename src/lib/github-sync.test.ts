@@ -1,4 +1,4 @@
-// US-010 / US-011 / US-012 / US-014: GitHub sync service unit tests
+// US-010 / US-011 / US-012 / US-014 / US-2.06: GitHub sync service unit tests
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const mockPaginate = vi.fn();
@@ -64,6 +64,15 @@ vi.mock("@/db/settings", () => ({
   getSetting: vi.fn(),
 }));
 
+// US-2.06: Auto-classification mocks
+vi.mock("@/lib/classification-service", () => ({
+  classifyComments: vi.fn(),
+}));
+
+vi.mock("@/db/classification-runs", () => ({
+  getActiveClassificationRun: vi.fn(),
+}));
+
 import { syncPullRequests, fetchRateLimit } from "./github-sync";
 import { upsertPullRequest } from "@/db/pull-requests";
 import { upsertReview } from "@/db/reviews";
@@ -72,6 +81,8 @@ import { upsertPrComment } from "@/db/pr-comments";
 import { updateSyncRunProgress, completeSyncRun } from "@/db/sync-runs";
 import { classifyPullRequest } from "@/lib/ai-detection";
 import { getSetting } from "@/db/settings";
+import { classifyComments } from "@/lib/classification-service";
+import { getActiveClassificationRun } from "@/db/classification-runs";
 
 function makeListItem(overrides: Record<string, unknown> = {}) {
   return {
@@ -177,6 +188,16 @@ describe("syncPullRequests", () => {
     mockPullsListCommits.mockResolvedValue({ data: [] });
     vi.mocked(classifyPullRequest).mockReturnValue("human");
     vi.mocked(getSetting).mockReturnValue(null);
+    // US-2.06: Default auto-classify mocks
+    vi.mocked(getActiveClassificationRun).mockReturnValue(null);
+    vi.mocked(classifyComments).mockResolvedValue({
+      runId: 1,
+      status: "success",
+      commentsProcessed: 0,
+      totalComments: 0,
+      errors: 0,
+      summary: { categories: [], totalClassified: 0, averageConfidence: 0 },
+    });
   });
 
   it("fetches PRs and upserts each one", async () => {
@@ -657,6 +678,143 @@ describe("syncPullRequests", () => {
       state: "all",
       per_page: 100,
     });
+  });
+
+  // US-2.06: Auto-classification after sync tests
+  it("triggers auto-classification after successful sync when setting is enabled", async () => {
+    vi.mocked(getSetting).mockImplementation((key: string) => {
+      switch (key) {
+        case "auto_classify_on_sync": return "true";
+        case "llm_provider": return "anthropic";
+        case "llm_model": return "claude-opus-4-6";
+        case "llm_api_key": return "sk-xxx";
+        default: return null;
+      }
+    });
+    mockPaginate.mockResolvedValue([makeListItem()]);
+    mockPullsGet.mockResolvedValue({ data: makeDetailPR() });
+
+    await syncPullRequests("owner", "repo", "ghp_token", 1);
+
+    expect(classifyComments).toHaveBeenCalled();
+  });
+
+  it("triggers auto-classification when setting does not exist (default enabled)", async () => {
+    vi.mocked(getSetting).mockImplementation((key: string) => {
+      switch (key) {
+        case "auto_classify_on_sync": return null;
+        case "llm_provider": return "openai";
+        case "llm_model": return "gpt-4o";
+        case "llm_api_key": return "sk-xxx";
+        default: return null;
+      }
+    });
+    mockPaginate.mockResolvedValue([makeListItem()]);
+    mockPullsGet.mockResolvedValue({ data: makeDetailPR() });
+
+    await syncPullRequests("owner", "repo", "ghp_token", 1);
+
+    expect(classifyComments).toHaveBeenCalled();
+  });
+
+  it("does not trigger auto-classification when setting is disabled", async () => {
+    vi.mocked(getSetting).mockImplementation((key: string) => {
+      switch (key) {
+        case "auto_classify_on_sync": return "false";
+        case "llm_provider": return "anthropic";
+        case "llm_model": return "claude-opus-4-6";
+        case "llm_api_key": return "sk-xxx";
+        default: return null;
+      }
+    });
+    mockPaginate.mockResolvedValue([makeListItem()]);
+    mockPullsGet.mockResolvedValue({ data: makeDetailPR() });
+
+    await syncPullRequests("owner", "repo", "ghp_token", 1);
+
+    expect(classifyComments).not.toHaveBeenCalled();
+  });
+
+  it("does not trigger auto-classification when LLM is not configured", async () => {
+    vi.mocked(getSetting).mockImplementation((key: string) => {
+      switch (key) {
+        case "auto_classify_on_sync": return "true";
+        case "llm_provider": return null;
+        case "llm_model": return null;
+        case "llm_api_key": return null;
+        default: return null;
+      }
+    });
+    mockPaginate.mockResolvedValue([makeListItem()]);
+    mockPullsGet.mockResolvedValue({ data: makeDetailPR() });
+
+    await syncPullRequests("owner", "repo", "ghp_token", 1);
+
+    expect(classifyComments).not.toHaveBeenCalled();
+  });
+
+  it("does not trigger auto-classification when a classification is already running", async () => {
+    vi.mocked(getSetting).mockImplementation((key: string) => {
+      switch (key) {
+        case "auto_classify_on_sync": return "true";
+        case "llm_provider": return "anthropic";
+        case "llm_model": return "claude-opus-4-6";
+        case "llm_api_key": return "sk-xxx";
+        default: return null;
+      }
+    });
+    vi.mocked(getActiveClassificationRun).mockReturnValue({
+      id: 99,
+      status: "running",
+      startedAt: "2024-06-01T10:00:00Z",
+      completedAt: null,
+      commentsProcessed: 5,
+      errors: 0,
+      modelUsed: "claude-opus-4-6",
+    });
+    mockPaginate.mockResolvedValue([makeListItem()]);
+    mockPullsGet.mockResolvedValue({ data: makeDetailPR() });
+
+    await syncPullRequests("owner", "repo", "ghp_token", 1);
+
+    expect(classifyComments).not.toHaveBeenCalled();
+  });
+
+  it("does not trigger auto-classification on sync error", async () => {
+    vi.mocked(getSetting).mockImplementation((key: string) => {
+      switch (key) {
+        case "auto_classify_on_sync": return "true";
+        case "llm_provider": return "anthropic";
+        case "llm_model": return "claude-opus-4-6";
+        case "llm_api_key": return "sk-xxx";
+        default: return null;
+      }
+    });
+    mockPaginate.mockRejectedValue(new Error("API rate limit exceeded"));
+
+    await syncPullRequests("owner", "repo", "ghp_token", 1);
+
+    expect(classifyComments).not.toHaveBeenCalled();
+  });
+
+  it("sync completes successfully even if classifyComments throws", async () => {
+    vi.mocked(getSetting).mockImplementation((key: string) => {
+      switch (key) {
+        case "auto_classify_on_sync": return "true";
+        case "llm_provider": return "anthropic";
+        case "llm_model": return "claude-opus-4-6";
+        case "llm_api_key": return "sk-xxx";
+        default: return null;
+      }
+    });
+    vi.mocked(classifyComments).mockRejectedValue(new Error("LLM service unavailable"));
+    mockPaginate.mockResolvedValue([makeListItem()]);
+    mockPullsGet.mockResolvedValue({ data: makeDetailPR() });
+
+    await syncPullRequests("owner", "repo", "ghp_token", 1);
+
+    expect(completeSyncRun).toHaveBeenCalledWith(1, "success", 1, null, 0, 0);
+    expect(classifyComments).toHaveBeenCalled();
   });
 });
 

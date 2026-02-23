@@ -1,6 +1,6 @@
 "use client";
 
-// US-2.01: LLM provider configuration form
+// US-2.01 / US-2.06: LLM provider configuration form
 import { useCallback, useEffect, useState } from "react";
 import {
   Card,
@@ -23,6 +23,8 @@ import {
   PROVIDER_IDS,
   type LlmProvider,
 } from "@/lib/llm-providers";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { AiHeuristicsForm } from "./ai-heuristics-form";
 
 interface Feedback {
@@ -40,6 +42,9 @@ export function LlmProviderForm() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  // US-2.06: Auto-classify toggle state
+  const [autoClassifyEnabled, setAutoClassifyEnabled] = useState(true);
+  const [autoClassifyLoading, setAutoClassifyLoading] = useState(true);
 
   const checkConfigured = useCallback(async () => {
     try {
@@ -55,9 +60,22 @@ export function LlmProviderForm() {
     }
   }, []);
 
+  const loadAutoClassify = useCallback(async () => {
+    try {
+      const res = await fetch("/api/settings/auto-classify");
+      const data = await res.json();
+      setAutoClassifyEnabled(data.enabled);
+    } catch {
+      // Default to enabled on error
+    } finally {
+      setAutoClassifyLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     checkConfigured();
-  }, [checkConfigured]);
+    loadAutoClassify();
+  }, [checkConfigured, loadAutoClassify]);
 
   // Reset model when provider changes
   function handleProviderChange(value: string) {
@@ -151,6 +169,20 @@ export function LlmProviderForm() {
       });
     } finally {
       setIsDeleting(false);
+    }
+  }
+
+  // US-2.06: Toggle auto-classify with optimistic update
+  async function handleAutoClassifyToggle(checked: boolean) {
+    setAutoClassifyEnabled(checked);
+    try {
+      await fetch("/api/settings/auto-classify", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: checked }),
+      });
+    } catch {
+      setAutoClassifyEnabled(!checked);
     }
   }
 
@@ -311,6 +343,30 @@ export function LlmProviderForm() {
             {feedback.message}
           </p>
         )}
+
+        {/* US-2.06: Auto-classification toggle */}
+        <div className="border-t pt-4 mt-4">
+          <h3 className="text-lg font-semibold mb-1">Auto-Classification</h3>
+          <p className="text-sm text-muted-foreground mb-3">
+            Automatically classify new review comments after each GitHub sync.
+          </p>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="auto-classify-on-sync"
+              checked={autoClassifyEnabled}
+              onCheckedChange={(checked) => handleAutoClassifyToggle(checked === true)}
+              disabled={autoClassifyLoading || !isConfigured}
+            />
+            <Label htmlFor="auto-classify-on-sync">
+              Enable auto-classification on sync
+            </Label>
+          </div>
+          {!isConfigured && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Configure an LLM provider above to enable auto-classification.
+            </p>
+          )}
+        </div>
 
         {/* AI Detection Rules — embedded sub-section */}
         <div className="border-t pt-4 mt-4">

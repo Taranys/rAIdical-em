@@ -1,6 +1,6 @@
 "use client";
 
-// US-010 + US-011 + US-013 + US-025: Sync page — fetch PRs and reviews from GitHub with real-time progress, history, and quarter selector
+// US-010 + US-011 + US-013 + US-025 + US-2.06: Sync page — fetch PRs and reviews from GitHub with real-time progress, history, and quarter selector
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Card,
@@ -35,6 +35,7 @@ import {
   Users,
 } from "lucide-react";
 import { useSyncStatus, type SyncRun } from "@/hooks/use-sync-status";
+import { useClassificationStatus, type ClassificationRun } from "@/hooks/use-classification-status";
 import { getQuarterOptions, getDefaultQuarter } from "@/lib/date-periods";
 
 interface RateLimit {
@@ -226,9 +227,64 @@ function SyncProgressCard({
   );
 }
 
+// US-2.06: Classification status indicator
+function ClassificationStatusIndicator({ run }: { run: ClassificationRun }) {
+  if (run.status === "running") {
+    return (
+      <div className="flex items-center gap-3">
+        <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />
+        <div>
+          <p className="font-medium text-blue-600 dark:text-blue-400">
+            Classifying comments...
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {run.commentsProcessed} comments classified so far
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (run.status === "success") {
+    return (
+      <div className="flex items-center gap-3">
+        <CheckCircle2 className="h-5 w-5 text-green-500" />
+        <div>
+          <p className="font-medium text-green-600 dark:text-green-400">
+            Classification complete
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {run.commentsProcessed} comments classified
+            {run.errors > 0 && ` (${run.errors} errors)`}
+            {run.completedAt && ` — ${formatDate(run.completedAt)}`}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-3">
+      <AlertCircle className="h-5 w-5 text-destructive" />
+      <div>
+        <p className="font-medium text-destructive">Classification error</p>
+        <p className="text-sm text-muted-foreground">
+          {run.commentsProcessed} classified, {run.errors} errors
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function SyncPage() {
   const { syncRun, history, isLoading, fetchStatus, startPolling } =
     useSyncStatus();
+  // US-2.06: Classification status
+  const {
+    classificationRun,
+    fetchStatus: fetchClassificationStatus,
+    startPolling: startClassificationPolling,
+  } = useClassificationStatus({ fetchOnMount: true });
   const [rateLimit, setRateLimit] = useState<RateLimit | null>(null);
   const [isTriggering, setIsTriggering] = useState(false);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -288,6 +344,25 @@ export default function SyncPage() {
     fetchRateLimit();
     fetchTeamMembers();
   }, [fetchRateLimit, fetchTeamMembers]);
+
+  // US-2.06: Check for auto-triggered classification after sync completes
+  const prevSyncStatusRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const prevStatus = prevSyncStatusRef.current;
+    prevSyncStatusRef.current = syncRun?.status;
+
+    // Only trigger when sync transitions from "running" to "success"
+    if (prevStatus === "running" && syncRun?.status === "success") {
+      const timer = setTimeout(() => {
+        fetchClassificationStatus().then((run) => {
+          if (run && run.status === "running") {
+            startClassificationPolling();
+          }
+        });
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [syncRun?.status, fetchClassificationStatus, startClassificationPolling]);
 
   // US-025: Poll progress while sync is running
   useEffect(() => {
@@ -420,6 +495,21 @@ export default function SyncPage() {
         progress={progress}
         isLoading={isLoading}
       />
+
+      {/* US-2.06: Classification status */}
+      {classificationRun && (
+        <Card className="mb-8" data-testid="classification-status-card">
+          <CardHeader>
+            <CardTitle>Comment Classification</CardTitle>
+            <CardDescription>
+              Auto-classification of review comments using LLM.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ClassificationStatusIndicator run={classificationRun} />
+          </CardContent>
+        </Card>
+      )}
 
       {/* US-013: Sync history */}
       <Card className="mb-8">
