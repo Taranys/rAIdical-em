@@ -1,7 +1,7 @@
 "use client";
 
 // US-016: PR size per team member — table with expandable rows
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import {
   Card,
   CardContent,
@@ -138,9 +138,8 @@ export function PrSizeCard() {
                 const isExpanded = expandedAuthor === member.author;
 
                 return (
-                  <>
+                  <Fragment key={member.author}>
                     <TableRow
-                      key={member.author}
                       className={`cursor-pointer hover:bg-muted/50 ${isLarge ? "bg-red-50 dark:bg-red-950/30" : ""}`}
                       onClick={() => toggleAuthor(member.author)}
                       data-testid={`member-row-${member.author}`}
@@ -214,7 +213,7 @@ export function PrSizeCard() {
                         </TableCell>
                       </TableRow>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
             </TableBody>
