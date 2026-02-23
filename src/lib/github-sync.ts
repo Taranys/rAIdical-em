@@ -1,4 +1,4 @@
-// US-010 / US-011 / US-012 / US-020: GitHub sync service — fetch PRs, reviews, comments, and rate limit info
+// US-010 / US-011 / US-012 / US-020 / US-2.06: GitHub sync service — fetch PRs, reviews, comments, and rate limit info
 import { Octokit } from "octokit";
 import { upsertPullRequest } from "@/db/pull-requests";
 import { upsertReview } from "@/db/reviews";
@@ -7,6 +7,8 @@ import { upsertPrComment } from "@/db/pr-comments";
 import { updateSyncRunProgress, completeSyncRun } from "@/db/sync-runs";
 import { classifyPullRequest, DEFAULT_AI_HEURISTICS, type AiHeuristicsConfig } from "@/lib/ai-detection";
 import { getSetting } from "@/db/settings";
+import { classifyComments } from "@/lib/classification-service";
+import { getActiveClassificationRun } from "@/db/classification-runs";
 
 
 function mapPRState(pr: { state: string; merged_at: string | null }): "open" | "closed" | "merged" {
@@ -175,6 +177,24 @@ export async function syncPullRequests(
     }
 
     completeSyncRun(syncRunId, "success", prCount, null, reviewCount, commentCount);
+
+    // US-2.06: Auto-classify new comments after successful sync
+    try {
+      const autoClassify = getSetting("auto_classify_on_sync");
+      if (autoClassify !== "false") {
+        const llmProvider = getSetting("llm_provider");
+        const llmModel = getSetting("llm_model");
+        const llmApiKey = getSetting("llm_api_key");
+        if (llmProvider && llmModel && llmApiKey) {
+          const activeRun = getActiveClassificationRun();
+          if (!activeRun) {
+            classifyComments().catch(() => {});
+          }
+        }
+      }
+    } catch {
+      // Silently ignore — errors are recorded in classification_runs table
+    }
   } catch (error) {
     completeSyncRun(
       syncRunId,
