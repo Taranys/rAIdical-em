@@ -10,7 +10,7 @@ As an engineering manager, I want to manually override the classification of a r
 
 ## Dependencies
 
-- 🏗️ [US-2.07: View Classification Results](🏗️%20US-2.07-view-classification-results.md) — classification view must exist
+- ✅ [US-2.07: View Classification Results](✅%20US-2.07-view-classification-results.md) — classification view must exist
 
 ## Acceptance Criteria
 
