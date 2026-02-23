@@ -12,7 +12,7 @@ As an engineering manager, I want the system to derive a multi-dimensional compe
 
 - ❌ [US-2.09: Review Depth Score](❌%20US-2.09-review-depth-score.md) — depth score must be available
 - ✅ [US-2.03: Phase 2 Database Schema](✅%20US-2.03-phase2-database-schema.md) — seniority_profiles table
-- 🏗️ [US-2.02: LLM Abstraction Layer](🏗️%20US-2.02-llm-abstraction-layer.md) — LLM needed for soft skill inference
+- ✅ [US-2.02: LLM Abstraction Layer](✅%20US-2.02-llm-abstraction-layer.md) — LLM needed for soft skill inference
 
 ## Acceptance Criteria
 
