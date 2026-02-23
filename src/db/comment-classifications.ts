@@ -6,7 +6,7 @@ import {
   prComments,
   pullRequests,
 } from "./schema";
-import { eq, sql, count, and } from "drizzle-orm";
+import { and, eq, gte, inArray, lt, sql, count } from "drizzle-orm";
 
 type DbInstance = typeof defaultDb;
 
@@ -31,6 +31,12 @@ export interface ClassificationInsert {
 }
 
 export interface CategoryCount {
+  category: string;
+  count: number;
+}
+
+export interface ReviewerCategoryDistribution {
+  reviewer: string;
   category: string;
   count: number;
 }
@@ -375,4 +381,78 @@ export function getClassificationSummary(
     totalClassified: avgResult?.total ?? 0,
     averageConfidence: Math.round(avgResult?.avgConfidence ?? 0),
   };
+}
+
+// US-2.09: Get category distribution per reviewer for a given period
+export function getCategoryDistributionByReviewer(
+  teamUsernames: string[],
+  startDate: string,
+  endDate: string,
+  dbInstance: DbInstance = defaultDb,
+): ReviewerCategoryDistribution[] {
+  if (teamUsernames.length === 0) return [];
+
+  // Review comments (inline code comments)
+  const reviewResults = dbInstance
+    .select({
+      reviewer: reviewComments.reviewer,
+      category: commentClassifications.category,
+      count: count(),
+    })
+    .from(commentClassifications)
+    .innerJoin(
+      reviewComments,
+      and(
+        eq(commentClassifications.commentType, sql`'review_comment'`),
+        eq(commentClassifications.commentId, reviewComments.id),
+      ),
+    )
+    .where(
+      and(
+        inArray(reviewComments.reviewer, teamUsernames),
+        gte(reviewComments.createdAt, startDate),
+        lt(reviewComments.createdAt, endDate),
+      ),
+    )
+    .groupBy(reviewComments.reviewer, commentClassifications.category)
+    .all();
+
+  // PR comments (general issue-style comments)
+  const prResults = dbInstance
+    .select({
+      reviewer: prComments.author,
+      category: commentClassifications.category,
+      count: count(),
+    })
+    .from(commentClassifications)
+    .innerJoin(
+      prComments,
+      and(
+        eq(commentClassifications.commentType, sql`'pr_comment'`),
+        eq(commentClassifications.commentId, prComments.id),
+      ),
+    )
+    .where(
+      and(
+        inArray(prComments.author, teamUsernames),
+        gte(prComments.createdAt, startDate),
+        lt(prComments.createdAt, endDate),
+      ),
+    )
+    .groupBy(prComments.author, commentClassifications.category)
+    .all();
+
+  // Merge both result sets
+  const merged = new Map<string, ReviewerCategoryDistribution>();
+  for (const r of [...reviewResults, ...prResults]) {
+    const key = `${r.reviewer}:${r.category}`;
+    const existing = merged.get(key);
+    if (existing) {
+      existing.count += r.count;
+    } else {
+      merged.set(key, { reviewer: r.reviewer, category: r.category, count: r.count });
+    }
+  }
+
+  return Array.from(merged.values());
 }

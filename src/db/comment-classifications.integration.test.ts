@@ -1,4 +1,4 @@
-// US-2.05: Comment classifications DAL integration tests
+// US-2.05 / US-2.07 / US-2.09: Comment classifications DAL integration tests
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
@@ -10,6 +10,7 @@ import {
   getClassificationSummary,
   getClassifiedComments,
   getCategoryDistribution,
+  getCategoryDistributionByReviewer,
 } from "./comment-classifications";
 
 describe("comment-classifications DAL (integration)", () => {
@@ -553,6 +554,145 @@ describe("comment-classifications DAL (integration)", () => {
 
       expect(result.classified).toHaveLength(0);
       expect(result.unclassifiedCount).toBe(0);
+    });
+  });
+
+  // US-2.09: getCategoryDistributionByReviewer
+  describe("getCategoryDistributionByReviewer", () => {
+    beforeEach(() => {
+      // Seed review comments from two reviewers within the period
+      testSqlite.exec(`
+        INSERT INTO review_comments (github_id, pull_request_id, reviewer, body, created_at, updated_at)
+        VALUES
+          (2001, 1, 'bob', 'Architecture concern', '2026-02-05T10:00:00Z', '2026-02-05T10:00:00Z'),
+          (2002, 1, 'bob', 'Nitpick: spacing', '2026-02-06T10:00:00Z', '2026-02-06T10:00:00Z'),
+          (2003, 1, 'carol', 'Security issue here', '2026-02-07T10:00:00Z', '2026-02-07T10:00:00Z'),
+          (2004, 1, 'bob', 'Outside period', '2026-01-15T10:00:00Z', '2026-01-15T10:00:00Z');
+      `);
+
+      // Classify them
+      testSqlite.exec(`
+        INSERT INTO comment_classifications (comment_type, comment_id, category, confidence, model_used, classification_run_id, classified_at)
+        VALUES
+          ('review_comment', 1, 'architecture_design', 90, 'claude-haiku', 1, '2026-02-23T10:00:00Z'),
+          ('review_comment', 2, 'nitpick_style', 80, 'claude-haiku', 1, '2026-02-23T10:00:00Z'),
+          ('review_comment', 3, 'security', 85, 'claude-haiku', 1, '2026-02-23T10:00:00Z'),
+          ('review_comment', 4, 'bug_correctness', 70, 'claude-haiku', 1, '2026-02-23T10:00:00Z');
+      `);
+    });
+
+    it("returns category distribution grouped by reviewer within the period", () => {
+      const results = getCategoryDistributionByReviewer(
+        ["bob", "carol"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+
+      // bob has 2 in-period review comments (architecture + nitpick), carol has 1 (security)
+      // bob's out-of-period comment (id=4) should be excluded
+      const bobArch = results.find(
+        (r) => r.reviewer === "bob" && r.category === "architecture_design",
+      );
+      const bobNitpick = results.find(
+        (r) => r.reviewer === "bob" && r.category === "nitpick_style",
+      );
+      const carolSecurity = results.find(
+        (r) => r.reviewer === "carol" && r.category === "security",
+      );
+
+      expect(bobArch).toEqual({ reviewer: "bob", category: "architecture_design", count: 1 });
+      expect(bobNitpick).toEqual({ reviewer: "bob", category: "nitpick_style", count: 1 });
+      expect(carolSecurity).toEqual({ reviewer: "carol", category: "security", count: 1 });
+
+      // No bug_correctness because that comment is outside the period
+      const bobBug = results.find(
+        (r) => r.reviewer === "bob" && r.category === "bug_correctness",
+      );
+      expect(bobBug).toBeUndefined();
+    });
+
+    it("filters by team usernames", () => {
+      const results = getCategoryDistributionByReviewer(
+        ["carol"], // only carol
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+
+      expect(results).toHaveLength(1);
+      expect(results[0].reviewer).toBe("carol");
+    });
+
+    it("returns empty array when no team usernames provided", () => {
+      const results = getCategoryDistributionByReviewer(
+        [],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+      expect(results).toHaveLength(0);
+    });
+
+    it("returns empty array when no classifications exist in the period", () => {
+      const results = getCategoryDistributionByReviewer(
+        ["bob"],
+        "2025-01-01T00:00:00Z",
+        "2025-02-01T00:00:00Z",
+        testDb,
+      );
+      expect(results).toHaveLength(0);
+    });
+
+    it("includes pr_comments in the distribution", () => {
+      // Add a pr_comment from bob within the period
+      testSqlite.exec(`
+        INSERT INTO pr_comments (github_id, pull_request_id, author, body, created_at, updated_at)
+        VALUES (3001, 1, 'bob', 'This looks like a perf issue', '2026-02-10T10:00:00Z', '2026-02-10T10:00:00Z');
+      `);
+      testSqlite.exec(`
+        INSERT INTO comment_classifications (comment_type, comment_id, category, confidence, model_used, classification_run_id, classified_at)
+        VALUES ('pr_comment', 1, 'performance', 75, 'claude-haiku', 1, '2026-02-23T10:00:00Z');
+      `);
+
+      const results = getCategoryDistributionByReviewer(
+        ["bob"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+
+      // bob should have: architecture_design(1), nitpick_style(1), performance(1)
+      expect(results).toHaveLength(3);
+      const bobPerf = results.find(
+        (r) => r.reviewer === "bob" && r.category === "performance",
+      );
+      expect(bobPerf).toEqual({ reviewer: "bob", category: "performance", count: 1 });
+    });
+
+    it("merges counts from review_comments and pr_comments for same reviewer+category", () => {
+      // Add a pr_comment from bob classified as architecture_design (same category as review_comment id=1)
+      testSqlite.exec(`
+        INSERT INTO pr_comments (github_id, pull_request_id, author, body, created_at, updated_at)
+        VALUES (3002, 1, 'bob', 'Design concern too', '2026-02-08T10:00:00Z', '2026-02-08T10:00:00Z');
+      `);
+      testSqlite.exec(`
+        INSERT INTO comment_classifications (comment_type, comment_id, category, confidence, model_used, classification_run_id, classified_at)
+        VALUES ('pr_comment', 1, 'architecture_design', 85, 'claude-haiku', 1, '2026-02-23T10:00:00Z');
+      `);
+
+      const results = getCategoryDistributionByReviewer(
+        ["bob"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+
+      const bobArch = results.find(
+        (r) => r.reviewer === "bob" && r.category === "architecture_design",
+      );
+      // 1 from review_comments + 1 from pr_comments = 2
+      expect(bobArch?.count).toBe(2);
     });
   });
 });
