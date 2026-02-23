@@ -10,7 +10,7 @@ As an engineering manager, I want to view the computed competency profiles of my
 
 ## Dependencies
 
-- ❌ [US-2.10: Seniority Profile Computation](❌%20US-2.10-seniority-profile-computation.md) — profiles must be computed
+- 🏗️ [US-2.10: Seniority Profile Computation](🏗️%20US-2.10-seniority-profile-computation.md) — profiles must be computed
 - ✅ [US-023: Application Shell](✅%20023-application-shell-navigation.md) — sidebar navigation
 
 ## Acceptance Criteria
