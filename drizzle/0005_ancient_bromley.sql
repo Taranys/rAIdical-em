@@ -1,0 +1,1 @@
+ALTER TABLE `comment_classifications` ADD `reasoning` text;

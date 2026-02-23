@@ -135,6 +135,7 @@ describe("classifyComments", () => {
         commentId: 10,
         category: "bug_correctness",
         confidence: 90,
+        reasoning: "Points out a null pointer issue",
       }),
     );
     expect(insertClassification).toHaveBeenCalledWith(
@@ -143,6 +144,7 @@ describe("classifyComments", () => {
         commentId: 20,
         category: "question_clarification",
         confidence: 20,
+        reasoning: "Short approval comment",
       }),
     );
   });

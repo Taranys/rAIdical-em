@@ -8,6 +8,8 @@ import {
   getUnclassifiedPrComments,
   insertClassification,
   getClassificationSummary,
+  getClassifiedComments,
+  getCategoryDistribution,
 } from "./comment-classifications";
 
 describe("comment-classifications DAL (integration)", () => {
@@ -72,7 +74,8 @@ describe("comment-classifications DAL (integration)", () => {
         confidence INTEGER NOT NULL,
         model_used TEXT NOT NULL,
         classification_run_id INTEGER REFERENCES classification_runs(id),
-        classified_at TEXT NOT NULL
+        classified_at TEXT NOT NULL,
+        reasoning TEXT
       );
       CREATE INDEX idx_comment_classifications_comment ON comment_classifications(comment_type, comment_id);
       CREATE INDEX idx_comment_classifications_category ON comment_classifications(category);
@@ -204,6 +207,40 @@ describe("comment-classifications DAL (integration)", () => {
       expect(result.confidence).toBe(90);
       expect(result.classifiedAt).toBeTruthy();
     });
+
+    // US-2.07: reasoning persistence
+    it("stores reasoning when provided", () => {
+      const result = insertClassification(
+        {
+          commentType: "review_comment",
+          commentId: 1,
+          category: "bug_correctness",
+          confidence: 90,
+          modelUsed: "claude-haiku",
+          classificationRunId: 1,
+          reasoning: "This comment points out a null pointer issue",
+        },
+        testDb,
+      );
+
+      expect(result.reasoning).toBe("This comment points out a null pointer issue");
+    });
+
+    it("stores null reasoning when not provided", () => {
+      const result = insertClassification(
+        {
+          commentType: "review_comment",
+          commentId: 1,
+          category: "bug_correctness",
+          confidence: 90,
+          modelUsed: "claude-haiku",
+          classificationRunId: 1,
+        },
+        testDb,
+      );
+
+      expect(result.reasoning).toBeNull();
+    });
   });
 
   describe("getClassificationSummary", () => {
@@ -265,6 +302,257 @@ describe("comment-classifications DAL (integration)", () => {
       expect(summary.totalClassified).toBe(0);
       expect(summary.averageConfidence).toBe(0);
       expect(summary.categories).toHaveLength(0);
+    });
+  });
+
+  // US-2.07: getClassifiedComments tests
+  describe("getClassifiedComments", () => {
+    beforeEach(() => {
+      // Seed review comments
+      testSqlite.exec(`
+        INSERT INTO review_comments (github_id, pull_request_id, reviewer, body, file_path, line, created_at, updated_at)
+        VALUES (2001, 1, 'bob', 'This might cause an NPE', 'src/app.ts', 42, '2026-02-02T10:00:00Z', '2026-02-02T10:00:00Z');
+      `);
+      testSqlite.exec(`
+        INSERT INTO review_comments (github_id, pull_request_id, reviewer, body, file_path, line, created_at, updated_at)
+        VALUES (2002, 1, 'carol', 'Looks good', NULL, NULL, '2026-02-03T10:00:00Z', '2026-02-03T10:00:00Z');
+      `);
+      // Seed a PR comment
+      testSqlite.exec(`
+        INSERT INTO pr_comments (github_id, pull_request_id, author, body, created_at, updated_at)
+        VALUES (3001, 1, 'bob', 'LGTM', '2026-02-04T10:00:00Z', '2026-02-04T10:00:00Z');
+      `);
+      // Classify only the first review comment
+      insertClassification(
+        {
+          commentType: "review_comment",
+          commentId: 1,
+          category: "bug_correctness",
+          confidence: 90,
+          modelUsed: "claude-haiku",
+          classificationRunId: 1,
+          reasoning: "Points out a null pointer issue",
+        },
+        testDb,
+      );
+    });
+
+    it("returns all comments (both types) with classification data joined", () => {
+      const results = getClassifiedComments({}, {}, testDb);
+
+      expect(results).toHaveLength(3);
+      // Classified comment has category data
+      const classified = results.find(
+        (c) => c.commentType === "review_comment" && c.commentId === 1,
+      );
+      expect(classified?.category).toBe("bug_correctness");
+      expect(classified?.confidence).toBe(90);
+      expect(classified?.reasoning).toBe("Points out a null pointer issue");
+    });
+
+    it("returns unclassified comments with null classification fields", () => {
+      const results = getClassifiedComments({}, {}, testDb);
+
+      const unclassified = results.find(
+        (c) => c.commentType === "review_comment" && c.commentId === 2,
+      );
+      expect(unclassified?.category).toBeNull();
+      expect(unclassified?.confidence).toBeNull();
+      expect(unclassified?.reasoning).toBeNull();
+    });
+
+    it("filters by category", () => {
+      const results = getClassifiedComments(
+        { category: "bug_correctness" },
+        {},
+        testDb,
+      );
+
+      expect(results).toHaveLength(1);
+      expect(results[0].category).toBe("bug_correctness");
+    });
+
+    it("filters by reviewer", () => {
+      const results = getClassifiedComments(
+        { reviewer: "bob" },
+        {},
+        testDb,
+      );
+
+      expect(results).toHaveLength(2); // 1 review_comment + 1 pr_comment from bob
+      expect(results.every((c) => c.reviewer === "bob")).toBe(true);
+    });
+
+    it("filters by date range", () => {
+      const results = getClassifiedComments(
+        {
+          dateStart: "2026-02-03T00:00:00Z",
+          dateEnd: "2026-02-03T23:59:59Z",
+        },
+        {},
+        testDb,
+      );
+
+      expect(results).toHaveLength(1);
+      expect(results[0].reviewer).toBe("carol");
+    });
+
+    it("filters by minimum confidence", () => {
+      // Classify the pr_comment too with low confidence
+      insertClassification(
+        {
+          commentType: "pr_comment",
+          commentId: 1,
+          category: "question_clarification",
+          confidence: 20,
+          modelUsed: "claude-haiku",
+          classificationRunId: 1,
+        },
+        testDb,
+      );
+
+      const results = getClassifiedComments(
+        { minConfidence: 50 },
+        {},
+        testDb,
+      );
+
+      expect(results).toHaveLength(1);
+      expect(results[0].confidence).toBe(90);
+    });
+
+    it("sorts by date descending by default", () => {
+      const results = getClassifiedComments({}, {}, testDb);
+
+      expect(results[0].createdAt).toBe("2026-02-04T10:00:00Z");
+      expect(results[results.length - 1].createdAt).toBe(
+        "2026-02-02T10:00:00Z",
+      );
+    });
+
+    it("sorts by confidence ascending", () => {
+      // Classify remaining comments
+      insertClassification(
+        {
+          commentType: "review_comment",
+          commentId: 2,
+          category: "nitpick_style",
+          confidence: 50,
+          modelUsed: "claude-haiku",
+          classificationRunId: 1,
+        },
+        testDb,
+      );
+      insertClassification(
+        {
+          commentType: "pr_comment",
+          commentId: 1,
+          category: "question_clarification",
+          confidence: 20,
+          modelUsed: "claude-haiku",
+          classificationRunId: 1,
+        },
+        testDb,
+      );
+
+      const results = getClassifiedComments(
+        {},
+        { sortBy: "confidence", sortOrder: "asc" },
+        testDb,
+      );
+
+      expect(results[0].confidence).toBe(20);
+      expect(results[1].confidence).toBe(50);
+      expect(results[2].confidence).toBe(90);
+    });
+
+    it("sorts by category", () => {
+      insertClassification(
+        {
+          commentType: "review_comment",
+          commentId: 2,
+          category: "nitpick_style",
+          confidence: 50,
+          modelUsed: "claude-haiku",
+          classificationRunId: 1,
+        },
+        testDb,
+      );
+
+      const results = getClassifiedComments(
+        {},
+        { sortBy: "category", sortOrder: "asc" },
+        testDb,
+      );
+
+      // Classified results should be sorted: bug_correctness < nitpick_style < null (unclassified)
+      const classifiedResults = results.filter((c) => c.category !== null);
+      expect(classifiedResults[0].category).toBe("bug_correctness");
+      expect(classifiedResults[1].category).toBe("nitpick_style");
+    });
+  });
+
+  // US-2.07: getCategoryDistribution tests
+  describe("getCategoryDistribution", () => {
+    it("returns correct counts per category", () => {
+      testSqlite.exec(`
+        INSERT INTO review_comments (github_id, pull_request_id, reviewer, body, created_at, updated_at)
+        VALUES (2001, 1, 'bob', 'Comment 1', '2026-02-02T10:00:00Z', '2026-02-02T10:00:00Z');
+      `);
+      testSqlite.exec(`
+        INSERT INTO review_comments (github_id, pull_request_id, reviewer, body, created_at, updated_at)
+        VALUES (2002, 1, 'bob', 'Comment 2', '2026-02-02T11:00:00Z', '2026-02-02T11:00:00Z');
+      `);
+
+      insertClassification(
+        {
+          commentType: "review_comment",
+          commentId: 1,
+          category: "bug_correctness",
+          confidence: 90,
+          modelUsed: "claude-haiku",
+          classificationRunId: 1,
+        },
+        testDb,
+      );
+
+      const result = getCategoryDistribution(testDb);
+
+      expect(result.classified).toHaveLength(1);
+      expect(result.classified[0].category).toBe("bug_correctness");
+      expect(result.classified[0].count).toBe(1);
+      expect(result.unclassifiedCount).toBe(1);
+    });
+
+    it("returns zero unclassified when all are classified", () => {
+      testSqlite.exec(`
+        INSERT INTO review_comments (github_id, pull_request_id, reviewer, body, created_at, updated_at)
+        VALUES (2001, 1, 'bob', 'Comment 1', '2026-02-02T10:00:00Z', '2026-02-02T10:00:00Z');
+      `);
+
+      insertClassification(
+        {
+          commentType: "review_comment",
+          commentId: 1,
+          category: "security",
+          confidence: 80,
+          modelUsed: "claude-haiku",
+          classificationRunId: 1,
+        },
+        testDb,
+      );
+
+      const result = getCategoryDistribution(testDb);
+
+      expect(result.unclassifiedCount).toBe(0);
+      expect(result.classified[0].count).toBe(1);
+    });
+
+    it("returns empty when no comments exist", () => {
+      const result = getCategoryDistribution(testDb);
+
+      expect(result.classified).toHaveLength(0);
+      expect(result.unclassifiedCount).toBe(0);
     });
   });
 });
