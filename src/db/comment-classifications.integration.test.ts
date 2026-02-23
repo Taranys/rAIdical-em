@@ -8,6 +8,7 @@ import {
   getUnclassifiedPrComments,
   insertClassification,
   getClassificationSummary,
+  getTopClassifiedCommentsByMember,
   getCategoryDistributionByReviewer,
 } from "./comment-classifications";
 
@@ -21,6 +22,16 @@ describe("comment-classifications DAL (integration)", () => {
     testDb = drizzle(testSqlite, { schema });
 
     testSqlite.exec(`
+      CREATE TABLE team_members (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        github_username TEXT NOT NULL UNIQUE,
+        display_name TEXT NOT NULL,
+        avatar_url TEXT,
+        color TEXT NOT NULL DEFAULT '#E25A3B',
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
       CREATE TABLE pull_requests (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         github_id INTEGER NOT NULL UNIQUE,
@@ -405,6 +416,128 @@ describe("comment-classifications DAL (integration)", () => {
       );
       // 1 from review_comments + 1 from pr_comments = 2
       expect(bobArch?.count).toBe(2);
+    });
+  });
+
+  describe("getTopClassifiedCommentsByMember", () => {
+    beforeEach(() => {
+      // Seed team members
+      testSqlite.exec(`
+        INSERT INTO team_members (github_username, display_name, color, is_active, created_at, updated_at)
+        VALUES ('bob', 'Bob', '#E25A3B', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+      `);
+      testSqlite.exec(`
+        INSERT INTO team_members (github_username, display_name, color, is_active, created_at, updated_at)
+        VALUES ('carol', 'Carol', '#3B82F6', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+      `);
+
+      // Seed review comments by bob
+      testSqlite.exec(`
+        INSERT INTO review_comments (github_id, pull_request_id, reviewer, body, file_path, line, created_at, updated_at)
+        VALUES (2001, 1, 'bob', 'This has a null pointer bug', 'src/app.ts', 42, '2026-02-02T10:00:00Z', '2026-02-02T10:00:00Z');
+      `);
+      testSqlite.exec(`
+        INSERT INTO review_comments (github_id, pull_request_id, reviewer, body, file_path, line, created_at, updated_at)
+        VALUES (2002, 1, 'bob', 'SQL injection risk here', 'src/db.ts', 10, '2026-02-02T11:00:00Z', '2026-02-02T11:00:00Z');
+      `);
+      testSqlite.exec(`
+        INSERT INTO review_comments (github_id, pull_request_id, reviewer, body, file_path, line, created_at, updated_at)
+        VALUES (2003, 1, 'bob', 'Minor style nit', NULL, NULL, '2026-02-02T12:00:00Z', '2026-02-02T12:00:00Z');
+      `);
+
+      // Classify them
+      testSqlite.exec(`
+        INSERT INTO comment_classifications (comment_type, comment_id, category, confidence, model_used, classification_run_id, classified_at)
+        VALUES ('review_comment', 1, 'bug_correctness', 90, 'claude-haiku', 1, '2026-02-23T10:01:00Z');
+      `);
+      testSqlite.exec(`
+        INSERT INTO comment_classifications (comment_type, comment_id, category, confidence, model_used, classification_run_id, classified_at)
+        VALUES ('review_comment', 2, 'security', 85, 'claude-haiku', 1, '2026-02-23T10:02:00Z');
+      `);
+      testSqlite.exec(`
+        INSERT INTO comment_classifications (comment_type, comment_id, category, confidence, model_used, classification_run_id, classified_at)
+        VALUES ('review_comment', 3, 'nitpick_style', 75, 'claude-haiku', 1, '2026-02-23T10:03:00Z');
+      `);
+    });
+
+    it("returns only high-value category comments with high confidence", () => {
+      // bob is team member id 1
+      const results = getTopClassifiedCommentsByMember(1, 70, testDb);
+
+      // Should return bug_correctness (90) and security (85), NOT nitpick_style
+      expect(results).toHaveLength(2);
+      expect(results[0].category).toBe("bug_correctness");
+      expect(results[0].confidence).toBe(90);
+      expect(results[1].category).toBe("security");
+      expect(results[1].confidence).toBe(85);
+    });
+
+    it("respects minimum confidence threshold", () => {
+      const results = getTopClassifiedCommentsByMember(1, 88, testDb);
+
+      // Only the 90-confidence bug_correctness should pass
+      expect(results).toHaveLength(1);
+      expect(results[0].confidence).toBe(90);
+    });
+
+    it("returns empty array when no comments match", () => {
+      // carol (id=2) has no review comments
+      const results = getTopClassifiedCommentsByMember(2, 70, testDb);
+      expect(results).toHaveLength(0);
+    });
+
+    it("does not return comments from other team members", () => {
+      // Add a review comment by carol
+      testSqlite.exec(`
+        INSERT INTO review_comments (github_id, pull_request_id, reviewer, body, file_path, line, created_at, updated_at)
+        VALUES (2004, 1, 'carol', 'Architecture concern', 'src/arch.ts', 1, '2026-02-02T13:00:00Z', '2026-02-02T13:00:00Z');
+      `);
+      testSqlite.exec(`
+        INSERT INTO comment_classifications (comment_type, comment_id, category, confidence, model_used, classification_run_id, classified_at)
+        VALUES ('review_comment', 4, 'architecture_design', 95, 'claude-haiku', 1, '2026-02-23T10:04:00Z');
+      `);
+
+      // bob's results should not include carol's comment
+      const bobResults = getTopClassifiedCommentsByMember(1, 70, testDb);
+      expect(bobResults).toHaveLength(2);
+      expect(bobResults.every((r) => r.commentType === "review_comment")).toBe(
+        true,
+      );
+
+      // carol's results should only include her comment
+      const carolResults = getTopClassifiedCommentsByMember(2, 70, testDb);
+      expect(carolResults).toHaveLength(1);
+      expect(carolResults[0].category).toBe("architecture_design");
+    });
+
+    it("includes pr_comments in results", () => {
+      // Add a pr_comment by bob
+      testSqlite.exec(`
+        INSERT INTO pr_comments (github_id, pull_request_id, author, body, created_at, updated_at)
+        VALUES (3001, 1, 'bob', 'This architecture needs rethinking', '2026-02-02T14:00:00Z', '2026-02-02T14:00:00Z');
+      `);
+      testSqlite.exec(`
+        INSERT INTO comment_classifications (comment_type, comment_id, category, confidence, model_used, classification_run_id, classified_at)
+        VALUES ('pr_comment', 1, 'architecture_design', 80, 'claude-haiku', 1, '2026-02-23T10:05:00Z');
+      `);
+
+      const results = getTopClassifiedCommentsByMember(1, 70, testDb);
+
+      // Should have 2 review_comments + 1 pr_comment = 3
+      expect(results).toHaveLength(3);
+      const prComment = results.find((r) => r.commentType === "pr_comment");
+      expect(prComment).toBeDefined();
+      expect(prComment!.body).toBe("This architecture needs rethinking");
+    });
+
+    it("sorts by confidence descending", () => {
+      const results = getTopClassifiedCommentsByMember(1, 70, testDb);
+
+      for (let i = 1; i < results.length; i++) {
+        expect(results[i - 1].confidence).toBeGreaterThanOrEqual(
+          results[i].confidence,
+        );
+      }
     });
   });
 });

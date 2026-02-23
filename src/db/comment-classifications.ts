@@ -5,8 +5,9 @@ import {
   reviewComments,
   prComments,
   pullRequests,
+  teamMembers,
 } from "./schema";
-import { and, eq, gte, inArray, lt, sql, count } from "drizzle-orm";
+import { and, eq, gte, inArray, lt, desc, sql, count } from "drizzle-orm";
 
 type DbInstance = typeof defaultDb;
 
@@ -39,6 +40,24 @@ export interface ReviewerCategoryDistribution {
   category: string;
   count: number;
 }
+
+// US-2.12: Classified comment ready for highlight evaluation
+export interface ClassifiedCommentForHighlight {
+  commentType: "review_comment" | "pr_comment";
+  commentId: number;
+  category: string;
+  confidence: number;
+  body: string;
+  filePath: string | null;
+  prTitle: string;
+}
+
+// US-2.12: High-value categories for best comment detection
+export const HIGH_VALUE_CATEGORIES = [
+  "bug_correctness",
+  "security",
+  "architecture_design",
+] as const;
 
 // --- Queries ---
 
@@ -226,4 +245,92 @@ export function getCategoryDistributionByReviewer(
   }
 
   return Array.from(merged.values());
+}
+
+// US-2.12: Get top classified comments for a team member (high-value categories, high confidence)
+export function getTopClassifiedCommentsByMember(
+  teamMemberId: number,
+  minConfidence: number = 70,
+  dbInstance: DbInstance = defaultDb,
+): ClassifiedCommentForHighlight[] {
+  // Query review_comments
+  const reviewResults = dbInstance
+    .select({
+      commentId: commentClassifications.commentId,
+      category: commentClassifications.category,
+      confidence: commentClassifications.confidence,
+      body: reviewComments.body,
+      filePath: reviewComments.filePath,
+      prTitle: pullRequests.title,
+    })
+    .from(commentClassifications)
+    .innerJoin(
+      reviewComments,
+      eq(commentClassifications.commentId, reviewComments.id),
+    )
+    .innerJoin(pullRequests, eq(reviewComments.pullRequestId, pullRequests.id))
+    .innerJoin(
+      teamMembers,
+      eq(reviewComments.reviewer, teamMembers.githubUsername),
+    )
+    .where(
+      and(
+        eq(commentClassifications.commentType, "review_comment"),
+        eq(teamMembers.id, teamMemberId),
+        sql`${commentClassifications.category} IN ('bug_correctness', 'security', 'architecture_design')`,
+        sql`${commentClassifications.confidence} >= ${minConfidence}`,
+      ),
+    )
+    .orderBy(desc(commentClassifications.confidence))
+    .limit(20)
+    .all();
+
+  // Query pr_comments
+  const prResults = dbInstance
+    .select({
+      commentId: commentClassifications.commentId,
+      category: commentClassifications.category,
+      confidence: commentClassifications.confidence,
+      body: prComments.body,
+      prTitle: pullRequests.title,
+    })
+    .from(commentClassifications)
+    .innerJoin(prComments, eq(commentClassifications.commentId, prComments.id))
+    .innerJoin(pullRequests, eq(prComments.pullRequestId, pullRequests.id))
+    .innerJoin(teamMembers, eq(prComments.author, teamMembers.githubUsername))
+    .where(
+      and(
+        eq(commentClassifications.commentType, "pr_comment"),
+        eq(teamMembers.id, teamMemberId),
+        sql`${commentClassifications.category} IN ('bug_correctness', 'security', 'architecture_design')`,
+        sql`${commentClassifications.confidence} >= ${minConfidence}`,
+      ),
+    )
+    .orderBy(desc(commentClassifications.confidence))
+    .limit(20)
+    .all();
+
+  const combined: ClassifiedCommentForHighlight[] = [
+    ...reviewResults.map((r) => ({
+      commentType: "review_comment" as const,
+      commentId: r.commentId,
+      category: r.category,
+      confidence: r.confidence,
+      body: r.body,
+      filePath: r.filePath,
+      prTitle: r.prTitle,
+    })),
+    ...prResults.map((r) => ({
+      commentType: "pr_comment" as const,
+      commentId: r.commentId,
+      category: r.category,
+      confidence: r.confidence,
+      body: r.body,
+      filePath: null,
+      prTitle: r.prTitle,
+    })),
+  ];
+
+  // Sort by confidence DESC and cap at 20 total
+  return combined.sort((a, b) => b.confidence - a.confidence).slice(0, 20);
 }
