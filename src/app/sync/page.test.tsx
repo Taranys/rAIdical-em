@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// US-010 + US-011 + US-013 + US-025: Sync page component tests
+// US-010 + US-011 + US-013 + US-025 + US-2.06: Sync page component tests
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
@@ -32,12 +32,20 @@ function mockProgress(
   return { teamProgress, nonTeamCount, totalCount };
 }
 
+// US-2.06: Classification progress mock
+function mockClassifyProgress(
+  run: Record<string, unknown> | null = null,
+) {
+  return { run, summary: null, history: [] };
+}
+
 // Default mock that handles all endpoints
 function setupDefaultMocks(overrides: {
   syncResponse?: ReturnType<typeof mockSyncResponse>;
   rateLimitResponse?: ReturnType<typeof mockRateLimit>;
   teamMembersResponse?: ReturnType<typeof mockTeamMembers>;
   progressResponse?: ReturnType<typeof mockProgress>;
+  classifyProgressResponse?: ReturnType<typeof mockClassifyProgress>;
 } = {}) {
   const syncResp = overrides.syncResponse ?? mockSyncResponse(null);
   const rateLimitResp = overrides.rateLimitResponse ?? mockRateLimit(null);
@@ -45,12 +53,19 @@ function setupDefaultMocks(overrides: {
     { id: 1, githubUsername: "alice", displayName: "Alice" },
   ]);
   const progressResp = overrides.progressResponse ?? mockProgress();
+  const classifyResp = overrides.classifyProgressResponse ?? mockClassifyProgress();
 
   mockFetch.mockImplementation((url: string) => {
     if (url.includes("rate-limit")) {
       return Promise.resolve({
         ok: true,
         json: () => Promise.resolve(rateLimitResp),
+      });
+    }
+    if (url.includes("/api/classify/progress")) {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(classifyResp),
       });
     }
     if (url.includes("/api/sync/progress")) {
@@ -348,5 +363,84 @@ describe("SyncPage", () => {
     await waitFor(() => {
       expect(screen.getByTestId("quarter-selector")).toBeInTheDocument();
     });
+  });
+
+  // US-2.06: Classification status card tests
+  it("shows classification status card when a classification run exists", async () => {
+    setupDefaultMocks({
+      classifyProgressResponse: mockClassifyProgress({
+        id: 1,
+        status: "success",
+        commentsProcessed: 15,
+        errors: 0,
+        startedAt: "2024-06-01T10:05:00Z",
+        completedAt: "2024-06-01T10:06:00Z",
+        modelUsed: "claude-opus-4-6",
+      }),
+    });
+
+    render(<SyncPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Comment Classification")).toBeInTheDocument();
+      expect(screen.getByText("Classification complete")).toBeInTheDocument();
+      expect(screen.getByText(/15 comments classified/)).toBeInTheDocument();
+    });
+  });
+
+  it("shows classification running state with spinner", async () => {
+    setupDefaultMocks({
+      classifyProgressResponse: mockClassifyProgress({
+        id: 1,
+        status: "running",
+        commentsProcessed: 5,
+        errors: 0,
+        startedAt: "2024-06-01T10:05:00Z",
+        completedAt: null,
+        modelUsed: "claude-opus-4-6",
+      }),
+    });
+
+    render(<SyncPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Classifying comments...")).toBeInTheDocument();
+      expect(screen.getByText(/5 comments classified so far/)).toBeInTheDocument();
+    });
+  });
+
+  it("shows classification error state", async () => {
+    setupDefaultMocks({
+      classifyProgressResponse: mockClassifyProgress({
+        id: 1,
+        status: "error",
+        commentsProcessed: 3,
+        errors: 7,
+        startedAt: "2024-06-01T10:05:00Z",
+        completedAt: "2024-06-01T10:06:00Z",
+        modelUsed: "claude-opus-4-6",
+      }),
+    });
+
+    render(<SyncPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Classification error")).toBeInTheDocument();
+      expect(screen.getByText(/3 classified, 7 errors/)).toBeInTheDocument();
+    });
+  });
+
+  it("does not show classification card when no run exists", async () => {
+    setupDefaultMocks({
+      classifyProgressResponse: mockClassifyProgress(null),
+    });
+
+    render(<SyncPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Sync")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText("Comment Classification")).not.toBeInTheDocument();
   });
 });
