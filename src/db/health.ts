@@ -24,14 +24,14 @@ export function checkDbHealth(): DbHealthStatus {
       connected: true,
       sqliteVersion: versionResult.version,
       tableCount: tablesResult.count,
-      dbPath: "data/em-control-tower.db",
+      dbPath: "data/rAIdical-em.db",
     };
   } catch (error) {
     return {
       connected: false,
       sqliteVersion: null,
       tableCount: 0,
-      dbPath: "data/em-control-tower.db",
+      dbPath: "data/rAIdical-em.db",
       error: error instanceof Error ? error.message : "Unknown error",
     };
   }

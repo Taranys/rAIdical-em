@@ -16,7 +16,7 @@ None.
 - [x] Next.js app initialised with App Router and TypeScript strict mode
 - [x] Tailwind CSS v4 configured and working
 - [x] shadcn/ui installed with at least one component (Card, Badge)
-- [x] SQLite database via better-sqlite3 auto-created at `data/em-control-tower.db` with WAL mode
+- [x] SQLite database via better-sqlite3 auto-created at `data/rAIdical-em.db` with WAL mode
 - [x] Drizzle ORM configured with migration commands (`db:generate`, `db:migrate`, `db:studio`)
 - [x] Octokit installed as a dependency (ready for Phase 1)
 - [x] `@/` path alias configured in tsconfig

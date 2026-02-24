@@ -60,7 +60,7 @@ describe("replaceDatabase integration", () => {
   });
 
   it("data is accessible via DAL and db proxy after replaceDatabase()", () => {
-    const tempFile = path.join(os.tmpdir(), `em-ct-int-${Date.now()}.db`);
+    const tempFile = path.join(os.tmpdir(), `raidical-int-${Date.now()}.db`);
     tempFiles.push(tempFile);
     createSeededDatabase(tempFile, ["alice", "bob", "charlie"]);
 

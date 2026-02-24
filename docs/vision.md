@@ -1,4 +1,4 @@
-# em-control-tower — Vision
+# rAIdical-em — Vision
 
 ## Why this project exists
 
@@ -12,7 +12,7 @@ This project is a **dashboard and control tower** — a single place where I can
 
 > Give feedback that is specific, timely, and grounded in observable facts.
 
-em-control-tower aggregates signals from the tools my team already uses (GitHub, Slack, Confluence, Jira) into a unified dashboard so that every 1:1 conversation I have is informed, fair, and actionable.
+rAIdical-em aggregates signals from the tools my team already uses (GitHub, Slack, Confluence, Jira) into a unified dashboard so that every 1:1 conversation I have is informed, fair, and actionable.
 
 ---
 
@@ -104,7 +104,7 @@ This ensures that junior and senior engineers are challenged appropriately — n
 
 ## What this looks like
 
-em-control-tower is a **dashboard** — not a CLI tool, not a batch report. It is a control tower I open before every 1:1, every sprint review, every quarterly planning. At a glance I can see:
+rAIdical-em is a **dashboard** — not a CLI tool, not a batch report. It is a control tower I open before every 1:1, every sprint review, every quarterly planning. At a glance I can see:
 
 - Team-level delivery metrics and trends
 - Per-person review activity and quality scores

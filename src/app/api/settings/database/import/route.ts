@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     }
 
     // Write to temp file for validation
-    tempPath = path.join(os.tmpdir(), `em-ct-import-${Date.now()}.db`);
+    tempPath = path.join(os.tmpdir(), `raidical-import-${Date.now()}.db`);
     fs.writeFileSync(tempPath, buffer);
 
     // Open temp DB and validate schema
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             success: false,
-            error: `Missing required tables: ${missing.join(", ")}. The file does not appear to be a valid em-control-tower database.`,
+            error: `Missing required tables: ${missing.join(", ")}. The file does not appear to be a valid rAIdical-em database.`,
           },
           { status: 400 },
         );

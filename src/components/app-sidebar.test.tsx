@@ -58,7 +58,7 @@ describe("AppSidebar", () => {
 
   it("renders the app title", () => {
     renderSidebar();
-    expect(screen.getByText("em-control-tower")).toBeInTheDocument();
+    expect(screen.getByText("rAIdical-em")).toBeInTheDocument();
   });
 
   it("renders all navigation links", () => {

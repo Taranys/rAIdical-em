@@ -1,6 +1,6 @@
 # GitHub Issues Management
 
-This document describes how GitHub issues are created and managed for the em-control-tower project.
+This document describes how GitHub issues are created and managed for the rAIdical-em project.
 
 ## Labels
 
@@ -62,39 +62,39 @@ As a [role], I want [feature] so that [benefit].
 
 | US ID | Issue | Title | Area |
 |-------|-------|-------|------|
-| US-010 | [#24](https://github.com/Taranys/em-control-tower/issues/24) | Fetch Pull Requests from GitHub | `area:github-sync` |
-| US-011 | [#25](https://github.com/Taranys/em-control-tower/issues/25) | Fetch PR Reviews from GitHub | `area:github-sync` |
-| US-012 | [#26](https://github.com/Taranys/em-control-tower/issues/26) | Fetch PR Review Comments from GitHub | `area:github-sync` |
-| US-013 | [#27](https://github.com/Taranys/em-control-tower/issues/27) | View Sync Status and History | `area:github-sync` |
-| US-014 | [#28](https://github.com/Taranys/em-control-tower/issues/28) | Incremental Sync | `area:github-sync` |
-| US-015 | [#29](https://github.com/Taranys/em-control-tower/issues/29) | View PRs Opened per Team Member | `area:dashboard` |
-| US-016 | [#30](https://github.com/Taranys/em-control-tower/issues/30) | View PR Size per Team Member | `area:dashboard` |
-| US-017 | [#31](https://github.com/Taranys/em-control-tower/issues/31) | View PRs Reviewed per Team Member | `area:dashboard` |
-| US-018 | [#32](https://github.com/Taranys/em-control-tower/issues/32) | View Comments per Review per Team Member | `area:dashboard` |
-| US-019 | [#33](https://github.com/Taranys/em-control-tower/issues/33) | Dashboard Period Selector | `area:dashboard` |
-| US-021 | [#34](https://github.com/Taranys/em-control-tower/issues/34) | View AI vs. Human Authorship Ratio | `area:dashboard` |
-| US-024 | [#35](https://github.com/Taranys/em-control-tower/issues/35) | Import Team Members from GitHub | `area:team-management` |
+| US-010 | [#24](https://github.com/Taranys/rAIdical-em/issues/24) | Fetch Pull Requests from GitHub | `area:github-sync` |
+| US-011 | [#25](https://github.com/Taranys/rAIdical-em/issues/25) | Fetch PR Reviews from GitHub | `area:github-sync` |
+| US-012 | [#26](https://github.com/Taranys/rAIdical-em/issues/26) | Fetch PR Review Comments from GitHub | `area:github-sync` |
+| US-013 | [#27](https://github.com/Taranys/rAIdical-em/issues/27) | View Sync Status and History | `area:github-sync` |
+| US-014 | [#28](https://github.com/Taranys/rAIdical-em/issues/28) | Incremental Sync | `area:github-sync` |
+| US-015 | [#29](https://github.com/Taranys/rAIdical-em/issues/29) | View PRs Opened per Team Member | `area:dashboard` |
+| US-016 | [#30](https://github.com/Taranys/rAIdical-em/issues/30) | View PR Size per Team Member | `area:dashboard` |
+| US-017 | [#31](https://github.com/Taranys/rAIdical-em/issues/31) | View PRs Reviewed per Team Member | `area:dashboard` |
+| US-018 | [#32](https://github.com/Taranys/rAIdical-em/issues/32) | View Comments per Review per Team Member | `area:dashboard` |
+| US-019 | [#33](https://github.com/Taranys/rAIdical-em/issues/33) | Dashboard Period Selector | `area:dashboard` |
+| US-021 | [#34](https://github.com/Taranys/rAIdical-em/issues/34) | View AI vs. Human Authorship Ratio | `area:dashboard` |
+| US-024 | [#35](https://github.com/Taranys/rAIdical-em/issues/35) | Import Team Members from GitHub | `area:team-management` |
 
 ### Phase 2 — Review Quality Analysis
 
 | US ID | Issue | Title | Area |
 |-------|-------|-------|------|
-| US-2.01 | [#36](https://github.com/Taranys/em-control-tower/issues/36) | Configure LLM Provider | `area:llm-integration` |
-| US-2.02 | [#37](https://github.com/Taranys/em-control-tower/issues/37) | LLM Abstraction Layer | `area:llm-integration` |
-| US-2.03 | [#38](https://github.com/Taranys/em-control-tower/issues/38) | Phase 2 Database Schema | `area:comment-classification` |
-| US-2.04 | [#39](https://github.com/Taranys/em-control-tower/issues/39) | Classification Prompt Engineering | `area:comment-classification` |
-| US-2.05 | [#40](https://github.com/Taranys/em-control-tower/issues/40) | Batch Classify Review Comments | `area:comment-classification` |
-| US-2.06 | [#41](https://github.com/Taranys/em-control-tower/issues/41) | Auto-Classify New Comments on Sync | `area:comment-classification` |
-| US-2.07 | [#42](https://github.com/Taranys/em-control-tower/issues/42) | View Comment Classification Results | `area:comment-classification` |
-| US-2.08 | [#44](https://github.com/Taranys/em-control-tower/issues/44) | Category Distribution Dashboard | `area:comment-classification` |
-| US-2.09 | [#43](https://github.com/Taranys/em-control-tower/issues/43) | Review Depth Score | `area:seniority-detection` |
-| US-2.10 | [#45](https://github.com/Taranys/em-control-tower/issues/45) | Seniority Profile Computation | `area:seniority-detection` |
-| US-2.11 | [#46](https://github.com/Taranys/em-control-tower/issues/46) | View Seniority Profiles | `area:seniority-detection` |
-| US-2.12 | [#47](https://github.com/Taranys/em-control-tower/issues/47) | Detect Best Comments (Highlights) | `area:one-on-one-prep` |
-| US-2.13 | [#48](https://github.com/Taranys/em-control-tower/issues/48) | Detect Growth Opportunities | `area:one-on-one-prep` |
-| US-2.14 | [#49](https://github.com/Taranys/em-control-tower/issues/49) | 1:1 Preparation View | `area:one-on-one-prep` |
-| US-2.15 | [#50](https://github.com/Taranys/em-control-tower/issues/50) | Classification Run History | `area:operations` |
-| US-2.16 | [#51](https://github.com/Taranys/em-control-tower/issues/51) | Manually Reclassify a Comment | `area:operations` |
+| US-2.01 | [#36](https://github.com/Taranys/rAIdical-em/issues/36) | Configure LLM Provider | `area:llm-integration` |
+| US-2.02 | [#37](https://github.com/Taranys/rAIdical-em/issues/37) | LLM Abstraction Layer | `area:llm-integration` |
+| US-2.03 | [#38](https://github.com/Taranys/rAIdical-em/issues/38) | Phase 2 Database Schema | `area:comment-classification` |
+| US-2.04 | [#39](https://github.com/Taranys/rAIdical-em/issues/39) | Classification Prompt Engineering | `area:comment-classification` |
+| US-2.05 | [#40](https://github.com/Taranys/rAIdical-em/issues/40) | Batch Classify Review Comments | `area:comment-classification` |
+| US-2.06 | [#41](https://github.com/Taranys/rAIdical-em/issues/41) | Auto-Classify New Comments on Sync | `area:comment-classification` |
+| US-2.07 | [#42](https://github.com/Taranys/rAIdical-em/issues/42) | View Comment Classification Results | `area:comment-classification` |
+| US-2.08 | [#44](https://github.com/Taranys/rAIdical-em/issues/44) | Category Distribution Dashboard | `area:comment-classification` |
+| US-2.09 | [#43](https://github.com/Taranys/rAIdical-em/issues/43) | Review Depth Score | `area:seniority-detection` |
+| US-2.10 | [#45](https://github.com/Taranys/rAIdical-em/issues/45) | Seniority Profile Computation | `area:seniority-detection` |
+| US-2.11 | [#46](https://github.com/Taranys/rAIdical-em/issues/46) | View Seniority Profiles | `area:seniority-detection` |
+| US-2.12 | [#47](https://github.com/Taranys/rAIdical-em/issues/47) | Detect Best Comments (Highlights) | `area:one-on-one-prep` |
+| US-2.13 | [#48](https://github.com/Taranys/rAIdical-em/issues/48) | Detect Growth Opportunities | `area:one-on-one-prep` |
+| US-2.14 | [#49](https://github.com/Taranys/rAIdical-em/issues/49) | 1:1 Preparation View | `area:one-on-one-prep` |
+| US-2.15 | [#50](https://github.com/Taranys/rAIdical-em/issues/50) | Classification Run History | `area:operations` |
+| US-2.16 | [#51](https://github.com/Taranys/rAIdical-em/issues/51) | Manually Reclassify a Comment | `area:operations` |
 
 ## How to Create a New Issue from a User Story
 
@@ -103,7 +103,7 @@ As a [role], I want [feature] so that [benefit].
 
 ```bash
 gh issue create \
-  --repo Taranys/em-control-tower \
+  --repo Taranys/rAIdical-em \
   --title "US-XXX: Title" \
   --label "user-story,phase:N,area:xxx" \
   --body "$(cat <<'EOF'
