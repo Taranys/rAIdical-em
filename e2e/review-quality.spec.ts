@@ -30,7 +30,7 @@ test.describe("Review Quality Page", () => {
 
     // Filters card is visible
     await expect(
-      page.getByText("Filters"),
+      page.getByText("Filters", { exact: true }),
     ).toBeVisible();
 
     // Comments table card is visible
