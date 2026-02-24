@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { LayoutDashboard, Users, RefreshCw, Settings } from "lucide-react";
+import { LayoutDashboard, Users, RefreshCw, Settings, MessageSquareText } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -19,6 +19,7 @@ import {
 
 const NAV_ITEMS = [
   { title: "Dashboard", href: "/", icon: LayoutDashboard },
+  { title: "Review Quality", href: "/review-quality", icon: MessageSquareText },
   { title: "Team", href: "/team", icon: Users },
   { title: "Sync", href: "/sync", icon: RefreshCw },
   { title: "Settings", href: "/settings", icon: Settings },

@@ -101,6 +101,7 @@ export async function classifyComments(
             confidence: result.confidence,
             modelUsed,
             classificationRunId: run.id,
+            reasoning: result.reasoning,
           });
           commentsProcessed++;
         }

@@ -11,6 +11,7 @@ test.describe("Application Shell and Navigation", () => {
 
     // All navigation links present
     await expect(sidebar.getByRole("link", { name: "Dashboard" })).toBeVisible();
+    await expect(sidebar.getByRole("link", { name: "Review Quality" })).toBeVisible();
     await expect(sidebar.getByRole("link", { name: "Team" })).toBeVisible();
     await expect(sidebar.getByRole("link", { name: "Sync" })).toBeVisible();
     await expect(sidebar.getByRole("link", { name: "Settings" })).toBeVisible();

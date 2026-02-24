@@ -158,6 +158,7 @@ export const commentClassifications = sqliteTable(
     classificationRunId: integer("classification_run_id")
       .references(() => classificationRuns.id),
     classifiedAt: text("classified_at").notNull(),
+    reasoning: text("reasoning"), // US-2.07: LLM classification reasoning (nullable for old rows)
   },
   (table) => [
     index("idx_comment_classifications_comment").on(table.commentType, table.commentId),
