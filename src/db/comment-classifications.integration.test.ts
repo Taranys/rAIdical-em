@@ -12,6 +12,7 @@ import {
   getCategoryDistribution,
   getTopClassifiedCommentsByMember,
   getCategoryDistributionByReviewer,
+  getLowDepthCommentsByMember,
 } from "./comment-classifications";
 
 describe("comment-classifications DAL (integration)", () => {
@@ -820,6 +821,170 @@ describe("comment-classifications DAL (integration)", () => {
 
     it("sorts by confidence descending", () => {
       const results = getTopClassifiedCommentsByMember(1, 70, testDb);
+
+      for (let i = 1; i < results.length; i++) {
+        expect(results[i - 1].confidence).toBeGreaterThanOrEqual(
+          results[i].confidence,
+        );
+      }
+    });
+  });
+
+  // US-2.13: getLowDepthCommentsByMember tests
+  describe("getLowDepthCommentsByMember", () => {
+    beforeEach(() => {
+      // Seed team members
+      testSqlite.exec(`
+        INSERT INTO team_members (github_username, display_name, color, is_active, created_at, updated_at)
+        VALUES ('bob', 'Bob', '#E25A3B', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+      `);
+      testSqlite.exec(`
+        INSERT INTO team_members (github_username, display_name, color, is_active, created_at, updated_at)
+        VALUES ('carol', 'Carol', '#3B82F6', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+      `);
+
+      // Seed two PRs
+      testSqlite.exec(`
+        INSERT INTO pull_requests (github_id, number, title, author, state, created_at)
+        VALUES (1002, 2, 'Fix login flow', 'dave', 'merged', '2026-02-01T10:00:00Z');
+      `);
+
+      // Bob's review comments: one nitpick, one question, one bug (high-value)
+      testSqlite.exec(`
+        INSERT INTO review_comments (github_id, pull_request_id, reviewer, body, file_path, line, created_at, updated_at)
+        VALUES
+          (2001, 1, 'bob', 'Nitpick: missing semicolon', 'src/app.ts', 10, '2026-02-02T10:00:00Z', '2026-02-02T10:00:00Z'),
+          (2002, 1, 'bob', 'What does this do?', 'src/utils.ts', 20, '2026-02-02T11:00:00Z', '2026-02-02T11:00:00Z'),
+          (2003, 1, 'bob', 'This has a null pointer bug', 'src/app.ts', 42, '2026-02-02T12:00:00Z', '2026-02-02T12:00:00Z');
+      `);
+
+      // Classify bob's comments
+      testSqlite.exec(`
+        INSERT INTO comment_classifications (comment_type, comment_id, category, confidence, model_used, classification_run_id, classified_at)
+        VALUES
+          ('review_comment', 1, 'nitpick_style', 80, 'claude-haiku', 1, '2026-02-23T10:00:00Z'),
+          ('review_comment', 2, 'question_clarification', 70, 'claude-haiku', 1, '2026-02-23T10:01:00Z'),
+          ('review_comment', 3, 'bug_correctness', 90, 'claude-haiku', 1, '2026-02-23T10:02:00Z');
+      `);
+    });
+
+    it("returns nitpick_style and question_clarification comments for the member", () => {
+      const results = getLowDepthCommentsByMember(1, 50, testDb);
+
+      expect(results).toHaveLength(2);
+      expect(results.map((r) => r.category)).toEqual(
+        expect.arrayContaining(["nitpick_style", "question_clarification"]),
+      );
+    });
+
+    it("excludes high-value categories (bug_correctness, security, architecture_design)", () => {
+      const results = getLowDepthCommentsByMember(1, 50, testDb);
+
+      expect(results.every((r) => r.category !== "bug_correctness")).toBe(true);
+      expect(results.every((r) => r.category !== "security")).toBe(true);
+      expect(results.every((r) => r.category !== "architecture_design")).toBe(true);
+    });
+
+    it("respects minimum confidence threshold", () => {
+      const results = getLowDepthCommentsByMember(1, 75, testDb);
+
+      // Only the nitpick_style (80) passes, question_clarification (70) does not
+      expect(results).toHaveLength(1);
+      expect(results[0].category).toBe("nitpick_style");
+      expect(results[0].confidence).toBe(80);
+    });
+
+    it("returns empty array when member does not exist", () => {
+      const results = getLowDepthCommentsByMember(999, 50, testDb);
+      expect(results).toHaveLength(0);
+    });
+
+    it("returns empty array when member has no low-depth comments", () => {
+      // carol (id=2) has no comments at all
+      const results = getLowDepthCommentsByMember(2, 50, testDb);
+      expect(results).toHaveLength(0);
+    });
+
+    it("does not include comments from other members", () => {
+      // Add a nitpick from carol on PR 1
+      testSqlite.exec(`
+        INSERT INTO review_comments (github_id, pull_request_id, reviewer, body, file_path, line, created_at, updated_at)
+        VALUES (2004, 1, 'carol', 'Style: use camelCase', 'src/app.ts', 5, '2026-02-02T13:00:00Z', '2026-02-02T13:00:00Z');
+      `);
+      testSqlite.exec(`
+        INSERT INTO comment_classifications (comment_type, comment_id, category, confidence, model_used, classification_run_id, classified_at)
+        VALUES ('review_comment', 4, 'nitpick_style', 85, 'claude-haiku', 1, '2026-02-23T10:03:00Z');
+      `);
+
+      // bob's results should not include carol's comment
+      const bobResults = getLowDepthCommentsByMember(1, 50, testDb);
+      expect(bobResults).toHaveLength(2);
+      expect(bobResults.every((r) => r.body !== "Style: use camelCase")).toBe(true);
+    });
+
+    it("sets prHadHighValueIssues=true when other reviewers found bugs/security on same PR", () => {
+      // Carol found a security issue on PR 1 (same PR as bob's nitpick)
+      testSqlite.exec(`
+        INSERT INTO review_comments (github_id, pull_request_id, reviewer, body, file_path, line, created_at, updated_at)
+        VALUES (2005, 1, 'carol', 'SQL injection risk!', 'src/db.ts', 30, '2026-02-02T14:00:00Z', '2026-02-02T14:00:00Z');
+      `);
+      // carol's review_comment gets auto-id 4 (after bob's 3 review_comments)
+      testSqlite.exec(`
+        INSERT INTO comment_classifications (comment_type, comment_id, category, confidence, model_used, classification_run_id, classified_at)
+        VALUES ('review_comment', 4, 'security', 95, 'claude-haiku', 1, '2026-02-23T10:04:00Z');
+      `);
+
+      const results = getLowDepthCommentsByMember(1, 50, testDb);
+
+      // Bob's low-depth comments on PR 1 should have prHadHighValueIssues=true
+      expect(results.every((r) => r.prHadHighValueIssues)).toBe(true);
+    });
+
+    it("sets prHadHighValueIssues=false when no other reviewer found serious issues", () => {
+      // No other reviewer found bugs/security on PR 1 — only bob's own bug_correctness exists
+      const results = getLowDepthCommentsByMember(1, 50, testDb);
+
+      // Bob's own bug_correctness comment doesn't count (same reviewer)
+      expect(results.every((r) => !r.prHadHighValueIssues)).toBe(true);
+    });
+
+    it("excludes member's own high-value comments from prHadHighValueIssues check", () => {
+      // Bob himself found a bug on PR 1 (already seeded as comment 3: bug_correctness)
+      // This should NOT count — we only want OTHER reviewers' findings
+      const results = getLowDepthCommentsByMember(1, 50, testDb);
+
+      expect(results.every((r) => !r.prHadHighValueIssues)).toBe(true);
+    });
+
+    it("includes pr_comments in results", () => {
+      // Add a pr_comment by bob classified as nitpick
+      testSqlite.exec(`
+        INSERT INTO pr_comments (github_id, pull_request_id, author, body, created_at, updated_at)
+        VALUES (3001, 1, 'bob', 'Minor formatting issue', '2026-02-02T15:00:00Z', '2026-02-02T15:00:00Z');
+      `);
+      testSqlite.exec(`
+        INSERT INTO comment_classifications (comment_type, comment_id, category, confidence, model_used, classification_run_id, classified_at)
+        VALUES ('pr_comment', 1, 'nitpick_style', 65, 'claude-haiku', 1, '2026-02-23T10:05:00Z');
+      `);
+
+      const results = getLowDepthCommentsByMember(1, 50, testDb);
+
+      expect(results).toHaveLength(3);
+      const prComment = results.find((r) => r.commentType === "pr_comment");
+      expect(prComment).toBeDefined();
+      expect(prComment!.body).toBe("Minor formatting issue");
+      expect(prComment!.filePath).toBeNull();
+    });
+
+    it("includes prId in results for context", () => {
+      const results = getLowDepthCommentsByMember(1, 50, testDb);
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(results.every((r) => typeof r.prId === "number")).toBe(true);
+    });
+
+    it("sorts results by confidence descending", () => {
+      const results = getLowDepthCommentsByMember(1, 50, testDb);
 
       for (let i = 1; i < results.length; i++) {
         expect(results[i - 1].confidence).toBeGreaterThanOrEqual(

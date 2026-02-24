@@ -9,3 +9,6 @@ export { COMMENT_CATEGORIES, buildClassificationPrompt, parseClassificationRespo
 // US-2.12: Highlight detection prompt engineering
 export type { CommentForHighlightEvaluation, HighlightInput, HighlightSelection, HighlightResult, HighlightParseError } from "./highlight-detector";
 export { buildHighlightPrompt, parseHighlightResponse, isHighlightError } from "./highlight-detector";
+// US-2.13: Growth opportunity detection prompt engineering
+export type { CommentForGrowthEvaluation, GrowthOpportunityInput, GrowthOpportunitySelection, GrowthOpportunityResult, GrowthOpportunityParseError } from "./growth-detector";
+export { buildGrowthOpportunityPrompt, parseGrowthOpportunityResponse, isGrowthOpportunityError } from "./growth-detector";
