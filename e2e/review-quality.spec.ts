@@ -1,4 +1,4 @@
-// US-2.07: Review Quality page E2E tests
+// US-2.07 / US-2.08: Review Quality page E2E tests
 import { test, expect } from "@playwright/test";
 
 test.describe("Review Quality Page", () => {
@@ -28,6 +28,23 @@ test.describe("Review Quality Page", () => {
       page.getByText("Category Distribution"),
     ).toBeVisible();
 
+    // US-2.08: Charts dashboard section is visible
+    await expect(
+      page.getByText("Category Charts"),
+    ).toBeVisible();
+
+    await expect(
+      page.getByText("Team-wide breakdown"),
+    ).toBeVisible();
+
+    await expect(
+      page.getByText("Per-person breakdown"),
+    ).toBeVisible();
+
+    await expect(
+      page.getByText("Category trend over time"),
+    ).toBeVisible();
+
     // Filters card is visible
     await expect(
       page.getByText("Filters", { exact: true }),
@@ -35,7 +52,7 @@ test.describe("Review Quality Page", () => {
 
     // Comments table card is visible
     await expect(
-      page.getByText("Classified Comments"),
+      page.getByText("Classified Comments", { exact: true }),
     ).toBeVisible();
   });
 });

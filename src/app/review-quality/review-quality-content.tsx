@@ -1,4 +1,4 @@
-// US-2.07: Review Quality page orchestrator — state management and data fetching
+// US-2.07 / US-2.08: Review Quality page orchestrator — state management and data fetching
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -9,10 +9,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { SummaryBar } from "./summary-bar";
 import { FilterBar } from "./filter-bar";
 import { CommentsTable, type ClassifiedComment } from "./comments-table";
 import { CommentDetailSheet } from "./comment-detail-sheet";
+import { CategoryDonutChart } from "./category-donut-chart";
+import { CategoryPerPersonChart } from "./category-per-person-chart";
+import { CategoryTrendChart } from "./category-trend-chart";
 
 interface CategoryDistribution {
   category: string;
@@ -22,6 +26,25 @@ interface CategoryDistribution {
 interface SummaryData {
   classified: CategoryDistribution[];
   unclassifiedCount: number;
+}
+
+// US-2.08: Chart data types
+interface ReviewerCategoryData {
+  reviewer: string;
+  category: string;
+  count: number;
+}
+
+interface WeekCategoryTrend {
+  week: string;
+  category: string;
+  count: number;
+}
+
+interface ChartData {
+  teamDistribution: CategoryDistribution[];
+  perReviewer: ReviewerCategoryData[];
+  weeklyTrend: WeekCategoryTrend[];
 }
 
 interface TeamMember {
@@ -43,6 +66,12 @@ const DEFAULT_FILTERS: Filters = {
   dateStart: "",
   dateEnd: "",
   minConfidence: "",
+};
+
+const DEFAULT_CHART_DATA: ChartData = {
+  teamDistribution: [],
+  perReviewer: [],
+  weeklyTrend: [],
 };
 
 async function fetchCommentsFromApi(
@@ -87,12 +116,25 @@ async function fetchRepoUrlFromApi(): Promise<string | null> {
   return null;
 }
 
+// US-2.08: Fetch charts data (date + reviewer filters only)
+async function fetchChartsFromApi(filters: Filters): Promise<ChartData> {
+  const params = new URLSearchParams();
+  if (filters.reviewer && filters.reviewer !== "all")
+    params.set("reviewer", filters.reviewer);
+  if (filters.dateStart) params.set("dateStart", filters.dateStart);
+  if (filters.dateEnd) params.set("dateEnd", filters.dateEnd);
+
+  const res = await fetch(`/api/review-quality/charts?${params}`);
+  return res.json();
+}
+
 export function ReviewQualityContent() {
   const [comments, setComments] = useState<ClassifiedComment[]>([]);
   const [summary, setSummary] = useState<SummaryData>({
     classified: [],
     unclassifiedCount: 0,
   });
+  const [chartData, setChartData] = useState<ChartData>(DEFAULT_CHART_DATA);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [repoUrl, setRepoUrl] = useState<string | null>(null);
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
@@ -118,6 +160,16 @@ export function ReviewQualityContent() {
     [],
   );
 
+  // US-2.08: Reload charts when filters change
+  const reloadCharts = useCallback(async (f: Filters) => {
+    try {
+      const data = await fetchChartsFromApi(f);
+      setChartData(data);
+    } catch {
+      // Silently fail
+    }
+  }, []);
+
   // Initial load — runs once
   useEffect(() => {
     if (initRef.current) return;
@@ -125,16 +177,19 @@ export function ReviewQualityContent() {
 
     async function init() {
       try {
-        const [commentsData, summaryData, teamData, url] = await Promise.all([
-          fetchCommentsFromApi(DEFAULT_FILTERS, "date", "desc"),
-          fetchSummaryFromApi(),
-          fetchTeamMembersFromApi(),
-          fetchRepoUrlFromApi(),
-        ]);
+        const [commentsData, summaryData, teamData, url, charts] =
+          await Promise.all([
+            fetchCommentsFromApi(DEFAULT_FILTERS, "date", "desc"),
+            fetchSummaryFromApi(),
+            fetchTeamMembersFromApi(),
+            fetchRepoUrlFromApi(),
+            fetchChartsFromApi(DEFAULT_FILTERS),
+          ]);
         setComments(commentsData);
         setSummary(summaryData);
         setTeamMembers(teamData);
         setRepoUrl(url);
+        setChartData(charts);
       } catch {
         // Silently fail
       } finally {
@@ -147,6 +202,7 @@ export function ReviewQualityContent() {
   function handleFiltersChange(newFilters: Filters) {
     setFilters(newFilters);
     reloadComments(newFilters, sortBy, sortOrder);
+    reloadCharts(newFilters);
   }
 
   function handleSortChange(key: "date" | "confidence" | "category") {
@@ -182,6 +238,47 @@ export function ReviewQualityContent() {
               classified={summary.classified}
               unclassifiedCount={summary.unclassifiedCount}
             />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* US-2.08: Charts dashboard */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Category Charts</CardTitle>
+          <CardDescription>
+            Interactive distribution and trend charts for comment categories.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-8">
+          {isLoading ? (
+            <Skeleton
+              className="h-[300px] w-full"
+              data-testid="charts-skeleton"
+            />
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <h3 className="text-sm font-medium mb-4">
+                    Team-wide breakdown
+                  </h3>
+                  <CategoryDonutChart data={chartData.teamDistribution} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium mb-4">
+                    Per-person breakdown
+                  </h3>
+                  <CategoryPerPersonChart data={chartData.perReviewer} />
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium mb-4">
+                  Category trend over time
+                </h3>
+                <CategoryTrendChart data={chartData.weeklyTrend} />
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

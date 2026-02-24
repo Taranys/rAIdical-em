@@ -421,6 +421,169 @@ export function getClassificationSummary(
   };
 }
 
+// US-2.08: Filtered team-wide category distribution (supports date range + team filter)
+export interface CategoryDistributionFilters {
+  teamUsernames?: string[];
+  startDate?: string;
+  endDate?: string;
+}
+
+export function getCategoryDistributionFiltered(
+  filters: CategoryDistributionFilters = {},
+  dbInstance: DbInstance = defaultDb,
+): CategoryDistribution[] {
+  const { teamUsernames, startDate, endDate } = filters;
+
+  function buildReviewConditions() {
+    const conditions = [];
+    if (teamUsernames && teamUsernames.length > 0) {
+      conditions.push(inArray(reviewComments.reviewer, teamUsernames));
+    }
+    if (startDate) conditions.push(gte(reviewComments.createdAt, startDate));
+    if (endDate) conditions.push(lt(reviewComments.createdAt, endDate));
+    return conditions.length > 0 ? and(...conditions) : undefined;
+  }
+
+  function buildPrConditions() {
+    const conditions = [];
+    if (teamUsernames && teamUsernames.length > 0) {
+      conditions.push(inArray(prComments.author, teamUsernames));
+    }
+    if (startDate) conditions.push(gte(prComments.createdAt, startDate));
+    if (endDate) conditions.push(lt(prComments.createdAt, endDate));
+    return conditions.length > 0 ? and(...conditions) : undefined;
+  }
+
+  const reviewResults = dbInstance
+    .select({
+      category: commentClassifications.category,
+      count: count(),
+    })
+    .from(commentClassifications)
+    .innerJoin(
+      reviewComments,
+      and(
+        eq(commentClassifications.commentType, sql`'review_comment'`),
+        eq(commentClassifications.commentId, reviewComments.id),
+      ),
+    )
+    .where(buildReviewConditions())
+    .groupBy(commentClassifications.category)
+    .all();
+
+  const prResults = dbInstance
+    .select({
+      category: commentClassifications.category,
+      count: count(),
+    })
+    .from(commentClassifications)
+    .innerJoin(
+      prComments,
+      and(
+        eq(commentClassifications.commentType, sql`'pr_comment'`),
+        eq(commentClassifications.commentId, prComments.id),
+      ),
+    )
+    .where(buildPrConditions())
+    .groupBy(commentClassifications.category)
+    .all();
+
+  // Merge counts for same category
+  const merged = new Map<string, number>();
+  for (const r of [...reviewResults, ...prResults]) {
+    merged.set(r.category, (merged.get(r.category) ?? 0) + r.count);
+  }
+
+  return Array.from(merged.entries()).map(([category, count]) => ({
+    category,
+    count,
+  }));
+}
+
+// US-2.08: Weekly category trend (for line chart)
+export interface WeekCategoryTrend {
+  week: string;
+  category: string;
+  count: number;
+}
+
+export function getCategoryTrendByWeek(
+  teamUsernames: string[],
+  startDate: string,
+  endDate: string,
+  dbInstance: DbInstance = defaultDb,
+): WeekCategoryTrend[] {
+  if (teamUsernames.length === 0) return [];
+
+  const reviewResults = dbInstance
+    .select({
+      week: sql<string>`strftime('%Y-W%W', ${reviewComments.createdAt})`.as("week"),
+      category: commentClassifications.category,
+      count: count(),
+    })
+    .from(commentClassifications)
+    .innerJoin(
+      reviewComments,
+      and(
+        eq(commentClassifications.commentType, sql`'review_comment'`),
+        eq(commentClassifications.commentId, reviewComments.id),
+      ),
+    )
+    .where(
+      and(
+        inArray(reviewComments.reviewer, teamUsernames),
+        gte(reviewComments.createdAt, startDate),
+        lt(reviewComments.createdAt, endDate),
+      ),
+    )
+    .groupBy(sql`strftime('%Y-W%W', ${reviewComments.createdAt})`, commentClassifications.category)
+    .orderBy(sql`strftime('%Y-W%W', ${reviewComments.createdAt})`)
+    .all();
+
+  const prResults = dbInstance
+    .select({
+      week: sql<string>`strftime('%Y-W%W', ${prComments.createdAt})`.as("week"),
+      category: commentClassifications.category,
+      count: count(),
+    })
+    .from(commentClassifications)
+    .innerJoin(
+      prComments,
+      and(
+        eq(commentClassifications.commentType, sql`'pr_comment'`),
+        eq(commentClassifications.commentId, prComments.id),
+      ),
+    )
+    .where(
+      and(
+        inArray(prComments.author, teamUsernames),
+        gte(prComments.createdAt, startDate),
+        lt(prComments.createdAt, endDate),
+      ),
+    )
+    .groupBy(sql`strftime('%Y-W%W', ${prComments.createdAt})`, commentClassifications.category)
+    .orderBy(sql`strftime('%Y-W%W', ${prComments.createdAt})`)
+    .all();
+
+  // Merge both result sets
+  const merged = new Map<string, WeekCategoryTrend>();
+  for (const r of [...reviewResults, ...prResults]) {
+    const key = `${r.week}:${r.category}`;
+    const existing = merged.get(key);
+    if (existing) {
+      existing.count += r.count;
+    } else {
+      merged.set(key, { week: r.week, category: r.category, count: r.count });
+    }
+  }
+
+  return Array.from(merged.values()).sort((a, b) =>
+    a.week === b.week
+      ? a.category.localeCompare(b.category)
+      : a.week.localeCompare(b.week),
+  );
+}
+
 // US-2.09: Get category distribution per reviewer for a given period
 export function getCategoryDistributionByReviewer(
   teamUsernames: string[],

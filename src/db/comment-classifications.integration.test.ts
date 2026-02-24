@@ -1,4 +1,4 @@
-// US-2.05 / US-2.07 / US-2.09: Comment classifications DAL integration tests
+// US-2.05 / US-2.07 / US-2.08 / US-2.09: Comment classifications DAL integration tests
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
@@ -10,6 +10,8 @@ import {
   getClassificationSummary,
   getClassifiedComments,
   getCategoryDistribution,
+  getCategoryDistributionFiltered,
+  getCategoryTrendByWeek,
   getTopClassifiedCommentsByMember,
   getCategoryDistributionByReviewer,
   getLowDepthCommentsByMember,
@@ -705,6 +707,237 @@ describe("comment-classifications DAL (integration)", () => {
       );
       // 1 from review_comments + 1 from pr_comments = 2
       expect(bobArch?.count).toBe(2);
+    });
+  });
+
+  // US-2.08: getCategoryDistributionFiltered
+  describe("getCategoryDistributionFiltered", () => {
+    beforeEach(() => {
+      // Seed review comments from two reviewers at different dates
+      testSqlite.exec(`
+        INSERT INTO review_comments (github_id, pull_request_id, reviewer, body, created_at, updated_at)
+        VALUES
+          (2001, 1, 'bob', 'Bug comment', '2026-02-05T10:00:00Z', '2026-02-05T10:00:00Z'),
+          (2002, 1, 'carol', 'Style nit', '2026-02-10T10:00:00Z', '2026-02-10T10:00:00Z'),
+          (2003, 1, 'bob', 'Perf issue', '2026-01-15T10:00:00Z', '2026-01-15T10:00:00Z');
+      `);
+      // Seed a pr_comment from bob
+      testSqlite.exec(`
+        INSERT INTO pr_comments (github_id, pull_request_id, author, body, created_at, updated_at)
+        VALUES (3001, 1, 'bob', 'Architecture concern', '2026-02-06T10:00:00Z', '2026-02-06T10:00:00Z');
+      `);
+      // Classify them
+      testSqlite.exec(`
+        INSERT INTO comment_classifications (comment_type, comment_id, category, confidence, model_used, classification_run_id, classified_at)
+        VALUES
+          ('review_comment', 1, 'bug_correctness', 90, 'claude-haiku', 1, '2026-02-23T10:00:00Z'),
+          ('review_comment', 2, 'nitpick_style', 80, 'claude-haiku', 1, '2026-02-23T10:00:00Z'),
+          ('review_comment', 3, 'performance', 70, 'claude-haiku', 1, '2026-02-23T10:00:00Z'),
+          ('pr_comment', 1, 'architecture_design', 85, 'claude-haiku', 1, '2026-02-23T10:00:00Z');
+      `);
+    });
+
+    it("returns all categories when no filters are given", () => {
+      const results = getCategoryDistributionFiltered({}, testDb);
+
+      expect(results).toHaveLength(4);
+      const total = results.reduce((s, r) => s + r.count, 0);
+      expect(total).toBe(4);
+    });
+
+    it("filters by date range", () => {
+      const results = getCategoryDistributionFiltered(
+        { startDate: "2026-02-01T00:00:00Z", endDate: "2026-03-01T00:00:00Z" },
+        testDb,
+      );
+
+      // Only 3 comments are in Feb (id 1, 2, and pr_comment 1); id 3 is Jan
+      expect(results.reduce((s, r) => s + r.count, 0)).toBe(3);
+    });
+
+    it("filters by team usernames", () => {
+      const results = getCategoryDistributionFiltered(
+        { teamUsernames: ["carol"] },
+        testDb,
+      );
+
+      expect(results).toHaveLength(1);
+      expect(results[0].category).toBe("nitpick_style");
+      expect(results[0].count).toBe(1);
+    });
+
+    it("combines date and team filters", () => {
+      const results = getCategoryDistributionFiltered(
+        {
+          teamUsernames: ["bob"],
+          startDate: "2026-02-01T00:00:00Z",
+          endDate: "2026-03-01T00:00:00Z",
+        },
+        testDb,
+      );
+
+      // bob has 2 in-period: review_comment id=1 (bug) + pr_comment id=1 (architecture)
+      expect(results.reduce((s, r) => s + r.count, 0)).toBe(2);
+    });
+
+    it("returns empty array when no classifications match", () => {
+      const results = getCategoryDistributionFiltered(
+        { startDate: "2025-01-01T00:00:00Z", endDate: "2025-02-01T00:00:00Z" },
+        testDb,
+      );
+
+      expect(results).toHaveLength(0);
+    });
+
+    it("merges review_comments and pr_comments counts for same category", () => {
+      // Add another review_comment from bob classified as architecture_design
+      testSqlite.exec(`
+        INSERT INTO review_comments (github_id, pull_request_id, reviewer, body, created_at, updated_at)
+        VALUES (2004, 1, 'bob', 'Design concern', '2026-02-07T10:00:00Z', '2026-02-07T10:00:00Z');
+      `);
+      testSqlite.exec(`
+        INSERT INTO comment_classifications (comment_type, comment_id, category, confidence, model_used, classification_run_id, classified_at)
+        VALUES ('review_comment', 4, 'architecture_design', 75, 'claude-haiku', 1, '2026-02-23T10:00:00Z');
+      `);
+
+      const results = getCategoryDistributionFiltered(
+        {
+          teamUsernames: ["bob"],
+          startDate: "2026-02-01T00:00:00Z",
+          endDate: "2026-03-01T00:00:00Z",
+        },
+        testDb,
+      );
+
+      const arch = results.find((r) => r.category === "architecture_design");
+      // 1 from review_comments + 1 from pr_comments = 2
+      expect(arch?.count).toBe(2);
+    });
+  });
+
+  // US-2.08: getCategoryTrendByWeek
+  describe("getCategoryTrendByWeek", () => {
+    beforeEach(() => {
+      // Seed review comments in different weeks
+      testSqlite.exec(`
+        INSERT INTO review_comments (github_id, pull_request_id, reviewer, body, created_at, updated_at)
+        VALUES
+          (2001, 1, 'bob', 'Bug in week 5', '2026-02-02T10:00:00Z', '2026-02-02T10:00:00Z'),
+          (2002, 1, 'bob', 'Another bug in week 5', '2026-02-03T10:00:00Z', '2026-02-03T10:00:00Z'),
+          (2003, 1, 'bob', 'Nit in week 6', '2026-02-09T10:00:00Z', '2026-02-09T10:00:00Z'),
+          (2004, 1, 'carol', 'Security in week 6', '2026-02-10T10:00:00Z', '2026-02-10T10:00:00Z');
+      `);
+      // Classify them
+      testSqlite.exec(`
+        INSERT INTO comment_classifications (comment_type, comment_id, category, confidence, model_used, classification_run_id, classified_at)
+        VALUES
+          ('review_comment', 1, 'bug_correctness', 90, 'claude-haiku', 1, '2026-02-23T10:00:00Z'),
+          ('review_comment', 2, 'bug_correctness', 80, 'claude-haiku', 1, '2026-02-23T10:00:00Z'),
+          ('review_comment', 3, 'nitpick_style', 75, 'claude-haiku', 1, '2026-02-23T10:00:00Z'),
+          ('review_comment', 4, 'security', 85, 'claude-haiku', 1, '2026-02-23T10:00:00Z');
+      `);
+    });
+
+    it("groups classifications by week and category", () => {
+      const results = getCategoryTrendByWeek(
+        ["bob", "carol"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+
+      // Week 05: 2 bug_correctness; Week 06: 1 nitpick + 1 security
+      expect(results.length).toBeGreaterThanOrEqual(3);
+
+      const week05Bugs = results.find(
+        (r) => r.week.includes("05") && r.category === "bug_correctness",
+      );
+      expect(week05Bugs?.count).toBe(2);
+
+      const week06Nit = results.find(
+        (r) => r.week.includes("06") && r.category === "nitpick_style",
+      );
+      expect(week06Nit?.count).toBe(1);
+    });
+
+    it("respects date range boundaries", () => {
+      // Add a comment outside the period
+      testSqlite.exec(`
+        INSERT INTO review_comments (github_id, pull_request_id, reviewer, body, created_at, updated_at)
+        VALUES (2005, 1, 'bob', 'Jan comment', '2026-01-15T10:00:00Z', '2026-01-15T10:00:00Z');
+      `);
+      testSqlite.exec(`
+        INSERT INTO comment_classifications (comment_type, comment_id, category, confidence, model_used, classification_run_id, classified_at)
+        VALUES ('review_comment', 5, 'performance', 70, 'claude-haiku', 1, '2026-02-23T10:00:00Z');
+      `);
+
+      const results = getCategoryTrendByWeek(
+        ["bob"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+
+      // No performance category from Jan should appear
+      const perf = results.find((r) => r.category === "performance");
+      expect(perf).toBeUndefined();
+    });
+
+    it("includes pr_comments in weekly trend", () => {
+      testSqlite.exec(`
+        INSERT INTO pr_comments (github_id, pull_request_id, author, body, created_at, updated_at)
+        VALUES (3001, 1, 'bob', 'Architecture concern', '2026-02-02T12:00:00Z', '2026-02-02T12:00:00Z');
+      `);
+      testSqlite.exec(`
+        INSERT INTO comment_classifications (comment_type, comment_id, category, confidence, model_used, classification_run_id, classified_at)
+        VALUES ('pr_comment', 1, 'bug_correctness', 85, 'claude-haiku', 1, '2026-02-23T10:00:00Z');
+      `);
+
+      const results = getCategoryTrendByWeek(
+        ["bob"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+
+      // Week 05 should now have 3 bug_correctness (2 review + 1 pr)
+      const week05Bugs = results.find(
+        (r) => r.week.includes("05") && r.category === "bug_correctness",
+      );
+      expect(week05Bugs?.count).toBe(3);
+    });
+
+    it("returns empty array when no data matches", () => {
+      const results = getCategoryTrendByWeek(
+        ["bob"],
+        "2025-01-01T00:00:00Z",
+        "2025-02-01T00:00:00Z",
+        testDb,
+      );
+      expect(results).toHaveLength(0);
+    });
+
+    it("returns empty array when no team usernames provided", () => {
+      const results = getCategoryTrendByWeek(
+        [],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+      expect(results).toHaveLength(0);
+    });
+
+    it("returns weeks in chronological order", () => {
+      const results = getCategoryTrendByWeek(
+        ["bob", "carol"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+
+      for (let i = 1; i < results.length; i++) {
+        expect(results[i].week >= results[i - 1].week).toBe(true);
+      }
     });
   });
 
