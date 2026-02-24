@@ -1,4 +1,4 @@
-// US-010, US-016, US-025: Pull requests data access layer
+// US-010, US-015, US-016, US-025: Pull requests data access layer
 import { db as defaultDb } from "./index";
 import { pullRequests } from "./schema";
 import { count, and, gte, lt, inArray, eq, desc, sql } from "drizzle-orm";
@@ -123,6 +123,62 @@ export function getPRsMergedPerWeek(
     )
     .groupBy(sql`strftime('%Y-W%W', ${pullRequests.mergedAt})`)
     .orderBy(sql`strftime('%Y-W%W', ${pullRequests.mergedAt})`)
+    .all();
+}
+
+// US-015: PRs opened per team member within a date range (all states)
+export function getPRsOpenedByMember(
+  teamUsernames: string[],
+  startDate: string,
+  endDate: string,
+  dbInstance: DbInstance = defaultDb,
+): { author: string; count: number }[] {
+  if (teamUsernames.length === 0) return [];
+
+  return dbInstance
+    .select({
+      author: pullRequests.author,
+      count: count(),
+    })
+    .from(pullRequests)
+    .where(
+      and(
+        inArray(pullRequests.author, teamUsernames),
+        gte(pullRequests.createdAt, startDate),
+        lt(pullRequests.createdAt, endDate),
+      ),
+    )
+    .groupBy(pullRequests.author)
+    .orderBy(desc(count()))
+    .all();
+}
+
+// US-015: PRs opened per week within a date range (for trend chart, all states)
+export function getPRsOpenedPerWeek(
+  teamUsernames: string[],
+  startDate: string,
+  endDate: string,
+  dbInstance: DbInstance = defaultDb,
+): { week: string; count: number }[] {
+  if (teamUsernames.length === 0) return [];
+
+  return dbInstance
+    .select({
+      week: sql<string>`strftime('%Y-W%W', ${pullRequests.createdAt})`.as(
+        "week",
+      ),
+      count: count(),
+    })
+    .from(pullRequests)
+    .where(
+      and(
+        inArray(pullRequests.author, teamUsernames),
+        gte(pullRequests.createdAt, startDate),
+        lt(pullRequests.createdAt, endDate),
+      ),
+    )
+    .groupBy(sql`strftime('%Y-W%W', ${pullRequests.createdAt})`)
+    .orderBy(sql`strftime('%Y-W%W', ${pullRequests.createdAt})`)
     .all();
 }
 

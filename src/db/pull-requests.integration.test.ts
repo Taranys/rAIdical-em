@@ -8,6 +8,8 @@ import {
   getPullRequestCount,
   getPRsMergedByMember,
   getPRsMergedPerWeek,
+  getPRsOpenedByMember,
+  getPRsOpenedPerWeek,
   getMedianPRSizeByMember,
   getPRsByMember,
   getAiRatioByMember,
@@ -246,6 +248,163 @@ describe("pull-requests DAL (integration)", () => {
 
     it("returns empty array for empty team list", () => {
       const result = getPRsMergedPerWeek(
+        [],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+      expect(result).toEqual([]);
+    });
+  });
+
+  // US-015: getPRsOpenedByMember
+  describe("getPRsOpenedByMember", () => {
+    beforeEach(() => {
+      // alice: 2 PRs created in range (one merged, one open) — both count
+      upsertPullRequest(
+        { ...samplePR, githubId: 40, number: 40, author: "alice", state: "merged", createdAt: "2026-02-05T10:00:00Z", mergedAt: "2026-02-10T10:00:00Z" },
+        testDb,
+      );
+      upsertPullRequest(
+        { ...samplePR, githubId: 41, number: 41, author: "alice", state: "open", createdAt: "2026-02-12T10:00:00Z", mergedAt: null },
+        testDb,
+      );
+      // bob: 1 PR (closed, not merged) — still counts
+      upsertPullRequest(
+        { ...samplePR, githubId: 42, number: 42, author: "bob", state: "closed", createdAt: "2026-02-15T10:00:00Z", mergedAt: null },
+        testDb,
+      );
+      // alice: outside date range (before start)
+      upsertPullRequest(
+        { ...samplePR, githubId: 43, number: 43, author: "alice", state: "merged", createdAt: "2026-01-15T10:00:00Z", mergedAt: "2026-01-20T10:00:00Z" },
+        testDb,
+      );
+      // alice: outside date range (at end boundary — exclusive)
+      upsertPullRequest(
+        { ...samplePR, githubId: 44, number: 44, author: "alice", state: "open", createdAt: "2026-03-01T00:00:00Z", mergedAt: null },
+        testDb,
+      );
+      // stranger: not a team member
+      upsertPullRequest(
+        { ...samplePR, githubId: 45, number: 45, author: "stranger", state: "open", createdAt: "2026-02-10T10:00:00Z", mergedAt: null },
+        testDb,
+      );
+    });
+
+    it("returns correct counts per author within date range, sorted by count descending", () => {
+      const result = getPRsOpenedByMember(
+        ["alice", "bob"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+
+      expect(result).toEqual([
+        { author: "alice", count: 2 },
+        { author: "bob", count: 1 },
+      ]);
+    });
+
+    it("counts PRs regardless of state (open, closed, merged)", () => {
+      const result = getPRsOpenedByMember(
+        ["alice", "bob"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+      const total = result.reduce((sum, r) => sum + r.count, 0);
+      expect(total).toBe(3);
+    });
+
+    it("excludes PRs created outside date range", () => {
+      const result = getPRsOpenedByMember(
+        ["alice"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+      expect(result.find((r) => r.author === "alice")?.count).toBe(2);
+    });
+
+    it("excludes PRs by non-team members", () => {
+      const result = getPRsOpenedByMember(
+        ["alice", "bob"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+      expect(result.find((r) => r.author === "stranger")).toBeUndefined();
+    });
+
+    it("returns empty array for empty team list", () => {
+      const result = getPRsOpenedByMember(
+        [],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+      expect(result).toEqual([]);
+    });
+
+    it("uses exclusive upper bound (lt) for endDate", () => {
+      const result = getPRsOpenedByMember(
+        ["alice"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+      // PR with createdAt "2026-03-01T00:00:00Z" should be excluded
+      expect(result.find((r) => r.author === "alice")?.count).toBe(2);
+    });
+  });
+
+  // US-015: getPRsOpenedPerWeek
+  describe("getPRsOpenedPerWeek", () => {
+    beforeEach(() => {
+      // Week 05 (around Feb 2): 1 PR
+      upsertPullRequest(
+        { ...samplePR, githubId: 50, number: 50, author: "alice", state: "open", createdAt: "2026-02-02T10:00:00Z", mergedAt: null },
+        testDb,
+      );
+      // Week 06 (around Feb 9): 2 PRs (different states)
+      upsertPullRequest(
+        { ...samplePR, githubId: 51, number: 51, author: "alice", state: "merged", createdAt: "2026-02-09T10:00:00Z", mergedAt: "2026-02-15T10:00:00Z" },
+        testDb,
+      );
+      upsertPullRequest(
+        { ...samplePR, githubId: 52, number: 52, author: "bob", state: "closed", createdAt: "2026-02-10T10:00:00Z", mergedAt: null },
+        testDb,
+      );
+    });
+
+    it("groups PRs by creation week correctly", () => {
+      const result = getPRsOpenedPerWeek(
+        ["alice", "bob"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+
+      expect(result.length).toBeGreaterThanOrEqual(2);
+      // Weeks should be ordered ascending
+      for (let i = 1; i < result.length; i++) {
+        expect(result[i].week >= result[i - 1].week).toBe(true);
+      }
+    });
+
+    it("counts all states (not just merged) per week", () => {
+      const result = getPRsOpenedPerWeek(
+        ["alice", "bob"],
+        "2026-02-01T00:00:00Z",
+        "2026-03-01T00:00:00Z",
+        testDb,
+      );
+      const total = result.reduce((sum, w) => sum + w.count, 0);
+      expect(total).toBe(3);
+    });
+
+    it("returns empty array for empty team list", () => {
+      const result = getPRsOpenedPerWeek(
         [],
         "2026-02-01T00:00:00Z",
         "2026-03-01T00:00:00Z",
