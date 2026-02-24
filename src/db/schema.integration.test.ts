@@ -111,7 +111,8 @@ describe("Phase 1 schema (integration)", () => {
         model_used TEXT NOT NULL,
         classification_run_id INTEGER REFERENCES classification_runs(id),
         classified_at TEXT NOT NULL,
-        reasoning TEXT
+        reasoning TEXT,
+        is_manual INTEGER NOT NULL DEFAULT 0
       );
 
       CREATE TABLE seniority_profiles (

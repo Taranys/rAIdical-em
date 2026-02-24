@@ -43,6 +43,13 @@
       "when": 1771861766854,
       "tag": "0005_ancient_bromley",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1771968590573,
+      "tag": "0006_workable_magma",
+      "breakpoints": true
     }
   ]
 }

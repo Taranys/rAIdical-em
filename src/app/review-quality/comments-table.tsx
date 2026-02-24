@@ -1,4 +1,5 @@
 // US-2.07: Comments table with sortable columns and category badges
+// US-2.16: Edit classification action + manual indicator
 "use client";
 
 import { useState } from "react";
@@ -11,9 +12,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CATEGORY_CONFIG } from "@/lib/category-colors";
-import type { CommentCategory } from "@/lib/llm/classifier";
-import { ArrowUpDown, ExternalLink } from "lucide-react";
+import { COMMENT_CATEGORIES, type CommentCategory } from "@/lib/llm/classifier";
+import { ArrowUpDown, ExternalLink, Pencil, UserPen } from "lucide-react";
 
 export interface ClassifiedComment {
   commentType: "review_comment" | "pr_comment";
@@ -28,6 +36,7 @@ export interface ClassifiedComment {
   confidence: number | null;
   reasoning: string | null;
   classifiedAt: string | null;
+  isManual: boolean;
 }
 
 interface CommentsTableProps {
@@ -36,6 +45,11 @@ interface CommentsTableProps {
   sortOrder: string;
   onSortChange: (sortBy: "date" | "confidence" | "category") => void;
   onSelect: (comment: ClassifiedComment) => void;
+  onReclassify: (
+    commentType: "review_comment" | "pr_comment",
+    commentId: number,
+    category: string,
+  ) => void;
   repoUrl: string | null;
 }
 
@@ -48,7 +62,13 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString();
 }
 
-function CategoryBadge({ category }: { category: string | null }) {
+function CategoryBadge({
+  category,
+  isManual,
+}: {
+  category: string | null;
+  isManual: boolean;
+}) {
   if (!category) {
     return (
       <Badge variant="outline" className="opacity-50">
@@ -60,7 +80,20 @@ function CategoryBadge({ category }: { category: string | null }) {
   if (!config) {
     return <Badge variant="outline">{category}</Badge>;
   }
-  return <Badge className={`${config.bg} ${config.text} border-0`}>{config.label}</Badge>;
+  return (
+    <span className="inline-flex items-center gap-1">
+      <Badge className={`${config.bg} ${config.text} border-0`}>
+        {config.label}
+      </Badge>
+      {isManual && (
+        <UserPen
+          className="h-3 w-3 text-muted-foreground"
+          data-testid="manual-indicator"
+          aria-label="Manually classified"
+        />
+      )}
+    </span>
+  );
 }
 
 function SortableHeader({
@@ -101,9 +134,11 @@ export function CommentsTable({
   sortOrder,
   onSortChange,
   onSelect,
+  onReclassify,
   repoUrl,
 }: CommentsTableProps) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [editingRow, setEditingRow] = useState<string | null>(null);
 
   function toggleExpand(key: string, e: React.MouseEvent) {
     e.stopPropagation();
@@ -161,6 +196,7 @@ export function CommentsTable({
           const rowKey = `${comment.commentType}-${comment.commentId}`;
           const isExpanded = expandedRows.has(rowKey);
           const isUnclassified = comment.category === null;
+          const isEditing = editingRow === rowKey;
 
           return (
             <TableRow
@@ -184,7 +220,60 @@ export function CommentsTable({
                 </div>
               </TableCell>
               <TableCell>
-                <CategoryBadge category={comment.category} />
+                <div className="flex items-center gap-1">
+                  {isEditing ? (
+                    <Select
+                      defaultValue={comment.category ?? undefined}
+                      onValueChange={(value) => {
+                        setEditingRow(null);
+                        onReclassify(comment.commentType, comment.commentId, value);
+                      }}
+                      onOpenChange={(open) => {
+                        if (!open) setEditingRow(null);
+                      }}
+                    >
+                      <SelectTrigger
+                        className="w-[160px] h-8 text-xs"
+                        onClick={(e) => e.stopPropagation()}
+                        data-testid="category-select"
+                      >
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {COMMENT_CATEGORIES.map((cat) => {
+                          const config = CATEGORY_CONFIG[cat];
+                          return (
+                            <SelectItem key={cat} value={cat}>
+                              <span className={`${config.text}`}>
+                                {config.label}
+                              </span>
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <>
+                      <CategoryBadge
+                        category={comment.category}
+                        isManual={comment.isManual}
+                      />
+                      {comment.category && (
+                        <button
+                          className="ml-1 p-1 rounded hover:bg-muted"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingRow(rowKey);
+                          }}
+                          data-testid="edit-classification"
+                          aria-label="Edit classification"
+                        >
+                          <Pencil className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
               </TableCell>
               <TableCell>
                 {comment.confidence !== null ? (

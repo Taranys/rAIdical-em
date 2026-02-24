@@ -163,6 +163,34 @@ export function insertClassification(
     .get();
 }
 
+// US-2.16: Update an existing classification (manual override)
+export function updateClassification(
+  commentType: "review_comment" | "pr_comment",
+  commentId: number,
+  category: string,
+  dbInstance: DbInstance = defaultDb,
+) {
+  return dbInstance
+    .update(commentClassifications)
+    .set({
+      category,
+      confidence: 100,
+      modelUsed: "manual",
+      classificationRunId: null,
+      classifiedAt: new Date().toISOString(),
+      reasoning: null,
+      isManual: 1,
+    })
+    .where(
+      and(
+        eq(commentClassifications.commentType, commentType),
+        eq(commentClassifications.commentId, commentId),
+      ),
+    )
+    .returning()
+    .get();
+}
+
 // --- US-2.07: Types for classified comment views ---
 
 export interface ClassifiedCommentFilters {
@@ -191,6 +219,7 @@ export interface ClassifiedComment {
   confidence: number | null;
   reasoning: string | null;
   classifiedAt: string | null;
+  isManual: boolean; // US-2.16: true if manually reclassified
 }
 
 export interface CategoryDistribution {
@@ -269,6 +298,7 @@ export function getClassifiedComments(
       confidence: commentClassifications.confidence,
       reasoning: commentClassifications.reasoning,
       classifiedAt: commentClassifications.classifiedAt,
+      isManual: commentClassifications.isManual,
     })
     .from(reviewComments)
     .innerJoin(pullRequests, eq(reviewComments.pullRequestId, pullRequests.id))
@@ -295,6 +325,7 @@ export function getClassifiedComments(
       confidence: commentClassifications.confidence,
       reasoning: commentClassifications.reasoning,
       classifiedAt: commentClassifications.classifiedAt,
+      isManual: commentClassifications.isManual,
     })
     .from(prComments)
     .innerJoin(pullRequests, eq(prComments.pullRequestId, pullRequests.id))
@@ -323,6 +354,7 @@ export function getClassifiedComments(
       confidence: r.confidence,
       reasoning: r.reasoning,
       classifiedAt: r.classifiedAt,
+      isManual: r.isManual === 1,
     })),
     ...prResults.map((r) => ({
       commentType: "pr_comment" as const,
@@ -337,6 +369,7 @@ export function getClassifiedComments(
       confidence: r.confidence,
       reasoning: r.reasoning,
       classifiedAt: r.classifiedAt,
+      isManual: r.isManual === 1,
     })),
   ];
 

@@ -7,6 +7,7 @@ import {
   getUnclassifiedReviewComments,
   getUnclassifiedPrComments,
   insertClassification,
+  updateClassification,
   getClassificationSummary,
   getClassifiedComments,
   getCategoryDistribution,
@@ -90,7 +91,8 @@ describe("comment-classifications DAL (integration)", () => {
         model_used TEXT NOT NULL,
         classification_run_id INTEGER REFERENCES classification_runs(id),
         classified_at TEXT NOT NULL,
-        reasoning TEXT
+        reasoning TEXT,
+        is_manual INTEGER NOT NULL DEFAULT 0
       );
       CREATE INDEX idx_comment_classifications_comment ON comment_classifications(comment_type, comment_id);
       CREATE INDEX idx_comment_classifications_category ON comment_classifications(category);
@@ -258,6 +260,74 @@ describe("comment-classifications DAL (integration)", () => {
     });
   });
 
+  // US-2.16: updateClassification tests
+  describe("updateClassification", () => {
+    it("updates an existing classification to a new category with manual flag", () => {
+      // Insert a review comment
+      testSqlite.exec(`
+        INSERT INTO review_comments (github_id, pull_request_id, reviewer, body, created_at, updated_at)
+        VALUES (2001, 1, 'bob', 'Some comment', '2026-02-02T10:00:00Z', '2026-02-02T10:00:00Z');
+      `);
+      // Insert an LLM classification
+      insertClassification(
+        {
+          commentType: "review_comment",
+          commentId: 1,
+          category: "nitpick_style",
+          confidence: 70,
+          modelUsed: "claude-haiku",
+          classificationRunId: 1,
+          reasoning: "Seems like a nitpick",
+        },
+        testDb,
+      );
+
+      // Manually reclassify
+      const result = updateClassification("review_comment", 1, "bug_correctness", testDb);
+
+      expect(result).toBeDefined();
+      expect(result!.category).toBe("bug_correctness");
+      expect(result!.confidence).toBe(100);
+      expect(result!.modelUsed).toBe("manual");
+      expect(result!.isManual).toBe(1);
+      expect(result!.reasoning).toBeNull();
+      expect(result!.classificationRunId).toBeNull();
+    });
+
+    it("returns undefined when classification does not exist", () => {
+      const result = updateClassification("review_comment", 999, "security", testDb);
+      expect(result).toBeUndefined();
+    });
+
+    it("does not affect other classifications", () => {
+      testSqlite.exec(`
+        INSERT INTO review_comments (github_id, pull_request_id, reviewer, body, created_at, updated_at)
+        VALUES (2001, 1, 'bob', 'Comment A', '2026-02-02T10:00:00Z', '2026-02-02T10:00:00Z');
+      `);
+      testSqlite.exec(`
+        INSERT INTO review_comments (github_id, pull_request_id, reviewer, body, created_at, updated_at)
+        VALUES (2002, 1, 'bob', 'Comment B', '2026-02-02T11:00:00Z', '2026-02-02T11:00:00Z');
+      `);
+
+      insertClassification(
+        { commentType: "review_comment", commentId: 1, category: "nitpick_style", confidence: 70, modelUsed: "claude-haiku", classificationRunId: 1 },
+        testDb,
+      );
+      insertClassification(
+        { commentType: "review_comment", commentId: 2, category: "performance", confidence: 80, modelUsed: "claude-haiku", classificationRunId: 1 },
+        testDb,
+      );
+
+      updateClassification("review_comment", 1, "security", testDb);
+
+      // Comment 2 should be unchanged
+      const comments = getClassifiedComments({}, {}, testDb);
+      const comment2 = comments.find((c) => c.commentId === 2 && c.commentType === "review_comment");
+      expect(comment2?.category).toBe("performance");
+      expect(comment2?.isManual).toBe(false);
+    });
+  });
+
   describe("getClassificationSummary", () => {
     it("returns category breakdown and average confidence for a run", () => {
       // Insert some classifications
@@ -363,6 +433,20 @@ describe("comment-classifications DAL (integration)", () => {
       expect(classified?.category).toBe("bug_correctness");
       expect(classified?.confidence).toBe(90);
       expect(classified?.reasoning).toBe("Points out a null pointer issue");
+      expect(classified?.isManual).toBe(false);
+    });
+
+    // US-2.16: isManual flag in getClassifiedComments
+    it("returns isManual=true for manually reclassified comments", () => {
+      updateClassification("review_comment", 1, "security", testDb);
+
+      const results = getClassifiedComments({}, {}, testDb);
+      const reclassified = results.find(
+        (c) => c.commentType === "review_comment" && c.commentId === 1,
+      );
+      expect(reclassified?.category).toBe("security");
+      expect(reclassified?.isManual).toBe(true);
+      expect(reclassified?.confidence).toBe(100);
     });
 
     it("returns unclassified comments with null classification fields", () => {

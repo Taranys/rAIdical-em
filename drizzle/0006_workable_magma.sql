@@ -1,0 +1,1 @@
+ALTER TABLE `comment_classifications` ADD `is_manual` integer DEFAULT 0 NOT NULL;
