@@ -149,6 +149,47 @@ export function ReviewQualityContent() {
     reloadComments(newFilters, sortBy, sortOrder);
   }
 
+  // US-2.16: Reclassify a comment manually
+  async function handleReclassify(
+    commentType: "review_comment" | "pr_comment",
+    commentId: number,
+    category: string,
+  ) {
+    try {
+      const res = await fetch(
+        `/api/review-quality/comments/${commentType}/${commentId}/classify`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ category }),
+        },
+      );
+      if (!res.ok) return;
+
+      // Reload both comments and summary to reflect changes everywhere
+      const [commentsData, summaryData] = await Promise.all([
+        fetchCommentsFromApi(filters, sortBy, sortOrder),
+        fetchSummaryFromApi(),
+      ]);
+      setComments(commentsData);
+      setSummary(summaryData);
+
+      // Update selected comment if it's the one being reclassified
+      if (
+        selectedComment &&
+        selectedComment.commentType === commentType &&
+        selectedComment.commentId === commentId
+      ) {
+        const updated = commentsData.find(
+          (c) => c.commentType === commentType && c.commentId === commentId,
+        );
+        setSelectedComment(updated ?? null);
+      }
+    } catch {
+      // Silently fail
+    }
+  }
+
   function handleSortChange(key: "date" | "confidence" | "category") {
     const newSortBy = key;
     let newSortOrder: "asc" | "desc" = "desc";
@@ -218,6 +259,7 @@ export function ReviewQualityContent() {
               sortOrder={sortOrder}
               onSortChange={handleSortChange}
               onSelect={setSelectedComment}
+              onReclassify={handleReclassify}
               repoUrl={repoUrl}
             />
           )}
@@ -228,6 +270,7 @@ export function ReviewQualityContent() {
       <CommentDetailSheet
         comment={selectedComment}
         onClose={() => setSelectedComment(null)}
+        onReclassify={handleReclassify}
         repoUrl={repoUrl}
       />
     </>

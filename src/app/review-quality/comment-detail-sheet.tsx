@@ -1,4 +1,5 @@
 // US-2.07: Comment detail sheet (slide-in panel with full context)
+// US-2.16: Edit classification + manual indicator
 "use client";
 
 import {
@@ -9,21 +10,34 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { CATEGORY_CONFIG } from "@/lib/category-colors";
-import type { CommentCategory } from "@/lib/llm/classifier";
-import { ExternalLink, FileCode, MessageSquare } from "lucide-react";
+import { COMMENT_CATEGORIES, type CommentCategory } from "@/lib/llm/classifier";
+import { ExternalLink, FileCode, MessageSquare, UserPen } from "lucide-react";
 import type { ClassifiedComment } from "./comments-table";
 
 interface CommentDetailSheetProps {
   comment: ClassifiedComment | null;
   onClose: () => void;
+  onReclassify: (
+    commentType: "review_comment" | "pr_comment",
+    commentId: number,
+    category: string,
+  ) => void;
   repoUrl: string | null;
 }
 
 export function CommentDetailSheet({
   comment,
   onClose,
+  onReclassify,
   repoUrl,
 }: CommentDetailSheetProps) {
   if (!comment) return null;
@@ -61,12 +75,46 @@ export function CommentDetailSheet({
                   <span className="text-sm font-mono">
                     {comment.confidence}% confidence
                   </span>
+                  {comment.isManual && (
+                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                      <UserPen className="h-3 w-3" data-testid="manual-indicator-detail" />
+                      Manual
+                    </span>
+                  )}
                 </div>
                 {comment.reasoning && (
                   <p className="text-sm text-muted-foreground italic">
                     {comment.reasoning}
                   </p>
                 )}
+                {/* US-2.16: Edit classification dropdown */}
+                <div className="pt-1">
+                  <Select
+                    value={comment.category}
+                    onValueChange={(value) => {
+                      onReclassify(comment.commentType, comment.commentId, value);
+                    }}
+                  >
+                    <SelectTrigger
+                      className="w-[200px] h-8 text-xs"
+                      data-testid="detail-category-select"
+                    >
+                      <SelectValue placeholder="Change category..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COMMENT_CATEGORIES.map((cat) => {
+                        const catConfig = CATEGORY_CONFIG[cat];
+                        return (
+                          <SelectItem key={cat} value={cat}>
+                            <span className={`${catConfig.text}`}>
+                              {catConfig.label}
+                            </span>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             ) : (
               <Badge variant="outline" className="opacity-50">
