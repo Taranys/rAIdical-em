@@ -60,6 +60,25 @@ export const HIGH_VALUE_CATEGORIES = [
   "architecture_design",
 ] as const;
 
+// US-2.13: Low-depth categories for growth opportunity detection
+export const LOW_DEPTH_CATEGORIES = [
+  "nitpick_style",
+  "question_clarification",
+] as const;
+
+// US-2.13: Low-depth comment enriched with PR context for growth opportunity detection
+export interface LowDepthCommentForGrowth {
+  commentType: "review_comment" | "pr_comment";
+  commentId: number;
+  category: string;
+  confidence: number;
+  body: string;
+  filePath: string | null;
+  prTitle: string;
+  prId: number;
+  prHadHighValueIssues: boolean;
+}
+
 // --- Queries ---
 
 // US-2.05: Find review_comments that have no classification yet
@@ -562,4 +581,166 @@ export function getTopClassifiedCommentsByMember(
 
   // Sort by confidence DESC and cap at 20 total
   return combined.sort((a, b) => b.confidence - a.confidence).slice(0, 20);
+}
+
+// US-2.13: Get low-depth comments for a team member (nitpick/question on PRs with serious issues from others)
+export function getLowDepthCommentsByMember(
+  teamMemberId: number,
+  minConfidence: number = 50,
+  dbInstance: DbInstance = defaultDb,
+): LowDepthCommentForGrowth[] {
+  // Get member's github username (needed to exclude self from "other reviewers" check)
+  const member = dbInstance
+    .select({ githubUsername: teamMembers.githubUsername })
+    .from(teamMembers)
+    .where(eq(teamMembers.id, teamMemberId))
+    .get();
+
+  if (!member) return [];
+
+  // Query A: low-depth review_comments by this member
+  const reviewResults = dbInstance
+    .select({
+      commentId: commentClassifications.commentId,
+      category: commentClassifications.category,
+      confidence: commentClassifications.confidence,
+      body: reviewComments.body,
+      filePath: reviewComments.filePath,
+      prTitle: pullRequests.title,
+      prId: pullRequests.id,
+    })
+    .from(commentClassifications)
+    .innerJoin(
+      reviewComments,
+      and(
+        eq(commentClassifications.commentType, "review_comment"),
+        eq(commentClassifications.commentId, reviewComments.id),
+      ),
+    )
+    .innerJoin(pullRequests, eq(reviewComments.pullRequestId, pullRequests.id))
+    .where(
+      and(
+        eq(reviewComments.reviewer, member.githubUsername),
+        sql`${commentClassifications.category} IN ('nitpick_style', 'question_clarification')`,
+        sql`${commentClassifications.confidence} >= ${minConfidence}`,
+      ),
+    )
+    .orderBy(desc(commentClassifications.confidence))
+    .limit(30)
+    .all();
+
+  // Query A bis: low-depth pr_comments by this member
+  const prResults = dbInstance
+    .select({
+      commentId: commentClassifications.commentId,
+      category: commentClassifications.category,
+      confidence: commentClassifications.confidence,
+      body: prComments.body,
+      prTitle: pullRequests.title,
+      prId: pullRequests.id,
+    })
+    .from(commentClassifications)
+    .innerJoin(
+      prComments,
+      and(
+        eq(commentClassifications.commentType, "pr_comment"),
+        eq(commentClassifications.commentId, prComments.id),
+      ),
+    )
+    .innerJoin(pullRequests, eq(prComments.pullRequestId, pullRequests.id))
+    .where(
+      and(
+        eq(prComments.author, member.githubUsername),
+        sql`${commentClassifications.category} IN ('nitpick_style', 'question_clarification')`,
+        sql`${commentClassifications.confidence} >= ${minConfidence}`,
+      ),
+    )
+    .orderBy(desc(commentClassifications.confidence))
+    .limit(30)
+    .all();
+
+  // Combine low-depth comments
+  const allLowDepth = [
+    ...reviewResults.map((r) => ({
+      commentType: "review_comment" as const,
+      commentId: r.commentId,
+      category: r.category,
+      confidence: r.confidence,
+      body: r.body,
+      filePath: r.filePath,
+      prTitle: r.prTitle,
+      prId: r.prId,
+    })),
+    ...prResults.map((r) => ({
+      commentType: "pr_comment" as const,
+      commentId: r.commentId,
+      category: r.category,
+      confidence: r.confidence,
+      body: r.body,
+      filePath: null as string | null,
+      prTitle: r.prTitle,
+      prId: r.prId,
+    })),
+  ];
+
+  if (allLowDepth.length === 0) return [];
+
+  // Query B: find PRs with high-value issues from OTHER reviewers
+  const prIds = [...new Set(allLowDepth.map((r) => r.prId))];
+
+  // Check review_comments from other reviewers with high-value categories
+  const highValueReviewPrs = dbInstance
+    .select({ prId: pullRequests.id })
+    .from(commentClassifications)
+    .innerJoin(
+      reviewComments,
+      and(
+        eq(commentClassifications.commentType, "review_comment"),
+        eq(commentClassifications.commentId, reviewComments.id),
+      ),
+    )
+    .innerJoin(pullRequests, eq(reviewComments.pullRequestId, pullRequests.id))
+    .where(
+      and(
+        inArray(pullRequests.id, prIds),
+        sql`${commentClassifications.category} IN ('bug_correctness', 'security')`,
+        sql`${reviewComments.reviewer} != ${member.githubUsername}`,
+      ),
+    )
+    .all();
+
+  // Check pr_comments from other authors with high-value categories
+  const highValuePrCommentPrs = dbInstance
+    .select({ prId: pullRequests.id })
+    .from(commentClassifications)
+    .innerJoin(
+      prComments,
+      and(
+        eq(commentClassifications.commentType, "pr_comment"),
+        eq(commentClassifications.commentId, prComments.id),
+      ),
+    )
+    .innerJoin(pullRequests, eq(prComments.pullRequestId, pullRequests.id))
+    .where(
+      and(
+        inArray(pullRequests.id, prIds),
+        sql`${commentClassifications.category} IN ('bug_correctness', 'security')`,
+        sql`${prComments.author} != ${member.githubUsername}`,
+      ),
+    )
+    .all();
+
+  const prsWithHighValueIssues = new Set([
+    ...highValueReviewPrs.map((r) => r.prId),
+    ...highValuePrCommentPrs.map((r) => r.prId),
+  ]);
+
+  // Enrich with prHadHighValueIssues flag, sort by confidence DESC, cap at 30
+  return allLowDepth
+    .map((c) => ({
+      ...c,
+      prHadHighValueIssues: prsWithHighValueIssues.has(c.prId),
+    }))
+    .sort((a, b) => b.confidence - a.confidence)
+    .slice(0, 30);
 }

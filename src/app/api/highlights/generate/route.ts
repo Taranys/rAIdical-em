@@ -1,7 +1,8 @@
-// US-2.12: Trigger highlight generation
+// US-2.12 / US-2.13: Trigger highlight generation (best comments + growth opportunities)
 import { NextResponse } from "next/server";
 import { getSetting } from "@/db/settings";
 import { generateBestCommentHighlights } from "@/lib/highlight-service";
+import { generateGrowthOpportunities } from "@/lib/growth-service";
 
 export const dynamic = "force-dynamic";
 
@@ -18,8 +19,8 @@ export async function POST() {
     );
   }
 
-  // Fire and forget (same pattern as /api/classify)
-  generateBestCommentHighlights();
+  // Fire and forget — launch both in parallel (same pattern as /api/classify)
+  Promise.all([generateBestCommentHighlights(), generateGrowthOpportunities()]);
 
   return NextResponse.json({ success: true });
 }

@@ -1,4 +1,4 @@
-// US-2.12: Highlights generate API route unit tests
+// US-2.12 / US-2.13: Highlights generate API route unit tests
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/db/settings", () => ({
@@ -9,9 +9,14 @@ vi.mock("@/lib/highlight-service", () => ({
   generateBestCommentHighlights: vi.fn(),
 }));
 
+vi.mock("@/lib/growth-service", () => ({
+  generateGrowthOpportunities: vi.fn(),
+}));
+
 import { POST } from "./route";
 import { getSetting } from "@/db/settings";
 import { generateBestCommentHighlights } from "@/lib/highlight-service";
+import { generateGrowthOpportunities } from "@/lib/growth-service";
 
 function setupValidSettings() {
   vi.mocked(getSetting).mockImplementation((key: string) => {
@@ -45,6 +50,12 @@ describe("POST /api/highlights/generate", () => {
       highlightsGenerated: 10,
       errors: 0,
     });
+    vi.mocked(generateGrowthOpportunities).mockResolvedValue({
+      status: "success",
+      teamMembersProcessed: 3,
+      opportunitiesGenerated: 5,
+      errors: 0,
+    });
 
     const res = await POST();
     const data = await res.json();
@@ -52,5 +63,6 @@ describe("POST /api/highlights/generate", () => {
     expect(res.status).toBe(200);
     expect(data.success).toBe(true);
     expect(generateBestCommentHighlights).toHaveBeenCalled();
+    expect(generateGrowthOpportunities).toHaveBeenCalled();
   });
 });
