@@ -12,7 +12,9 @@ test.describe("Reclassify Comment", () => {
       page.getByRole("heading", { name: "Review Quality" }),
     ).toBeVisible();
     await expect(page.getByText("Category Distribution")).toBeVisible();
-    await expect(page.getByText("Classified Comments")).toBeVisible();
+    await expect(
+      page.getByText("Classified Comments", { exact: true }),
+    ).toBeVisible();
   });
 
   test("reclassify API rejects invalid category", async ({ request }) => {
