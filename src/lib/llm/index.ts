@@ -12,3 +12,6 @@ export { buildHighlightPrompt, parseHighlightResponse, isHighlightError } from "
 // US-2.13: Growth opportunity detection prompt engineering
 export type { CommentForGrowthEvaluation, GrowthOpportunityInput, GrowthOpportunitySelection, GrowthOpportunityResult, GrowthOpportunityParseError } from "./growth-detector";
 export { buildGrowthOpportunityPrompt, parseGrowthOpportunityResponse, isGrowthOpportunityError } from "./growth-detector";
+// US-2.10: Soft skill assessment prompt engineering
+export type { SoftSkillComment, SoftSkillDefinition, SoftSkillInput, SoftSkillScore, SoftSkillResult, SoftSkillParseError } from "./soft-skill-assessor";
+export { buildSoftSkillPrompt, parseSoftSkillResponse, isSoftSkillError } from "./soft-skill-assessor";
