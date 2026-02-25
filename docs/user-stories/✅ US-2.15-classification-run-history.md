@@ -2,7 +2,7 @@
 
 **Phase:** 2 — Review Quality Analysis
 **Epic:** E — Operations & Observability
-**Status:** Todo
+**Status:** Done
 
 ## Story
 
@@ -15,11 +15,11 @@ As an engineering manager, I want to view the history of classification runs so 
 
 ## Acceptance Criteria
 
-- [ ] A "Classification History" section is available on the Review Quality page (or Settings > AI/LLM)
-- [ ] Each run displays: start time, duration, status (running/success/error), comments processed, model used, error count
-- [ ] Failed runs show the error message and allow re-running
-- [ ] A running total of LLM API calls and estimated token usage is tracked per run
-- [ ] The list is paginated (most recent first)
+- [x] A "Classification History" section is available on the Review Quality page (or Settings > AI/LLM)
+- [x] Each run displays: start time, duration, status (running/success/error), comments processed, model used, error count
+- [x] Failed runs show the error message and allow re-running
+- [x] A running total of LLM API calls and estimated token usage is tracked per run
+- [x] The list is paginated (most recent first)
 
 ## Plan and implementation details
 
