@@ -33,6 +33,7 @@ if (_existing?.sqlite?.open) {
 } else {
   const sq = new Database(DB_PATH);
   sq.pragma("journal_mode = WAL");
+  sq.pragma("busy_timeout = 5000");
   _state = { sqlite: sq, db: drizzle(sq, { schema }) };
   (globalThis as Record<string, unknown>)[globalKey] = _state;
 }
@@ -90,6 +91,7 @@ export function replaceDatabase(newFilePath: string): void {
   // consumers see the new instance as soon as _state is updated.
   const newSqlite = new Database(DB_PATH);
   newSqlite.pragma("journal_mode = WAL");
+  newSqlite.pragma("busy_timeout = 5000");
   _state.sqlite = newSqlite;
   _state.db = drizzle(newSqlite, { schema });
 }

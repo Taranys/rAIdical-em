@@ -9,6 +9,7 @@ import { classifyPullRequest, DEFAULT_AI_HEURISTICS, type AiHeuristicsConfig } f
 import { getSetting } from "@/db/settings";
 import { classifyComments } from "@/lib/classification-service";
 import { getActiveClassificationRun } from "@/db/classification-runs";
+import { computeSeniorityProfiles } from "@/lib/seniority-profile-service";
 
 
 function mapPRState(pr: { state: string; merged_at: string | null }): "open" | "closed" | "merged" {
@@ -194,6 +195,18 @@ export async function syncPullRequests(
       }
     } catch {
       // Silently ignore — errors are recorded in classification_runs table
+    }
+
+    // US-2.10: Auto-compute seniority profiles after classification
+    try {
+      const llmProvider = getSetting("llm_provider");
+      const llmModel = getSetting("llm_model");
+      const llmApiKey = getSetting("llm_api_key");
+      if (llmProvider && llmModel && llmApiKey) {
+        computeSeniorityProfiles().catch(() => {});
+      }
+    } catch {
+      // Silently ignore — errors are recorded in seniority_profiles table
     }
   } catch (error) {
     completeSyncRun(

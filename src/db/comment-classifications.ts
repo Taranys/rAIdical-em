@@ -940,3 +940,98 @@ export function getLowDepthCommentsByMember(
     .sort((a, b) => b.confidence - a.confidence)
     .slice(0, 30);
 }
+
+// --- US-2.10: Classified comments with file paths for seniority profile computation ---
+
+export interface ClassifiedCommentForProfile {
+  reviewer: string;
+  filePath: string | null;
+  category: string;
+  confidence: number;
+  body: string;
+  prTitle: string;
+}
+
+// US-2.10: Get all classified comments (both types) for a set of reviewers in a period
+export function getClassifiedCommentsForProfile(
+  teamUsernames: string[],
+  startDate: string,
+  endDate: string,
+  dbInstance: DbInstance = defaultDb,
+): ClassifiedCommentForProfile[] {
+  if (teamUsernames.length === 0) return [];
+
+  // Review comments (with file path)
+  const reviewResults = dbInstance
+    .select({
+      reviewer: reviewComments.reviewer,
+      filePath: reviewComments.filePath,
+      category: commentClassifications.category,
+      confidence: commentClassifications.confidence,
+      body: reviewComments.body,
+      prTitle: pullRequests.title,
+    })
+    .from(commentClassifications)
+    .innerJoin(
+      reviewComments,
+      and(
+        eq(commentClassifications.commentType, sql`'review_comment'`),
+        eq(commentClassifications.commentId, reviewComments.id),
+      ),
+    )
+    .innerJoin(pullRequests, eq(reviewComments.pullRequestId, pullRequests.id))
+    .where(
+      and(
+        inArray(reviewComments.reviewer, teamUsernames),
+        gte(reviewComments.createdAt, startDate),
+        lt(reviewComments.createdAt, endDate),
+      ),
+    )
+    .all();
+
+  // PR comments (no file path)
+  const prResults = dbInstance
+    .select({
+      reviewer: prComments.author,
+      category: commentClassifications.category,
+      confidence: commentClassifications.confidence,
+      body: prComments.body,
+      prTitle: pullRequests.title,
+    })
+    .from(commentClassifications)
+    .innerJoin(
+      prComments,
+      and(
+        eq(commentClassifications.commentType, sql`'pr_comment'`),
+        eq(commentClassifications.commentId, prComments.id),
+      ),
+    )
+    .innerJoin(pullRequests, eq(prComments.pullRequestId, pullRequests.id))
+    .where(
+      and(
+        inArray(prComments.author, teamUsernames),
+        gte(prComments.createdAt, startDate),
+        lt(prComments.createdAt, endDate),
+      ),
+    )
+    .all();
+
+  return [
+    ...reviewResults.map((r) => ({
+      reviewer: r.reviewer,
+      filePath: r.filePath,
+      category: r.category,
+      confidence: r.confidence,
+      body: r.body,
+      prTitle: r.prTitle,
+    })),
+    ...prResults.map((r) => ({
+      reviewer: r.reviewer,
+      filePath: null as string | null,
+      category: r.category,
+      confidence: r.confidence,
+      body: r.body,
+      prTitle: r.prTitle,
+    })),
+  ];
+}
