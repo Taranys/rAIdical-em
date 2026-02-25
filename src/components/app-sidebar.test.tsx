@@ -64,7 +64,7 @@ describe("AppSidebar", () => {
   it("renders all navigation links", () => {
     renderSidebar();
     expect(screen.getByRole("link", { name: /Dashboard/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Team/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Team$/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Sync/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Settings/i })).toBeInTheDocument();
   });
@@ -72,7 +72,7 @@ describe("AppSidebar", () => {
   it("links point to correct URLs", () => {
     renderSidebar();
     expect(screen.getByRole("link", { name: /Dashboard/i })).toHaveAttribute("href", "/");
-    expect(screen.getByRole("link", { name: /Team/i })).toHaveAttribute("href", "/team");
+    expect(screen.getByRole("link", { name: /^Team$/i })).toHaveAttribute("href", "/team");
     expect(screen.getByRole("link", { name: /Sync/i })).toHaveAttribute("href", "/sync");
     expect(screen.getByRole("link", { name: /Settings/i })).toHaveAttribute("href", "/settings");
   });
@@ -82,7 +82,7 @@ describe("AppSidebar", () => {
     renderSidebar();
 
     expect(screen.getByRole("link", { name: /Dashboard/i })).toHaveAttribute("data-active", "true");
-    expect(screen.getByRole("link", { name: /Team/i })).toHaveAttribute("data-active", "false");
+    expect(screen.getByRole("link", { name: /^Team$/i })).toHaveAttribute("data-active", "false");
     expect(screen.getByRole("link", { name: /Sync/i })).toHaveAttribute("data-active", "false");
     expect(screen.getByRole("link", { name: /Settings/i })).toHaveAttribute("data-active", "false");
   });
@@ -92,7 +92,7 @@ describe("AppSidebar", () => {
     renderSidebar();
 
     expect(screen.getByRole("link", { name: /Dashboard/i })).toHaveAttribute("data-active", "false");
-    expect(screen.getByRole("link", { name: /Team/i })).toHaveAttribute("data-active", "true");
+    expect(screen.getByRole("link", { name: /^Team$/i })).toHaveAttribute("data-active", "true");
     expect(screen.getByRole("link", { name: /Sync/i })).toHaveAttribute("data-active", "false");
     expect(screen.getByRole("link", { name: /Settings/i })).toHaveAttribute("data-active", "false");
   });
@@ -102,7 +102,7 @@ describe("AppSidebar", () => {
     renderSidebar();
 
     expect(screen.getByRole("link", { name: /Dashboard/i })).toHaveAttribute("data-active", "false");
-    expect(screen.getByRole("link", { name: /Team/i })).toHaveAttribute("data-active", "false");
+    expect(screen.getByRole("link", { name: /^Team$/i })).toHaveAttribute("data-active", "false");
     expect(screen.getByRole("link", { name: /Sync/i })).toHaveAttribute("data-active", "true");
     expect(screen.getByRole("link", { name: /Settings/i })).toHaveAttribute("data-active", "false");
   });
@@ -112,7 +112,7 @@ describe("AppSidebar", () => {
     renderSidebar();
 
     expect(screen.getByRole("link", { name: /Dashboard/i })).toHaveAttribute("data-active", "false");
-    expect(screen.getByRole("link", { name: /Team/i })).toHaveAttribute("data-active", "false");
+    expect(screen.getByRole("link", { name: /^Team$/i })).toHaveAttribute("data-active", "false");
     expect(screen.getByRole("link", { name: /Sync/i })).toHaveAttribute("data-active", "false");
     expect(screen.getByRole("link", { name: /Settings/i })).toHaveAttribute("data-active", "true");
   });
