@@ -124,3 +124,14 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* US-2.14: Print-friendly layout for 1:1 preparation page */
+@media print {
+  [data-sidebar="sidebar"] {
+    display: none !important;
+  }
+  main {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+}
