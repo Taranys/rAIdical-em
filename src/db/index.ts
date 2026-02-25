@@ -58,8 +58,13 @@ export const sqlite: typeof _state.sqlite = new Proxy(
   },
 );
 
-// Auto-run migrations on startup
-if (fs.existsSync(migrationsFolder)) {
+// Auto-run migrations on startup (guard against double-evaluation by Next.js server chunks)
+const migrateKey = "__em_ct_migrated__" as const;
+if (
+  !(globalThis as Record<string, unknown>)[migrateKey] &&
+  fs.existsSync(migrationsFolder)
+) {
+  (globalThis as Record<string, unknown>)[migrateKey] = true;
   migrate(_state.db, { migrationsFolder });
 }
 

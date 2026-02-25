@@ -12,7 +12,8 @@ test.describe("Application Shell and Navigation", () => {
     // All navigation links present
     await expect(sidebar.getByRole("link", { name: "Dashboard" })).toBeVisible();
     await expect(sidebar.getByRole("link", { name: "Review Quality" })).toBeVisible();
-    await expect(sidebar.getByRole("link", { name: "Team" })).toBeVisible();
+    await expect(sidebar.getByRole("link", { name: "Team", exact: true })).toBeVisible();
+    await expect(sidebar.getByRole("link", { name: "Team Profiles" })).toBeVisible();
     await expect(sidebar.getByRole("link", { name: "Sync" })).toBeVisible();
     await expect(sidebar.getByRole("link", { name: "Settings" })).toBeVisible();
   });
@@ -31,10 +32,10 @@ test.describe("Application Shell and Navigation", () => {
     const sidebar = page.locator("[data-slot='sidebar']");
 
     // Navigate to Team page
-    await sidebar.getByRole("link", { name: "Team" }).click();
+    await sidebar.getByRole("link", { name: "Team", exact: true }).click();
     await expect(page).toHaveURL("/team");
     await expect(page.getByRole("heading", { name: "Team Members" })).toBeVisible();
-    await expect(sidebar.getByRole("link", { name: "Team" })).toHaveAttribute("data-active", "true");
+    await expect(sidebar.getByRole("link", { name: "Team", exact: true })).toHaveAttribute("data-active", "true");
 
     // Navigate to Settings page
     await sidebar.getByRole("link", { name: "Settings" }).click();
