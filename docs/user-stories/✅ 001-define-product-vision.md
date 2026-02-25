@@ -5,7 +5,7 @@
 
 ## Story
 
-As an engineering manager, I want a clear product vision document so that all future contributors understand the purpose, philosophy, and roadmap of em-control-tower.
+As an engineering manager, I want a clear product vision document so that all future contributors understand the purpose, philosophy, and roadmap of rAIdical-em.
 
 ## Dependencies
 

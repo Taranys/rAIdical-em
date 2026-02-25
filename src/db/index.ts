@@ -5,7 +5,7 @@ import * as schema from "./schema";
 import path from "node:path";
 import fs from "node:fs";
 
-export const DB_PATH = path.join(process.cwd(), "data", "em-control-tower.db");
+export const DB_PATH = path.join(process.cwd(), "data", "rAIdical-em.db");
 const migrationsFolder = path.join(process.cwd(), "drizzle");
 
 // Ensure data directory exists

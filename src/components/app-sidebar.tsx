@@ -99,7 +99,7 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-2">
-          <span className="text-lg font-bold">em-control-tower</span>
+          <span className="text-lg font-bold">rAIdical-em</span>
         </div>
       </SidebarHeader>
       <SidebarContent>

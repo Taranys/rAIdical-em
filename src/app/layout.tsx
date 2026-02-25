@@ -6,9 +6,9 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { VibeKanbanDevTools } from "@/components/vibe-kanban-web-companion";
 
 export const metadata: Metadata = {
-  title: "em-control-tower",
+  title: "rAIdical-em",
   description:
-    "Engineering Manager Control Tower — Track team performance, review quality, and prepare better 1:1s.",
+    "rAIdical-em — Track team performance, review quality, and prepare better 1:1s.",
 };
 
 export default function RootLayout({
