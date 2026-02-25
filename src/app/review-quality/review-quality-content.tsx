@@ -17,6 +17,7 @@ import { CommentDetailSheet } from "./comment-detail-sheet";
 import { CategoryDonutChart } from "./category-donut-chart";
 import { CategoryPerPersonChart } from "./category-per-person-chart";
 import { CategoryTrendChart } from "./category-trend-chart";
+import { ClassificationRunHistory } from "./classification-run-history";
 
 interface CategoryDistribution {
   category: string;
@@ -360,6 +361,19 @@ export function ReviewQualityContent() {
               repoUrl={repoUrl}
             />
           )}
+        </CardContent>
+      </Card>
+
+      {/* US-2.15: Classification Run History */}
+      <Card className="mt-6" id="classification-history">
+        <CardHeader>
+          <CardTitle>Classification Run History</CardTitle>
+          <CardDescription>
+            History of all comment classification runs with status, duration, and error details.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ClassificationRunHistory />
         </CardContent>
       </Card>
 
