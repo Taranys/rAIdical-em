@@ -57,8 +57,15 @@ export async function syncPullRequests(
       listParams as Parameters<typeof octokit.rest.pulls.list>[0],
     );
 
+    // Filter PRs by created_at when since is provided.
+    // GitHub's pulls.list `since` param filters by updated_at, which includes
+    // old PRs with recent activity. We want only PRs created in the period.
+    const filteredPRs = since
+      ? prList.filter((pr) => pr.created_at >= since)
+      : prList;
+
     // Fetch detail for each PR to get stats
-    for (const item of prList) {
+    for (const item of filteredPRs) {
       const { data: pr } = await octokit.rest.pulls.get({
         owner,
         repo,
