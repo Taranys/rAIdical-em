@@ -101,6 +101,32 @@ export function replaceDatabase(newFilePath: string): void {
   _state.db = drizzle(newSqlite, { schema });
 }
 
+// Reset the database to a blank state: drop the file and re-run migrations.
+export function resetDatabase(): void {
+  _state.sqlite.close();
+
+  // Remove DB file + WAL/SHM
+  for (const suffix of ["", "-wal", "-shm"]) {
+    try {
+      fs.unlinkSync(DB_PATH + suffix);
+    } catch {
+      // May not exist — that's fine
+    }
+  }
+
+  // Open fresh connection (better-sqlite3 auto-creates the file)
+  const newSqlite = new Database(DB_PATH);
+  newSqlite.pragma("journal_mode = WAL");
+  newSqlite.pragma("busy_timeout = 5000");
+  _state.sqlite = newSqlite;
+  _state.db = drizzle(newSqlite, { schema });
+
+  // Re-run migrations to recreate all tables
+  if (fs.existsSync(migrationsFolder)) {
+    migrate(_state.db, { migrationsFolder });
+  }
+}
+
 // Backfill team member colors (one-time, idempotent)
 // Uses raw SQL to avoid circular import with team-members.ts
 const BACKFILL_PALETTE = [

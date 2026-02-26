@@ -6,6 +6,7 @@ import { GitHubPatForm } from "./github-pat-form";
 import { GitHubRepoForm } from "./github-repo-form";
 import { LlmProviderForm } from "./llm-provider-form";
 import { DatabaseImportForm } from "./database-import-form";
+import { DatabaseResetForm } from "./database-reset-form";
 
 export default function SettingsPage() {
   const [isPatConfigured, setIsPatConfigured] = useState<boolean | undefined>(undefined);
@@ -18,6 +19,7 @@ export default function SettingsPage() {
         <GitHubRepoForm isPatConfigured={isPatConfigured} />
         <LlmProviderForm />
         <DatabaseImportForm />
+        <DatabaseResetForm />
       </div>
     </div>
   );
