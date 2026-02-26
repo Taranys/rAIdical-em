@@ -18,6 +18,8 @@ import { CategoryDonutChart } from "./category-donut-chart";
 import { CategoryPerPersonChart } from "./category-per-person-chart";
 import { CategoryTrendChart } from "./category-trend-chart";
 import { ClassificationRunHistory } from "./classification-run-history";
+import { MonthNavigator } from "./month-navigator";
+import { getMonthStart, getMonthEnd } from "@/lib/date-periods";
 
 interface CategoryDistribution {
   category: string;
@@ -61,13 +63,25 @@ interface Filters {
   minConfidence: string;
 }
 
-const DEFAULT_FILTERS: Filters = {
-  category: "all",
-  reviewer: "all",
-  dateStart: "",
-  dateEnd: "",
-  minConfidence: "",
-};
+function toDateString(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function getInitialMonth(): Date {
+  return new Date();
+}
+
+function getFiltersForMonth(month: Date, base?: Filters): Filters {
+  return {
+    ...(base ?? { category: "all", reviewer: "all", minConfidence: "" }),
+    dateStart: toDateString(getMonthStart(month)),
+    dateEnd: toDateString(getMonthEnd(month)),
+  };
+}
+
+const INITIAL_MONTH = getInitialMonth();
+
+const DEFAULT_FILTERS: Filters = getFiltersForMonth(INITIAL_MONTH);
 
 const DEFAULT_CHART_DATA: ChartData = {
   teamDistribution: [],
@@ -145,6 +159,7 @@ export function ReviewQualityContent() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [selectedComment, setSelectedComment] =
     useState<ClassifiedComment | null>(null);
+  const [currentMonth, setCurrentMonth] = useState<Date>(INITIAL_MONTH);
   const [isLoading, setIsLoading] = useState(true);
   const initRef = useRef(false);
 
@@ -204,6 +219,12 @@ export function ReviewQualityContent() {
     setFilters(newFilters);
     reloadComments(newFilters, sortBy, sortOrder);
     reloadCharts(newFilters);
+  }
+
+  function handleMonthChange(month: Date) {
+    setCurrentMonth(month);
+    const newFilters = getFiltersForMonth(month, filters);
+    handleFiltersChange(newFilters);
   }
 
   // US-2.16: Reclassify a comment manually
@@ -342,10 +363,18 @@ export function ReviewQualityContent() {
       {/* Comments table */}
       <Card>
         <CardHeader>
-          <CardTitle>Classified Comments</CardTitle>
-          <CardDescription>
-            Click a row to view full details. Sort by clicking column headers.
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Classified Comments</CardTitle>
+              <CardDescription>
+                Click a row to view full details. Sort by clicking column headers.
+              </CardDescription>
+            </div>
+            <MonthNavigator
+              currentMonth={currentMonth}
+              onMonthChange={handleMonthChange}
+            />
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
