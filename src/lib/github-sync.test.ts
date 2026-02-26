@@ -680,6 +680,38 @@ describe("syncPullRequests", () => {
     });
   });
 
+  it("filters out PRs created before sinceDate", async () => {
+    const sinceDate = "2026-01-01T00:00:00Z";
+    mockPaginate.mockResolvedValue([
+      makeListItem({ number: 1, created_at: "2025-11-15T10:00:00Z" }), // before quarter
+      makeListItem({ number: 2, id: 99999, created_at: "2026-02-01T10:00:00Z" }), // in quarter
+    ]);
+    mockPullsGet.mockResolvedValue({ data: makeDetailPR({ number: 2, id: 99999, created_at: "2026-02-01T10:00:00Z" }) });
+
+    await syncPullRequests("owner", "repo", "ghp_token", 1, sinceDate);
+
+    // Only PR #2 should be fetched and upserted
+    expect(mockPullsGet).toHaveBeenCalledTimes(1);
+    expect(mockPullsGet).toHaveBeenCalledWith({ owner: "owner", repo: "repo", pull_number: 2 });
+    expect(upsertPullRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it("includes all PRs when since is undefined (full sync)", async () => {
+    mockPaginate.mockResolvedValue([
+      makeListItem({ number: 1, created_at: "2024-01-01T10:00:00Z" }),
+      makeListItem({ number: 2, id: 99999, created_at: "2025-06-01T10:00:00Z" }),
+    ]);
+    mockPullsGet
+      .mockResolvedValueOnce({ data: makeDetailPR({ number: 1, created_at: "2024-01-01T10:00:00Z" }) })
+      .mockResolvedValueOnce({ data: makeDetailPR({ number: 2, id: 99999, created_at: "2025-06-01T10:00:00Z" }) });
+
+    await syncPullRequests("owner", "repo", "ghp_token", 1);
+
+    // Both PRs should be fetched
+    expect(mockPullsGet).toHaveBeenCalledTimes(2);
+    expect(upsertPullRequest).toHaveBeenCalledTimes(2);
+  });
+
   // US-2.06: Auto-classification after sync tests
   it("triggers auto-classification after successful sync when setting is enabled", async () => {
     vi.mocked(getSetting).mockImplementation((key: string) => {
