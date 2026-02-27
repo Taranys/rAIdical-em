@@ -73,6 +73,10 @@ vi.mock("@/db/classification-runs", () => ({
   getActiveClassificationRun: vi.fn(),
 }));
 
+vi.mock("@/db/team-members", () => ({
+  getActiveTeamMemberUsernames: vi.fn(),
+}));
+
 import { syncPullRequests, fetchRateLimit } from "./github-sync";
 import { upsertPullRequest } from "@/db/pull-requests";
 import { upsertReview } from "@/db/reviews";
@@ -83,6 +87,7 @@ import { classifyPullRequest } from "@/lib/ai-detection";
 import { getSetting } from "@/db/settings";
 import { classifyComments } from "@/lib/classification-service";
 import { getActiveClassificationRun } from "@/db/classification-runs";
+import { getActiveTeamMemberUsernames } from "@/db/team-members";
 
 function makeListItem(overrides: Record<string, unknown> = {}) {
   return {
@@ -188,6 +193,8 @@ describe("syncPullRequests", () => {
     mockPullsListCommits.mockResolvedValue({ data: [] });
     vi.mocked(classifyPullRequest).mockReturnValue("human");
     vi.mocked(getSetting).mockReturnValue(null);
+    // Default: no team members = no filtering (backward-compatible)
+    vi.mocked(getActiveTeamMemberUsernames).mockReturnValue(new Set());
     // US-2.06: Default auto-classify mocks
     vi.mocked(getActiveClassificationRun).mockReturnValue(null);
     vi.mocked(classifyComments).mockResolvedValue({
@@ -847,6 +854,119 @@ describe("syncPullRequests", () => {
 
     expect(completeSyncRun).toHaveBeenCalledWith(1, "success", 1, null, 0, 0);
     expect(classifyComments).toHaveBeenCalled();
+  });
+
+  // Team-scoped sync filtering tests
+  it("filters out reviews from non-team members when team members exist", async () => {
+    vi.mocked(getActiveTeamMemberUsernames).mockReturnValue(new Set(["reviewer1"]));
+    setupOpenPRWithReviews([
+      makeReview({ id: 200001, user: { login: "reviewer1" } }),
+      makeReview({ id: 200002, user: { login: "external-user" } }),
+    ]);
+
+    await syncPullRequests("owner", "repo", "ghp_token", 1);
+
+    expect(upsertReview).toHaveBeenCalledTimes(1);
+    expect(upsertReview).toHaveBeenCalledWith(
+      expect.objectContaining({ reviewer: "reviewer1" }),
+    );
+  });
+
+  it("filters out review comments from non-team members when team members exist", async () => {
+    vi.mocked(getActiveTeamMemberUsernames).mockReturnValue(new Set(["reviewer1"]));
+    mockPaginate.mockResolvedValue([makeListItem()]);
+    mockPullsGet.mockResolvedValue({ data: makeDetailPR() });
+    vi.mocked(upsertPullRequest).mockReturnValue(defaultDbPR);
+    mockPullsListReviews.mockResolvedValue({ data: [] });
+    mockPullsListReviewComments.mockResolvedValue({
+      data: [
+        makeReviewComment({ id: 300001, user: { login: "reviewer1" } }),
+        makeReviewComment({ id: 300002, user: { login: "external-bot" } }),
+      ],
+    });
+    mockIssuesListComments.mockResolvedValue({ data: [] });
+
+    await syncPullRequests("owner", "repo", "ghp_token", 1);
+
+    expect(upsertReviewComment).toHaveBeenCalledTimes(1);
+    expect(upsertReviewComment).toHaveBeenCalledWith(
+      expect.objectContaining({ reviewer: "reviewer1" }),
+    );
+  });
+
+  it("filters out PR comments from non-team members when team members exist", async () => {
+    vi.mocked(getActiveTeamMemberUsernames).mockReturnValue(new Set(["commenter1"]));
+    mockPaginate.mockResolvedValue([makeListItem()]);
+    mockPullsGet.mockResolvedValue({ data: makeDetailPR() });
+    vi.mocked(upsertPullRequest).mockReturnValue(defaultDbPR);
+    mockPullsListReviews.mockResolvedValue({ data: [] });
+    mockPullsListReviewComments.mockResolvedValue({ data: [] });
+    mockIssuesListComments.mockResolvedValue({
+      data: [
+        makePrComment({ id: 400001, user: { login: "commenter1" } }),
+        makePrComment({ id: 400002, user: { login: "random-contributor" } }),
+      ],
+    });
+
+    await syncPullRequests("owner", "repo", "ghp_token", 1);
+
+    expect(upsertPrComment).toHaveBeenCalledTimes(1);
+    expect(upsertPrComment).toHaveBeenCalledWith(
+      expect.objectContaining({ author: "commenter1" }),
+    );
+  });
+
+  it("persists all reviews and comments when no team members exist (backward compatibility)", async () => {
+    vi.mocked(getActiveTeamMemberUsernames).mockReturnValue(new Set());
+    mockPaginate.mockResolvedValue([makeListItem()]);
+    mockPullsGet.mockResolvedValue({ data: makeDetailPR() });
+    vi.mocked(upsertPullRequest).mockReturnValue(defaultDbPR);
+    mockPullsListReviews.mockResolvedValue({
+      data: [makeReview({ user: { login: "anyone" } })],
+    });
+    mockPullsListReviewComments.mockResolvedValue({
+      data: [makeReviewComment({ user: { login: "anyone" } })],
+    });
+    mockIssuesListComments.mockResolvedValue({
+      data: [makePrComment({ user: { login: "anyone" } })],
+    });
+
+    await syncPullRequests("owner", "repo", "ghp_token", 1);
+
+    expect(upsertReview).toHaveBeenCalledTimes(1);
+    expect(upsertReviewComment).toHaveBeenCalledTimes(1);
+    expect(upsertPrComment).toHaveBeenCalledTimes(1);
+  });
+
+  it("sync counts only include team member items when filtering is active", async () => {
+    vi.mocked(getActiveTeamMemberUsernames).mockReturnValue(new Set(["reviewer1"]));
+    mockPaginate.mockResolvedValue([makeListItem()]);
+    mockPullsGet.mockResolvedValue({ data: makeDetailPR() });
+    vi.mocked(upsertPullRequest).mockReturnValue(defaultDbPR);
+    mockPullsListReviews.mockResolvedValue({
+      data: [
+        makeReview({ id: 200001, user: { login: "reviewer1" } }),
+        makeReview({ id: 200002, user: { login: "external" } }),
+      ],
+    });
+    mockPullsListReviewComments.mockResolvedValue({
+      data: [
+        makeReviewComment({ id: 300001, user: { login: "reviewer1" } }),
+        makeReviewComment({ id: 300002, user: { login: "external" } }),
+        makeReviewComment({ id: 300003, user: { login: "external2" } }),
+      ],
+    });
+    mockIssuesListComments.mockResolvedValue({
+      data: [
+        makePrComment({ id: 400001, user: { login: "reviewer1" } }),
+        makePrComment({ id: 400002, user: { login: "external" } }),
+      ],
+    });
+
+    await syncPullRequests("owner", "repo", "ghp_token", 1);
+
+    // 1 review (reviewer1), 2 comments (1 review comment + 1 PR comment from reviewer1)
+    expect(completeSyncRun).toHaveBeenCalledWith(1, "success", 1, null, 1, 2);
   });
 });
 
