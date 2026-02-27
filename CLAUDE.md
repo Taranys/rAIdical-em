@@ -68,6 +68,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Key Conventions
 
+- **Base branch a jour:** Avant de demarrer une analyse, si ta base branch est `main`, verifie toujours qu'elle est a jour avec `origin/main` (via `git fetch origin main` puis comparaison ou `git pull`).
 - **KISS:** Keep solutions simple. Avoid overengineering — prefer the simplest approach that works and refactor later when needed.
 - Use Server Components by default; add "use client" only when needed
 - Database access only in Server Components or API routes (never in client code)
