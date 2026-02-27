@@ -347,7 +347,7 @@ export function ImportGitHubSheet({
                   disabled={isImporting}
                   aria-label="Select a team"
                 >
-                  <option value="">All members</option>
+                  <option value="">Choose a team</option>
                   {teams.map((team) => (
                     <option key={team.slug} value={team.slug}>
                       {team.name}

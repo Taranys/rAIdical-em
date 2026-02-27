@@ -439,7 +439,7 @@ describe("ImportGitHubSheet", () => {
     // Team selector should show options
     const teamSelect = screen.getByLabelText(/select a team/i);
     expect(teamSelect).toBeInTheDocument();
-    expect(screen.getByText("All members")).toBeInTheDocument();
+    expect(screen.getByText("Choose a team")).toBeInTheDocument();
     expect(screen.getByText("Frontend Team")).toBeInTheDocument();
     expect(screen.getByText("Backend Team")).toBeInTheDocument();
   });
@@ -577,7 +577,7 @@ describe("ImportGitHubSheet", () => {
       );
     });
 
-    // Deselect team (back to "All members")
+    // Deselect team (back to "Choose a team")
     fireEvent.change(screen.getByLabelText(/select a team/i), {
       target: { value: "" },
     });
