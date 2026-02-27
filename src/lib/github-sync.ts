@@ -10,6 +10,7 @@ import { getSetting } from "@/db/settings";
 import { classifyComments } from "@/lib/classification-service";
 import { getActiveClassificationRun } from "@/db/classification-runs";
 import { computeSeniorityProfiles } from "@/lib/seniority-profile-service";
+import { getActiveTeamMemberUsernames } from "@/db/team-members";
 
 
 function mapPRState(pr: { state: string; merged_at: string | null }): "open" | "closed" | "merged" {
@@ -28,6 +29,10 @@ export async function syncPullRequests(
   let prCount = 0;
   let reviewCount = 0;
   let commentCount = 0;
+
+  // Load active team member usernames for filtering comments/reviews
+  const teamUsernames = getActiveTeamMemberUsernames();
+  const shouldFilter = teamUsernames.size > 0;
 
   // US-020: Load AI heuristics config once for the entire sync
   let aiConfig: AiHeuristicsConfig = DEFAULT_AI_HEURISTICS;
@@ -120,10 +125,12 @@ export async function syncPullRequests(
         });
 
         for (const review of reviews) {
+          const reviewer = review.user?.login ?? "unknown";
+          if (shouldFilter && !teamUsernames.has(reviewer)) continue;
           upsertReview({
             githubId: review.id,
             pullRequestId: dbPR.id,
-            reviewer: review.user?.login ?? "unknown",
+            reviewer,
             state: review.state,
             submittedAt: review.submitted_at ?? new Date().toISOString(),
           });
@@ -142,10 +149,12 @@ export async function syncPullRequests(
         });
 
         for (const comment of reviewComments) {
+          const reviewer = comment.user?.login ?? "unknown";
+          if (shouldFilter && !teamUsernames.has(reviewer)) continue;
           upsertReviewComment({
             githubId: comment.id,
             pullRequestId: dbPR.id,
-            reviewer: comment.user?.login ?? "unknown",
+            reviewer,
             body: comment.body ?? "",
             filePath: comment.path ?? null,
             line: comment.line ?? null,
@@ -167,10 +176,12 @@ export async function syncPullRequests(
         });
 
         for (const comment of issueComments) {
+          const author = comment.user?.login ?? "unknown";
+          if (shouldFilter && !teamUsernames.has(author)) continue;
           upsertPrComment({
             githubId: comment.id,
             pullRequestId: dbPR.id,
-            author: comment.user?.login ?? "unknown",
+            author,
             body: comment.body ?? "",
             createdAt: comment.created_at,
             updatedAt: comment.updated_at,

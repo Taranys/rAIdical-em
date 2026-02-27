@@ -9,6 +9,7 @@ import {
   createTeamMember,
   deactivateTeamMember,
   getActiveTeamMemberColors,
+  getActiveTeamMemberUsernames,
 } from "./team-members";
 
 describe("team-members DAL (integration)", () => {
@@ -213,5 +214,38 @@ describe("team-members DAL (integration)", () => {
 
   it("getActiveTeamMemberColors returns empty array when no members", () => {
     expect(getActiveTeamMemberColors(testDb)).toEqual([]);
+  });
+
+  // getActiveTeamMemberUsernames tests
+  it("getActiveTeamMemberUsernames returns set of active member usernames", () => {
+    createTeamMember(
+      { githubUsername: "alice", displayName: "Alice", avatarUrl: null, color: "#E25A3B" },
+      testDb,
+    );
+    createTeamMember(
+      { githubUsername: "bob", displayName: "Bob", avatarUrl: null, color: "#2A9D8F" },
+      testDb,
+    );
+    createTeamMember(
+      { githubUsername: "charlie", displayName: "Charlie", avatarUrl: null, color: "#264653" },
+      testDb,
+    );
+    // Deactivate charlie
+    testSqlite.exec(
+      "UPDATE team_members SET is_active = 0 WHERE github_username = 'charlie'",
+    );
+
+    const usernames = getActiveTeamMemberUsernames(testDb);
+    expect(usernames).toBeInstanceOf(Set);
+    expect(usernames.size).toBe(2);
+    expect(usernames.has("alice")).toBe(true);
+    expect(usernames.has("bob")).toBe(true);
+    expect(usernames.has("charlie")).toBe(false);
+  });
+
+  it("getActiveTeamMemberUsernames returns empty set when no members", () => {
+    const usernames = getActiveTeamMemberUsernames(testDb);
+    expect(usernames).toBeInstanceOf(Set);
+    expect(usernames.size).toBe(0);
   });
 });

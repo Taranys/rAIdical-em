@@ -66,6 +66,17 @@ export function getActiveTeamMemberColors(
     .map((row) => row.color);
 }
 
+export function getActiveTeamMemberUsernames(
+  dbInstance: DbInstance = defaultDb,
+): Set<string> {
+  const rows = dbInstance
+    .select({ githubUsername: teamMembers.githubUsername })
+    .from(teamMembers)
+    .where(eq(teamMembers.isActive, 1))
+    .all();
+  return new Set(rows.map((row) => row.githubUsername));
+}
+
 // US-008: Soft-delete a team member (set isActive = 0)
 export function deactivateTeamMember(
   id: number,

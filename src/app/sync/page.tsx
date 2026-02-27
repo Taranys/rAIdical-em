@@ -26,11 +26,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   RefreshCw,
   CheckCircle2,
   AlertCircle,
   Clock,
+  Info,
   Loader2,
   Users,
 } from "lucide-react";
@@ -485,7 +487,18 @@ export default function SyncPage() {
           ) : isLoading ? (
             <p className="text-muted-foreground">Loading...</p>
           ) : (
-            <SyncStatusIndicator syncRun={syncRun} />
+            <>
+              <SyncStatusIndicator syncRun={syncRun} />
+              {hasTeamMembers && (
+                <Alert className="mt-4">
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    Only comments and reviews from team members are synced and analyzed.
+                    Comments from external contributors or bots are excluded.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
