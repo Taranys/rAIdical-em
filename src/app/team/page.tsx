@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Github } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -153,7 +154,11 @@ export default function TeamPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-4xl font-bold tracking-tight">Team Members</h1>
         {/* US-024: Import from GitHub button */}
-        <Button variant="outline" onClick={() => setIsImportOpen(true)}>
+        <Button
+          onClick={() => setIsImportOpen(true)}
+          className="bg-[#24292e] text-white hover:bg-[#3b4045] dark:bg-[#24292e] dark:text-white dark:hover:bg-[#3b4045]"
+        >
+          <Github className="size-4" />
           Import from GitHub
         </Button>
       </div>
