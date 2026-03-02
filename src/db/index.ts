@@ -65,7 +65,14 @@ if (
   fs.existsSync(migrationsFolder)
 ) {
   (globalThis as Record<string, unknown>)[migrateKey] = true;
-  migrate(_state.db, { migrationsFolder });
+  try {
+    migrate(_state.db, { migrationsFolder });
+  } catch (err: unknown) {
+    // Tolerate "table already exists" when parallel Vitest workers race
+    // against the same DB file — the first worker wins, the rest skip.
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!msg.includes("already exists")) throw err;
+  }
 }
 
 // US-2.17: Replace the active database with a new file.

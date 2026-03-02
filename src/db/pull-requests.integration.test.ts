@@ -120,6 +120,11 @@ describe("pull-requests DAL (integration)", () => {
     expect(getPullRequestCount(testDb)).toBe(1);
   });
 
+  it("stores bot value in aiGenerated field", () => {
+    const result = upsertPullRequest({ ...samplePR, aiGenerated: "bot" as const }, testDb);
+    expect(result.aiGenerated).toBe("bot");
+  });
+
   // getPRsMergedByMember
   describe("getPRsMergedByMember", () => {
     const mergedPR = { ...samplePR, state: "merged" as const };

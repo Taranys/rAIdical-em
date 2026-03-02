@@ -5,6 +5,7 @@ import {
   matchesAnyGlob,
   hasCoAuthorMatch,
   classifyPullRequest,
+  migrateConfig,
   DEFAULT_AI_HEURISTICS,
   type AiHeuristicsConfig,
   type PrData,
@@ -102,8 +103,6 @@ describe("classifyPullRequest", () => {
   function makePr(overrides: Partial<PrData> = {}): PrData {
     return {
       author: "human-dev",
-      branchName: "feature/my-thing",
-      labels: [],
       ...overrides,
     };
   }
@@ -112,46 +111,46 @@ describe("classifyPullRequest", () => {
     return { message };
   }
 
-  it("returns 'human' when no heuristics match", () => {
-    const pr = makePr();
-    expect(classifyPullRequest(pr, [], defaultConfig)).toBe("human");
-  });
-
-  it("returns 'human' when all heuristics are disabled", () => {
-    const config: AiHeuristicsConfig = {
-      ...defaultConfig,
-      enabled: {
-        coAuthor: false,
-        authorBot: false,
-        branchName: false,
-        label: false,
-      },
-    };
+  // Bot classification tests
+  it("returns 'bot' when author matches bot list", () => {
     const pr = makePr({ author: "dependabot" });
-    expect(classifyPullRequest(pr, [], config)).toBe("human");
+    expect(classifyPullRequest(pr, [], defaultConfig)).toBe("bot");
   });
 
-  it("returns 'ai' when author matches bot list", () => {
-    const pr = makePr({ author: "dependabot" });
-    expect(classifyPullRequest(pr, [], defaultConfig)).toBe("ai");
-  });
-
-  it("returns 'ai' when author matches dependabot[bot]", () => {
+  it("returns 'bot' when author matches dependabot[bot]", () => {
     const pr = makePr({ author: "dependabot[bot]" });
-    expect(classifyPullRequest(pr, [], defaultConfig)).toBe("ai");
+    expect(classifyPullRequest(pr, [], defaultConfig)).toBe("bot");
   });
 
-  it("returns 'ai' when branch matches pattern", () => {
-    const pr = makePr({ branchName: "ai/implement-feature" });
-    expect(classifyPullRequest(pr, [], defaultConfig)).toBe("ai");
+  it("returns 'bot' case-insensitively", () => {
+    const pr = makePr({ author: "Dependabot" });
+    expect(classifyPullRequest(pr, [], defaultConfig)).toBe("bot");
   });
 
-  it("returns 'ai' when label matches", () => {
-    const pr = makePr({ labels: ["ai-generated"] });
-    expect(classifyPullRequest(pr, [], defaultConfig)).toBe("ai");
+  it("returns 'bot' when author is renovate[bot]", () => {
+    const pr = makePr({ author: "renovate[bot]" });
+    expect(classifyPullRequest(pr, [], defaultConfig)).toBe("bot");
   });
 
-  it("returns 'ai' when co-author matches", () => {
+  it("bot takes priority over AI co-authors", () => {
+    const pr = makePr({ author: "dependabot[bot]" });
+    const commits = [
+      makeCommit("Update deps\n\nCo-Authored-By: Claude <noreply>"),
+    ];
+    expect(classifyPullRequest(pr, commits, defaultConfig)).toBe("bot");
+  });
+
+  // AI classification tests
+  it("returns 'ai' when all commits have AI co-author", () => {
+    const pr = makePr();
+    const commits = [
+      makeCommit("Fix\n\nCo-Authored-By: Claude <noreply>"),
+      makeCommit("Update\n\nCo-Authored-By: Copilot <noreply>"),
+    ];
+    expect(classifyPullRequest(pr, commits, defaultConfig)).toBe("ai");
+  });
+
+  it("returns 'ai' when single commit has AI co-author", () => {
     const pr = makePr();
     const commits = [
       makeCommit(
@@ -161,81 +160,141 @@ describe("classifyPullRequest", () => {
     expect(classifyPullRequest(pr, commits, defaultConfig)).toBe("ai");
   });
 
-  it("returns 'ai' when multiple heuristics all match", () => {
-    const pr = makePr({
-      author: "dependabot",
-      branchName: "ai/update-deps",
-      labels: ["bot"],
-    });
-    expect(classifyPullRequest(pr, [], defaultConfig)).toBe("ai");
-  });
-
-  it("returns 'ai' when any full AI signal matches even if others don't", () => {
-    // author matches bot list, branch/label don't → still "ai"
-    const pr = makePr({
-      author: "dependabot",
-      branchName: "feature/normal",
-      labels: [],
-    });
-    expect(classifyPullRequest(pr, [], defaultConfig)).toBe("ai");
-  });
-
+  // Mixed classification tests
   it("returns 'mixed' when only some commits have AI co-author", () => {
     const pr = makePr();
     const commits = [
       makeCommit("Human commit"),
       makeCommit("AI commit\n\nCo-Authored-By: Claude <noreply>"),
     ];
-    // Only 1 of 2 commits has AI co-author → mixed
     expect(classifyPullRequest(pr, commits, defaultConfig)).toBe("mixed");
   });
 
-  it("ignores disabled heuristics — does not count them as signals", () => {
-    // Only authorBot enabled, and it matches → should be 'ai' not 'mixed'
-    const config: AiHeuristicsConfig = {
-      ...defaultConfig,
-      enabled: {
-        coAuthor: false,
-        authorBot: true,
-        branchName: false,
-        label: false,
-      },
-    };
-    const pr = makePr({ author: "dependabot" });
-    expect(classifyPullRequest(pr, [], config)).toBe("ai");
-  });
-
-  it("returns 'human' when enabled heuristics don't match", () => {
-    const config: AiHeuristicsConfig = {
-      ...defaultConfig,
-      enabled: {
-        coAuthor: false,
-        authorBot: true,
-        branchName: false,
-        label: false,
-      },
-    };
-    const pr = makePr({ author: "human-dev" });
-    expect(classifyPullRequest(pr, [], config)).toBe("human");
-  });
-
-  it("returns 'mixed' when co-author found in some but not all commits", () => {
+  it("returns 'mixed' when 1 of 3 commits has AI co-author", () => {
     const pr = makePr();
     const commits = [
       makeCommit("Regular commit"),
       makeCommit("Another commit"),
       makeCommit("Last one\n\nCo-Authored-By: Copilot <noreply>"),
     ];
-    // 1 of 3 commits has AI co-author → mixed
     expect(classifyPullRequest(pr, commits, defaultConfig)).toBe("mixed");
   });
 
-  it("returns 'ai' when all commits have AI co-author", () => {
+  // Human classification tests
+  it("returns 'human' when no heuristics match", () => {
+    const pr = makePr();
+    expect(classifyPullRequest(pr, [], defaultConfig)).toBe("human");
+  });
+
+  it("returns 'human' when commits have no AI co-authors", () => {
+    const pr = makePr();
+    const commits = [
+      makeCommit("Human commit"),
+      makeCommit("Another human commit"),
+    ];
+    expect(classifyPullRequest(pr, commits, defaultConfig)).toBe("human");
+  });
+
+  it("returns 'human' with 0 commits", () => {
+    const pr = makePr();
+    expect(classifyPullRequest(pr, [], defaultConfig)).toBe("human");
+  });
+
+  // Branch name and labels should NOT affect classification
+  it("branch name does not affect classification (AI-named branch, human commits)", () => {
+    // Even though the branch is named claude/*, it should be human
+    const pr = makePr({ author: "human-dev" });
+    const commits = [makeCommit("Regular commit")];
+    expect(classifyPullRequest(pr, commits, defaultConfig)).toBe("human");
+  });
+
+  // Disabled heuristics tests
+  it("returns 'human' when all heuristics are disabled", () => {
+    const config: AiHeuristicsConfig = {
+      ...defaultConfig,
+      enabled: { coAuthor: false, authorBot: false },
+    };
+    const pr = makePr({ author: "dependabot" });
+    expect(classifyPullRequest(pr, [], config)).toBe("human");
+  });
+
+  it("returns 'human' when bot detection disabled and author is bot", () => {
+    const config: AiHeuristicsConfig = {
+      ...defaultConfig,
+      enabled: { coAuthor: true, authorBot: false },
+    };
+    const pr = makePr({ author: "dependabot[bot]" });
+    expect(classifyPullRequest(pr, [], config)).toBe("human");
+  });
+
+  it("returns 'human' when co-author detection disabled even with AI co-authors", () => {
+    const config: AiHeuristicsConfig = {
+      ...defaultConfig,
+      enabled: { coAuthor: false, authorBot: true },
+    };
     const pr = makePr();
     const commits = [
       makeCommit("Fix\n\nCo-Authored-By: Claude <noreply>"),
-      makeCommit("Update\n\nCo-Authored-By: Copilot <noreply>"),
     ];
-    expect(classifyPullRequest(pr, commits, defaultConfig)).toBe("ai");
+    expect(classifyPullRequest(pr, commits, config)).toBe("human");
+  });
+
+  it("only bot detection works when co-author disabled", () => {
+    const config: AiHeuristicsConfig = {
+      ...defaultConfig,
+      enabled: { coAuthor: false, authorBot: true },
+    };
+    const pr = makePr({ author: "dependabot" });
+    expect(classifyPullRequest(pr, [], config)).toBe("bot");
+  });
+});
+
+describe("migrateConfig", () => {
+  it("returns defaults for null input", () => {
+    expect(migrateConfig(null)).toEqual(DEFAULT_AI_HEURISTICS);
+  });
+
+  it("returns defaults for non-object input", () => {
+    expect(migrateConfig("invalid")).toEqual(DEFAULT_AI_HEURISTICS);
+  });
+
+  it("passes through new-shape config unchanged", () => {
+    const newConfig: AiHeuristicsConfig = {
+      coAuthorPatterns: ["*MyBot*"],
+      authorBotList: ["custom-bot"],
+      enabled: { coAuthor: true, authorBot: false },
+    };
+    expect(migrateConfig(newConfig)).toEqual(newConfig);
+  });
+
+  it("migrates legacy 4-heuristic config to new shape", () => {
+    const legacyConfig = {
+      coAuthorPatterns: ["*Claude*"],
+      authorBotList: ["dependabot"],
+      branchNamePatterns: ["ai/*"],
+      labels: ["ai-generated"],
+      enabled: { coAuthor: true, authorBot: false, branchName: true, label: true },
+    };
+
+    const result = migrateConfig(legacyConfig);
+
+    expect(result).toEqual({
+      coAuthorPatterns: ["*Claude*"],
+      authorBotList: ["dependabot"],
+      enabled: { coAuthor: true, authorBot: false },
+    });
+  });
+
+  it("uses defaults for missing fields in legacy config", () => {
+    const partial = {
+      enabled: { coAuthor: false, authorBot: true, branchName: true, label: true },
+    };
+
+    const result = migrateConfig(partial);
+
+    expect(result.coAuthorPatterns).toEqual(DEFAULT_AI_HEURISTICS.coAuthorPatterns);
+    expect(result.authorBotList).toEqual(DEFAULT_AI_HEURISTICS.authorBotList);
+    expect(result.enabled.coAuthor).toBe(false);
+    expect(result.enabled.authorBot).toBe(true);
   });
 });

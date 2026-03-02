@@ -57,28 +57,6 @@ describe("AiHeuristicsForm", () => {
     });
   });
 
-  it("loads and displays default branch patterns", async () => {
-    globalThis.fetch = mockFetch(DEFAULT_RESPONSE);
-    render(<AiHeuristicsForm />);
-
-    await waitFor(() => {
-      expect(screen.getByLabelText(/branch name patterns/i)).toHaveValue(
-        "ai/*, copilot/*, claude/*",
-      );
-    });
-  });
-
-  it("loads and displays default labels", async () => {
-    globalThis.fetch = mockFetch(DEFAULT_RESPONSE);
-    render(<AiHeuristicsForm />);
-
-    await waitFor(() => {
-      expect(screen.getByLabelText(/github labels/i)).toHaveValue(
-        "ai-generated, ai-assisted, bot",
-      );
-    });
-  });
-
   it("shows Save and Reset buttons", async () => {
     globalThis.fetch = mockFetch(DEFAULT_RESPONSE);
     render(<AiHeuristicsForm />);
