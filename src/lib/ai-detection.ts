@@ -108,6 +108,11 @@ export function migrateConfig(stored: unknown): AiHeuristicsConfig {
   };
 }
 
+export interface ClassificationResult {
+  classification: AiClassification;
+  reason: string;
+}
+
 // Classification logic (priority order):
 // 1. Bot author check → "bot"
 // 2. Co-author: ALL commits have AI co-author → "ai", SOME → "mixed"
@@ -116,7 +121,7 @@ export function classifyPullRequest(
   pr: PrData,
   commits: CommitData[],
   config: AiHeuristicsConfig,
-): AiClassification {
+): ClassificationResult {
   // 1. Bot detection (highest priority)
   if (config.enabled.authorBot) {
     if (
@@ -124,7 +129,10 @@ export function classifyPullRequest(
         (bot) => bot.toLowerCase() === pr.author.toLowerCase(),
       )
     ) {
-      return "bot";
+      return {
+        classification: "bot",
+        reason: `Author '${pr.author}' matches bot list`,
+      };
     }
   }
 
@@ -134,11 +142,24 @@ export function classifyPullRequest(
       hasCoAuthorMatch(c.message, config.coAuthorPatterns),
     ).length;
     if (matchCount === commits.length) {
-      return "ai";
+      return {
+        classification: "ai",
+        reason: `All ${matchCount}/${commits.length} commits have Co-Authored-By matching AI patterns`,
+      };
     } else if (matchCount > 0) {
-      return "mixed";
+      return {
+        classification: "mixed",
+        reason: `${matchCount}/${commits.length} commits have Co-Authored-By matching AI patterns`,
+      };
     }
   }
 
-  return "human";
+  if (commits.length === 0) {
+    return { classification: "human", reason: "No commits to analyze" };
+  }
+
+  return {
+    classification: "human",
+    reason: `No AI co-author found in ${commits.length} commits`,
+  };
 }

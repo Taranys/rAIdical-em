@@ -112,24 +112,31 @@ describe("classifyPullRequest", () => {
   }
 
   // Bot classification tests
-  it("returns 'bot' when author matches bot list", () => {
+  it("returns 'bot' with reason when author matches bot list", () => {
     const pr = makePr({ author: "dependabot" });
-    expect(classifyPullRequest(pr, [], defaultConfig)).toBe("bot");
+    const result = classifyPullRequest(pr, [], defaultConfig);
+    expect(result.classification).toBe("bot");
+    expect(result.reason).toBe("Author 'dependabot' matches bot list");
   });
 
-  it("returns 'bot' when author matches dependabot[bot]", () => {
+  it("returns 'bot' with reason when author matches dependabot[bot]", () => {
     const pr = makePr({ author: "dependabot[bot]" });
-    expect(classifyPullRequest(pr, [], defaultConfig)).toBe("bot");
+    const result = classifyPullRequest(pr, [], defaultConfig);
+    expect(result.classification).toBe("bot");
+    expect(result.reason).toBe("Author 'dependabot[bot]' matches bot list");
   });
 
   it("returns 'bot' case-insensitively", () => {
     const pr = makePr({ author: "Dependabot" });
-    expect(classifyPullRequest(pr, [], defaultConfig)).toBe("bot");
+    const result = classifyPullRequest(pr, [], defaultConfig);
+    expect(result.classification).toBe("bot");
+    expect(result.reason).toBe("Author 'Dependabot' matches bot list");
   });
 
   it("returns 'bot' when author is renovate[bot]", () => {
     const pr = makePr({ author: "renovate[bot]" });
-    expect(classifyPullRequest(pr, [], defaultConfig)).toBe("bot");
+    const result = classifyPullRequest(pr, [], defaultConfig);
+    expect(result.classification).toBe("bot");
   });
 
   it("bot takes priority over AI co-authors", () => {
@@ -137,17 +144,20 @@ describe("classifyPullRequest", () => {
     const commits = [
       makeCommit("Update deps\n\nCo-Authored-By: Claude <noreply>"),
     ];
-    expect(classifyPullRequest(pr, commits, defaultConfig)).toBe("bot");
+    const result = classifyPullRequest(pr, commits, defaultConfig);
+    expect(result.classification).toBe("bot");
   });
 
   // AI classification tests
-  it("returns 'ai' when all commits have AI co-author", () => {
+  it("returns 'ai' with reason when all commits have AI co-author", () => {
     const pr = makePr();
     const commits = [
       makeCommit("Fix\n\nCo-Authored-By: Claude <noreply>"),
       makeCommit("Update\n\nCo-Authored-By: Copilot <noreply>"),
     ];
-    expect(classifyPullRequest(pr, commits, defaultConfig)).toBe("ai");
+    const result = classifyPullRequest(pr, commits, defaultConfig);
+    expect(result.classification).toBe("ai");
+    expect(result.reason).toBe("All 2/2 commits have Co-Authored-By matching AI patterns");
   });
 
   it("returns 'ai' when single commit has AI co-author", () => {
@@ -157,17 +167,21 @@ describe("classifyPullRequest", () => {
         "Fix bug\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
       ),
     ];
-    expect(classifyPullRequest(pr, commits, defaultConfig)).toBe("ai");
+    const result = classifyPullRequest(pr, commits, defaultConfig);
+    expect(result.classification).toBe("ai");
+    expect(result.reason).toBe("All 1/1 commits have Co-Authored-By matching AI patterns");
   });
 
   // Mixed classification tests
-  it("returns 'mixed' when only some commits have AI co-author", () => {
+  it("returns 'mixed' with reason when only some commits have AI co-author", () => {
     const pr = makePr();
     const commits = [
       makeCommit("Human commit"),
       makeCommit("AI commit\n\nCo-Authored-By: Claude <noreply>"),
     ];
-    expect(classifyPullRequest(pr, commits, defaultConfig)).toBe("mixed");
+    const result = classifyPullRequest(pr, commits, defaultConfig);
+    expect(result.classification).toBe("mixed");
+    expect(result.reason).toBe("1/2 commits have Co-Authored-By matching AI patterns");
   });
 
   it("returns 'mixed' when 1 of 3 commits has AI co-author", () => {
@@ -177,35 +191,44 @@ describe("classifyPullRequest", () => {
       makeCommit("Another commit"),
       makeCommit("Last one\n\nCo-Authored-By: Copilot <noreply>"),
     ];
-    expect(classifyPullRequest(pr, commits, defaultConfig)).toBe("mixed");
+    const result = classifyPullRequest(pr, commits, defaultConfig);
+    expect(result.classification).toBe("mixed");
+    expect(result.reason).toBe("1/3 commits have Co-Authored-By matching AI patterns");
   });
 
   // Human classification tests
-  it("returns 'human' when no heuristics match", () => {
+  it("returns 'human' with reason when no commits", () => {
     const pr = makePr();
-    expect(classifyPullRequest(pr, [], defaultConfig)).toBe("human");
+    const result = classifyPullRequest(pr, [], defaultConfig);
+    expect(result.classification).toBe("human");
+    expect(result.reason).toBe("No commits to analyze");
   });
 
-  it("returns 'human' when commits have no AI co-authors", () => {
+  it("returns 'human' with reason when commits have no AI co-authors", () => {
     const pr = makePr();
     const commits = [
       makeCommit("Human commit"),
       makeCommit("Another human commit"),
     ];
-    expect(classifyPullRequest(pr, commits, defaultConfig)).toBe("human");
+    const result = classifyPullRequest(pr, commits, defaultConfig);
+    expect(result.classification).toBe("human");
+    expect(result.reason).toBe("No AI co-author found in 2 commits");
   });
 
   it("returns 'human' with 0 commits", () => {
     const pr = makePr();
-    expect(classifyPullRequest(pr, [], defaultConfig)).toBe("human");
+    const result = classifyPullRequest(pr, [], defaultConfig);
+    expect(result.classification).toBe("human");
+    expect(result.reason).toBe("No commits to analyze");
   });
 
   // Branch name and labels should NOT affect classification
   it("branch name does not affect classification (AI-named branch, human commits)", () => {
-    // Even though the branch is named claude/*, it should be human
     const pr = makePr({ author: "human-dev" });
     const commits = [makeCommit("Regular commit")];
-    expect(classifyPullRequest(pr, commits, defaultConfig)).toBe("human");
+    const result = classifyPullRequest(pr, commits, defaultConfig);
+    expect(result.classification).toBe("human");
+    expect(result.reason).toBe("No AI co-author found in 1 commits");
   });
 
   // Disabled heuristics tests
@@ -215,7 +238,9 @@ describe("classifyPullRequest", () => {
       enabled: { coAuthor: false, authorBot: false },
     };
     const pr = makePr({ author: "dependabot" });
-    expect(classifyPullRequest(pr, [], config)).toBe("human");
+    const result = classifyPullRequest(pr, [], config);
+    expect(result.classification).toBe("human");
+    expect(result.reason).toBe("No commits to analyze");
   });
 
   it("returns 'human' when bot detection disabled and author is bot", () => {
@@ -224,7 +249,9 @@ describe("classifyPullRequest", () => {
       enabled: { coAuthor: true, authorBot: false },
     };
     const pr = makePr({ author: "dependabot[bot]" });
-    expect(classifyPullRequest(pr, [], config)).toBe("human");
+    const result = classifyPullRequest(pr, [], config);
+    expect(result.classification).toBe("human");
+    expect(result.reason).toBe("No commits to analyze");
   });
 
   it("returns 'human' when co-author detection disabled even with AI co-authors", () => {
@@ -236,7 +263,9 @@ describe("classifyPullRequest", () => {
     const commits = [
       makeCommit("Fix\n\nCo-Authored-By: Claude <noreply>"),
     ];
-    expect(classifyPullRequest(pr, commits, config)).toBe("human");
+    const result = classifyPullRequest(pr, commits, config);
+    expect(result.classification).toBe("human");
+    expect(result.reason).toBe("No AI co-author found in 1 commits");
   });
 
   it("only bot detection works when co-author disabled", () => {
@@ -245,7 +274,8 @@ describe("classifyPullRequest", () => {
       enabled: { coAuthor: false, authorBot: true },
     };
     const pr = makePr({ author: "dependabot" });
-    expect(classifyPullRequest(pr, [], config)).toBe("bot");
+    const result = classifyPullRequest(pr, [], config);
+    expect(result.classification).toBe("bot");
   });
 });
 

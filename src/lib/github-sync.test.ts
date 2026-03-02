@@ -190,7 +190,7 @@ describe("syncPullRequests", () => {
     mockIssuesListComments.mockResolvedValue({ data: [] });
     // US-020: Default classification mocks
     mockPullsListCommits.mockResolvedValue({ data: [] });
-    vi.mocked(classifyPullRequest).mockReturnValue("human");
+    vi.mocked(classifyPullRequest).mockReturnValue({ classification: "human", reason: "No commits to analyze" });
     vi.mocked(getSetting).mockReturnValue(null);
     // Default: no team members = no filtering (backward-compatible)
     vi.mocked(getActiveTeamMemberUsernames).mockReturnValue(new Set());
@@ -308,6 +308,7 @@ describe("syncPullRequests", () => {
       deletions: 10,
       changedFiles: 3,
       aiGenerated: "human",
+      classificationReason: "No commits to analyze",
     });
   });
 
@@ -588,36 +589,36 @@ describe("syncPullRequests", () => {
   it("passes classification result to upsertPullRequest", async () => {
     mockPaginate.mockResolvedValue([makeListItem()]);
     mockPullsGet.mockResolvedValue({ data: makeDetailPR() });
-    vi.mocked(classifyPullRequest).mockReturnValue("ai");
+    vi.mocked(classifyPullRequest).mockReturnValue({ classification: "ai", reason: "All 1/1 commits have Co-Authored-By matching AI patterns" });
 
     await syncPullRequests("owner", "repo", "ghp_token", 1);
 
     expect(upsertPullRequest).toHaveBeenCalledWith(
-      expect.objectContaining({ aiGenerated: "ai" }),
+      expect.objectContaining({ aiGenerated: "ai", classificationReason: "All 1/1 commits have Co-Authored-By matching AI patterns" }),
     );
   });
 
   it("passes 'mixed' classification through to upsert", async () => {
     mockPaginate.mockResolvedValue([makeListItem()]);
     mockPullsGet.mockResolvedValue({ data: makeDetailPR() });
-    vi.mocked(classifyPullRequest).mockReturnValue("mixed");
+    vi.mocked(classifyPullRequest).mockReturnValue({ classification: "mixed", reason: "1/3 commits have Co-Authored-By matching AI patterns" });
 
     await syncPullRequests("owner", "repo", "ghp_token", 1);
 
     expect(upsertPullRequest).toHaveBeenCalledWith(
-      expect.objectContaining({ aiGenerated: "mixed" }),
+      expect.objectContaining({ aiGenerated: "mixed", classificationReason: "1/3 commits have Co-Authored-By matching AI patterns" }),
     );
   });
 
   it("passes 'bot' classification through to upsert", async () => {
     mockPaginate.mockResolvedValue([makeListItem()]);
     mockPullsGet.mockResolvedValue({ data: makeDetailPR() });
-    vi.mocked(classifyPullRequest).mockReturnValue("bot");
+    vi.mocked(classifyPullRequest).mockReturnValue({ classification: "bot", reason: "Author 'dependabot[bot]' matches bot list" });
 
     await syncPullRequests("owner", "repo", "ghp_token", 1);
 
     expect(upsertPullRequest).toHaveBeenCalledWith(
-      expect.objectContaining({ aiGenerated: "bot" }),
+      expect.objectContaining({ aiGenerated: "bot", classificationReason: "Author 'dependabot[bot]' matches bot list" }),
     );
   });
 

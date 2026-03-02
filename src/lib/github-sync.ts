@@ -81,6 +81,7 @@ export async function syncPullRequests(
 
       // US-020: Classify PR as ai/human/mixed/bot
       let aiGenerated: "ai" | "human" | "mixed" | "bot" = "human";
+      let classificationReason: string | null = null;
       try {
         const { data: commits } = await octokit.rest.pulls.listCommits({
           owner,
@@ -88,11 +89,13 @@ export async function syncPullRequests(
           pull_number: item.number,
         });
 
-        aiGenerated = classifyPullRequest(
+        const result = classifyPullRequest(
           { author: pr.user?.login ?? "unknown" },
           commits.map((c: { commit: { message: string } }) => ({ message: c.commit.message })),
           aiConfig,
         );
+        aiGenerated = result.classification;
+        classificationReason = result.reason;
       } catch {
         // Continue with default "human" if classification fails
       }
@@ -109,6 +112,7 @@ export async function syncPullRequests(
         deletions: pr.deletions,
         changedFiles: pr.changed_files,
         aiGenerated,
+        classificationReason,
       });
       prCount++;
 
