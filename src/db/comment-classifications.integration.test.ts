@@ -321,7 +321,7 @@ describe("comment-classifications DAL (integration)", () => {
       updateClassification("review_comment", 1, "security", testDb);
 
       // Comment 2 should be unchanged
-      const comments = getClassifiedComments({}, {}, testDb);
+      const { comments } = getClassifiedComments({}, {}, {}, testDb);
       const comment2 = comments.find((c) => c.commentId === 2 && c.commentType === "review_comment");
       expect(comment2?.category).toBe("performance");
       expect(comment2?.isManual).toBe(false);
@@ -423,7 +423,7 @@ describe("comment-classifications DAL (integration)", () => {
     });
 
     it("returns all comments (both types) with classification data joined", () => {
-      const results = getClassifiedComments({}, {}, testDb);
+      const { comments: results } = getClassifiedComments({}, {}, {}, testDb);
 
       expect(results).toHaveLength(3);
       // Classified comment has category data
@@ -440,7 +440,7 @@ describe("comment-classifications DAL (integration)", () => {
     it("returns isManual=true for manually reclassified comments", () => {
       updateClassification("review_comment", 1, "security", testDb);
 
-      const results = getClassifiedComments({}, {}, testDb);
+      const { comments: results } = getClassifiedComments({}, {}, {}, testDb);
       const reclassified = results.find(
         (c) => c.commentType === "review_comment" && c.commentId === 1,
       );
@@ -450,7 +450,7 @@ describe("comment-classifications DAL (integration)", () => {
     });
 
     it("returns unclassified comments with null classification fields", () => {
-      const results = getClassifiedComments({}, {}, testDb);
+      const { comments: results } = getClassifiedComments({}, {}, {}, testDb);
 
       const unclassified = results.find(
         (c) => c.commentType === "review_comment" && c.commentId === 2,
@@ -461,8 +461,9 @@ describe("comment-classifications DAL (integration)", () => {
     });
 
     it("filters by category", () => {
-      const results = getClassifiedComments(
+      const { comments: results } = getClassifiedComments(
         { category: "bug_correctness" },
+        {},
         {},
         testDb,
       );
@@ -472,8 +473,9 @@ describe("comment-classifications DAL (integration)", () => {
     });
 
     it("filters by reviewer", () => {
-      const results = getClassifiedComments(
+      const { comments: results } = getClassifiedComments(
         { reviewer: "bob" },
+        {},
         {},
         testDb,
       );
@@ -483,11 +485,12 @@ describe("comment-classifications DAL (integration)", () => {
     });
 
     it("filters by date range", () => {
-      const results = getClassifiedComments(
+      const { comments: results } = getClassifiedComments(
         {
           dateStart: "2026-02-03T00:00:00Z",
           dateEnd: "2026-02-03T23:59:59Z",
         },
+        {},
         {},
         testDb,
       );
@@ -510,8 +513,9 @@ describe("comment-classifications DAL (integration)", () => {
         testDb,
       );
 
-      const results = getClassifiedComments(
+      const { comments: results } = getClassifiedComments(
         { minConfidence: 50 },
+        {},
         {},
         testDb,
       );
@@ -521,7 +525,7 @@ describe("comment-classifications DAL (integration)", () => {
     });
 
     it("sorts by date descending by default", () => {
-      const results = getClassifiedComments({}, {}, testDb);
+      const { comments: results } = getClassifiedComments({}, {}, {}, testDb);
 
       expect(results[0].createdAt).toBe("2026-02-04T10:00:00Z");
       expect(results[results.length - 1].createdAt).toBe(
@@ -554,9 +558,10 @@ describe("comment-classifications DAL (integration)", () => {
         testDb,
       );
 
-      const results = getClassifiedComments(
+      const { comments: results } = getClassifiedComments(
         {},
         { sortBy: "confidence", sortOrder: "asc" },
+        {},
         testDb,
       );
 
@@ -578,9 +583,10 @@ describe("comment-classifications DAL (integration)", () => {
         testDb,
       );
 
-      const results = getClassifiedComments(
+      const { comments: results } = getClassifiedComments(
         {},
         { sortBy: "category", sortOrder: "asc" },
+        {},
         testDb,
       );
 
@@ -588,6 +594,97 @@ describe("comment-classifications DAL (integration)", () => {
       const classifiedResults = results.filter((c) => c.category !== null);
       expect(classifiedResults[0].category).toBe("bug_correctness");
       expect(classifiedResults[1].category).toBe("nitpick_style");
+    });
+
+    // Team-member filtering
+    it("filters to active team members when team members exist", () => {
+      // Add team members: only bob is a team member
+      testSqlite.exec(`
+        INSERT INTO team_members (github_username, display_name, color, is_active, created_at, updated_at)
+        VALUES ('bob', 'Bob', '#E25A3B', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+      `);
+
+      const { comments: results } = getClassifiedComments({}, {}, {}, testDb);
+
+      // Only bob's comments should be returned (carol's review comment excluded)
+      expect(results).toHaveLength(2);
+      expect(results.every((c) => c.reviewer === "bob")).toBe(true);
+    });
+
+    it("returns all comments when no team members are configured", () => {
+      // No team members seeded — default state
+      const { comments: results } = getClassifiedComments({}, {}, {}, testDb);
+
+      expect(results).toHaveLength(3);
+    });
+
+    it("combines team-member filter with reviewer filter", () => {
+      // Add two team members
+      testSqlite.exec(`
+        INSERT INTO team_members (github_username, display_name, color, is_active, created_at, updated_at)
+        VALUES
+          ('bob', 'Bob', '#E25A3B', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+          ('carol', 'Carol', '#3B82F6', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+      `);
+
+      const { comments: results } = getClassifiedComments(
+        { reviewer: "carol" },
+        {},
+        {},
+        testDb,
+      );
+
+      expect(results).toHaveLength(1);
+      expect(results[0].reviewer).toBe("carol");
+    });
+
+    // Pagination
+    it("returns paginated results with default page size of 20", () => {
+      const { comments, totalCount, page, pageSize } = getClassifiedComments({}, {}, {}, testDb);
+
+      expect(page).toBe(1);
+      expect(pageSize).toBe(20);
+      expect(totalCount).toBe(3);
+      expect(comments).toHaveLength(3);
+    });
+
+    it("returns correct page when page is specified", () => {
+      const { comments, totalCount, page } = getClassifiedComments(
+        {},
+        {},
+        { page: 1, pageSize: 2 },
+        testDb,
+      );
+
+      expect(page).toBe(1);
+      expect(totalCount).toBe(3);
+      expect(comments).toHaveLength(2);
+    });
+
+    it("returns last page with fewer items", () => {
+      const { comments, totalCount, page } = getClassifiedComments(
+        {},
+        {},
+        { page: 2, pageSize: 2 },
+        testDb,
+      );
+
+      expect(page).toBe(2);
+      expect(totalCount).toBe(3);
+      expect(comments).toHaveLength(1);
+    });
+
+    it("returns empty comments for page beyond data", () => {
+      const { comments, totalCount, page } = getClassifiedComments(
+        {},
+        {},
+        { page: 10, pageSize: 20 },
+        testDb,
+      );
+
+      expect(page).toBe(10);
+      expect(totalCount).toBe(3);
+      expect(comments).toHaveLength(0);
     });
   });
 

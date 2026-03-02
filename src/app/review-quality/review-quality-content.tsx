@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SummaryBar } from "./summary-bar";
 import { FilterBar } from "./filter-bar";
@@ -20,6 +21,7 @@ import { CategoryTrendChart } from "./category-trend-chart";
 import { ClassificationRunHistory } from "./classification-run-history";
 import { MonthNavigator } from "./month-navigator";
 import { getMonthStart, getMonthEnd } from "@/lib/date-periods";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface CategoryDistribution {
   category: string;
@@ -63,6 +65,8 @@ interface Filters {
   minConfidence: string;
 }
 
+const PAGE_SIZE = 20;
+
 function toDateString(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
@@ -89,11 +93,19 @@ const DEFAULT_CHART_DATA: ChartData = {
   weeklyTrend: [],
 };
 
+interface CommentsResponse {
+  comments: ClassifiedComment[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
 async function fetchCommentsFromApi(
   filters: Filters,
   sortBy: string,
   sortOrder: string,
-): Promise<ClassifiedComment[]> {
+  page: number = 1,
+): Promise<CommentsResponse> {
   const params = new URLSearchParams();
   if (filters.category && filters.category !== "all")
     params.set("category", filters.category);
@@ -105,10 +117,17 @@ async function fetchCommentsFromApi(
     params.set("minConfidence", filters.minConfidence);
   params.set("sortBy", sortBy);
   params.set("sortOrder", sortOrder);
+  params.set("page", String(page));
+  params.set("pageSize", String(PAGE_SIZE));
 
   const res = await fetch(`/api/review-quality/comments?${params}`);
   const data = await res.json();
-  return data.comments ?? [];
+  return {
+    comments: data.comments ?? [],
+    totalCount: data.totalCount ?? 0,
+    page: data.page ?? 1,
+    pageSize: data.pageSize ?? PAGE_SIZE,
+  };
 }
 
 async function fetchSummaryFromApi(): Promise<SummaryData> {
@@ -145,6 +164,8 @@ async function fetchChartsFromApi(filters: Filters): Promise<ChartData> {
 
 export function ReviewQualityContent() {
   const [comments, setComments] = useState<ClassifiedComment[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
   const [summary, setSummary] = useState<SummaryData>({
     classified: [],
     unclassifiedCount: 0,
@@ -163,12 +184,16 @@ export function ReviewQualityContent() {
   const [isLoading, setIsLoading] = useState(true);
   const initRef = useRef(false);
 
-  // Reload comments whenever filters or sort change (after initial load)
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+  // Reload comments whenever filters, sort, or page change (after initial load)
   const reloadComments = useCallback(
-    async (f: Filters, sb: string, so: string) => {
+    async (f: Filters, sb: string, so: string, page: number) => {
       try {
-        const data = await fetchCommentsFromApi(f, sb, so);
-        setComments(data);
+        const data = await fetchCommentsFromApi(f, sb, so, page);
+        setComments(data.comments);
+        setTotalCount(data.totalCount);
+        setCurrentPage(data.page);
       } catch {
         // Silently fail
       }
@@ -195,13 +220,15 @@ export function ReviewQualityContent() {
       try {
         const [commentsData, summaryData, teamData, url, charts] =
           await Promise.all([
-            fetchCommentsFromApi(DEFAULT_FILTERS, "date", "desc"),
+            fetchCommentsFromApi(DEFAULT_FILTERS, "date", "desc", 1),
             fetchSummaryFromApi(),
             fetchTeamMembersFromApi(),
             fetchRepoUrlFromApi(),
             fetchChartsFromApi(DEFAULT_FILTERS),
           ]);
-        setComments(commentsData);
+        setComments(commentsData.comments);
+        setTotalCount(commentsData.totalCount);
+        setCurrentPage(commentsData.page);
         setSummary(summaryData);
         setTeamMembers(teamData);
         setRepoUrl(url);
@@ -217,7 +244,8 @@ export function ReviewQualityContent() {
 
   function handleFiltersChange(newFilters: Filters) {
     setFilters(newFilters);
-    reloadComments(newFilters, sortBy, sortOrder);
+    setCurrentPage(1);
+    reloadComments(newFilters, sortBy, sortOrder, 1);
     reloadCharts(newFilters);
   }
 
@@ -246,10 +274,11 @@ export function ReviewQualityContent() {
 
       // Reload both comments and summary to reflect changes everywhere
       const [commentsData, summaryData] = await Promise.all([
-        fetchCommentsFromApi(filters, sortBy, sortOrder),
+        fetchCommentsFromApi(filters, sortBy, sortOrder, currentPage),
         fetchSummaryFromApi(),
       ]);
-      setComments(commentsData);
+      setComments(commentsData.comments);
+      setTotalCount(commentsData.totalCount);
       setSummary(summaryData);
 
       // Update selected comment if it's the one being reclassified
@@ -258,7 +287,7 @@ export function ReviewQualityContent() {
         selectedComment.commentType === commentType &&
         selectedComment.commentId === commentId
       ) {
-        const updated = commentsData.find(
+        const updated = commentsData.comments.find(
           (c) => c.commentType === commentType && c.commentId === commentId,
         );
         setSelectedComment(updated ?? null);
@@ -276,7 +305,13 @@ export function ReviewQualityContent() {
     }
     setSortBy(newSortBy);
     setSortOrder(newSortOrder);
-    reloadComments(filters, newSortBy, newSortOrder);
+    setCurrentPage(1);
+    reloadComments(filters, newSortBy, newSortOrder, 1);
+  }
+
+  function handlePageChange(page: number) {
+    setCurrentPage(page);
+    reloadComments(filters, sortBy, sortOrder, page);
   }
 
   return (
@@ -365,7 +400,9 @@ export function ReviewQualityContent() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Classified Comments</CardTitle>
+              <CardTitle>
+                Classified Comments{!isLoading && ` (${totalCount})`}
+              </CardTitle>
               <CardDescription>
                 Click a row to view full details. Sort by clicking column headers.
               </CardDescription>
@@ -380,15 +417,44 @@ export function ReviewQualityContent() {
           {isLoading ? (
             <p className="text-muted-foreground">Loading...</p>
           ) : (
-            <CommentsTable
-              comments={comments}
-              sortBy={sortBy}
-              sortOrder={sortOrder}
-              onSortChange={handleSortChange}
-              onSelect={setSelectedComment}
-              onReclassify={handleReclassify}
-              repoUrl={repoUrl}
-            />
+            <>
+              <CommentsTable
+                comments={comments}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSortChange={handleSortChange}
+                onSelect={setSelectedComment}
+                onReclassify={handleReclassify}
+                repoUrl={repoUrl}
+              />
+              {totalCount > 0 && (
+                <div className="flex items-center justify-center gap-4 mt-4" data-testid="pagination-controls">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage <= 1}
+                    data-testid="pagination-prev"
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground" data-testid="pagination-indicator">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage >= totalPages}
+                    data-testid="pagination-next"
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

@@ -13,7 +13,7 @@ test.describe("Reclassify Comment", () => {
     ).toBeVisible();
     await expect(page.getByText("Category Distribution")).toBeVisible();
     await expect(
-      page.getByText("Classified Comments", { exact: true }),
+      page.getByText(/Classified Comments/),
     ).toBeVisible();
   });
 

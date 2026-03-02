@@ -22,5 +22,9 @@ export default defineConfig({
       ["src/app/**/*.test.tsx", "jsdom"],
     ],
     setupFiles: ["./vitest.setup.ts"],
+    // Prevent parallel file execution to avoid SQLite "database is locked"
+    // errors when multiple integration test workers import src/db/index.ts
+    // and attempt to open/migrate the same database file concurrently.
+    fileParallelism: false,
   },
 });

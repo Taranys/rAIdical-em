@@ -8,6 +8,7 @@ import {
   teamMembers,
 } from "./schema";
 import { and, eq, gte, inArray, lt, desc, sql, count } from "drizzle-orm";
+import { getActiveTeamMemberUsernames } from "./team-members";
 
 type DbInstance = typeof defaultDb;
 
@@ -227,17 +228,27 @@ export interface CategoryDistribution {
   count: number;
 }
 
-// US-2.07: Get all comments (both types) with their classification, supporting filters and sort
+// US-2.07: Get all comments (both types) with their classification, supporting filters, sort, pagination and team filtering
 export function getClassifiedComments(
   filters: ClassifiedCommentFilters = {},
   sort: ClassifiedCommentSort = {},
+  pagination: { page?: number; pageSize?: number } = {},
   dbInstance: DbInstance = defaultDb,
-): ClassifiedComment[] {
+): { comments: ClassifiedComment[]; totalCount: number; page: number; pageSize: number } {
   const { sortBy = "date", sortOrder = "desc" } = sort;
+  const { page = 1, pageSize = 20 } = pagination;
+
+  // Load active team member usernames for filtering
+  const teamUsernames = getActiveTeamMemberUsernames(dbInstance);
+  const shouldFilterByTeam = teamUsernames.size > 0;
+  const teamUsernamesArray = [...teamUsernames];
 
   // Build dynamic WHERE conditions
   function buildReviewCommentConditions() {
     const conditions = [];
+    if (shouldFilterByTeam) {
+      conditions.push(inArray(reviewComments.reviewer, teamUsernamesArray));
+    }
     if (filters.reviewer) {
       conditions.push(eq(reviewComments.reviewer, filters.reviewer));
     }
@@ -262,6 +273,9 @@ export function getClassifiedComments(
 
   function buildPrCommentConditions() {
     const conditions = [];
+    if (shouldFilterByTeam) {
+      conditions.push(inArray(prComments.author, teamUsernamesArray));
+    }
     if (filters.reviewer) {
       conditions.push(eq(prComments.author, filters.reviewer));
     }
@@ -386,7 +400,12 @@ export function getClassifiedComments(
     return sortOrder === "asc" ? cmp : -cmp;
   });
 
-  return combined;
+  // Paginate
+  const totalCount = combined.length;
+  const start = (page - 1) * pageSize;
+  const paginatedComments = combined.slice(start, start + pageSize);
+
+  return { comments: paginatedComments, totalCount, page, pageSize };
 }
 
 // US-2.07: Get category distribution across all classifications

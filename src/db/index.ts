@@ -68,8 +68,8 @@ if (
   try {
     migrate(_state.db, { migrationsFolder });
   } catch (err: unknown) {
-    // Tolerate "table already exists" when parallel Vitest workers race
-    // against the same DB file — the first worker wins, the rest skip.
+    // Tolerate "table already exists" when parallel Vitest workers or
+    // concurrent Next.js Turbopack chunks race against the same DB file.
     const msg = err instanceof Error ? err.message : String(err);
     if (!msg.includes("already exists")) throw err;
   }

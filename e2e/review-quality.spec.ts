@@ -50,9 +50,9 @@ test.describe("Review Quality Page", () => {
       page.getByText("Filters", { exact: true }),
     ).toBeVisible();
 
-    // Comments table card is visible
+    // Comments table card is visible (title includes total count, e.g. "Classified Comments (0)")
     await expect(
-      page.getByText("Classified Comments", { exact: true }),
+      page.getByText(/Classified Comments/),
     ).toBeVisible();
   });
 });

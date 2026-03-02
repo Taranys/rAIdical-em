@@ -25,6 +25,11 @@ export async function GET(request: Request) {
       (searchParams.get("sortOrder") as "asc" | "desc") || "desc",
   };
 
-  const comments = getClassifiedComments(filters, sort);
-  return NextResponse.json({ comments });
+  const pagination = {
+    page: searchParams.get("page") ? Number(searchParams.get("page")) : undefined,
+    pageSize: searchParams.get("pageSize") ? Number(searchParams.get("pageSize")) : undefined,
+  };
+
+  const result = getClassifiedComments(filters, sort, pagination);
+  return NextResponse.json(result);
 }
