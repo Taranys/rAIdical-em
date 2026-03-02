@@ -117,6 +117,43 @@ describe("AppSidebar", () => {
     expect(screen.getByRole("link", { name: /Settings/i })).toHaveAttribute("data-active", "true");
   });
 
+  // Sidebar section separator tests
+  it("renders two navigation groups with correct labels", () => {
+    renderSidebar();
+    expect(screen.getByText("Analyse")).toBeInTheDocument();
+    expect(screen.getByText("Configuration")).toBeInTheDocument();
+  });
+
+  it("renders a separator between the two groups", () => {
+    const { container } = renderSidebar();
+    const separator = container.querySelector("[data-sidebar='separator']");
+    expect(separator).toBeInTheDocument();
+  });
+
+  it("places analysis items in the Analyse group and config items in the Configuration group", () => {
+    const { container } = renderSidebar();
+    const groups = container.querySelectorAll("[data-sidebar='group']");
+    expect(groups.length).toBeGreaterThanOrEqual(2);
+
+    const analyseGroup = groups[0];
+    const configGroup = groups[1];
+
+    // Analyse group contains Dashboard, Review Quality, Team Profiles, 1:1 Prep
+    expect(analyseGroup.textContent).toContain("Dashboard");
+    expect(analyseGroup.textContent).toContain("Review Quality");
+    expect(analyseGroup.textContent).toContain("Team Profiles");
+    expect(analyseGroup.textContent).toContain("1:1 Prep");
+
+    // Configuration group contains Team, Sync, Settings
+    expect(configGroup.textContent).toContain("Team");
+    expect(configGroup.textContent).toContain("Sync");
+    expect(configGroup.textContent).toContain("Settings");
+
+    // Analyse group should NOT contain config items
+    expect(analyseGroup.textContent).not.toContain("Settings");
+    expect(analyseGroup.textContent).not.toContain("Sync");
+  });
+
   // US-013: Sync status emoji indicator tests
   it("shows success emoji when last sync was successful", async () => {
     mockFetch.mockResolvedValue({
