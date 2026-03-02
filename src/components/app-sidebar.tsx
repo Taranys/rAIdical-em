@@ -1,10 +1,20 @@
-// US-023 + US-013: Application shell sidebar navigation with sync status
+// US-023 + US-013: Application shell sidebar navigation with config status indicators
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { LayoutDashboard, Users, RefreshCw, Settings, MessageSquareText, Radar, Handshake } from "lucide-react";
+import {
+  LayoutDashboard,
+  Users,
+  RefreshCw,
+  Settings,
+  MessageSquareText,
+  Radar,
+  Handshake,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+} from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -17,6 +27,7 @@ import {
   SidebarMenuItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
+import { useSidebarStatus, type SidebarStatus } from "@/hooks/use-sidebar-status";
 
 const DASHBOARD_ITEMS = [
   { title: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -26,80 +37,50 @@ const DASHBOARD_ITEMS = [
 ];
 
 const CONFIG_ITEMS = [
+  { title: "Settings", href: "/settings", icon: Settings },
   { title: "Team", href: "/team", icon: Users },
   { title: "Sync", href: "/sync", icon: RefreshCw },
-  { title: "Settings", href: "/settings", icon: Settings },
 ];
 
-// US-013: Sync status emoji indicator
-type SyncStatus = "running" | "success" | "error" | null;
-
-async function fetchSyncStatusFromApi(): Promise<SyncStatus> {
-  try {
-    const res = await fetch("/api/sync");
-    const data = await res.json();
-    return data.syncRun?.status ?? null;
-  } catch {
-    return null;
+function ConfigStatusIndicator({ title, status }: { title: string; status: SidebarStatus }) {
+  if (title === "Settings") {
+    return status.settings.configured ? (
+      <CheckCircle2 data-testid="status-settings" className="ml-auto size-4 text-green-600" />
+    ) : (
+      <AlertCircle data-testid="status-settings" className="ml-auto size-4 text-amber-500" />
+    );
   }
-}
 
-const SYNC_STATUS_EMOJI: Record<"running" | "success" | "error", string> = {
-  running: "🔄",
-  success: "✅",
-  error: "❌",
-};
+  if (title === "Team") {
+    return status.team.configured ? (
+      <CheckCircle2 data-testid="status-team" className="ml-auto size-4 text-green-600" />
+    ) : (
+      <AlertCircle data-testid="status-team" className="ml-auto size-4 text-amber-500" />
+    );
+  }
 
-function SyncStatusIndicator({ status }: { status: "running" | "success" | "error" }) {
-  return (
-    <span
-      data-testid="sync-status-dot"
-      className="ml-auto text-xs"
-      title={`Sync: ${status}`}
-    >
-      {SYNC_STATUS_EMOJI[status]}
-    </span>
-  );
+  if (title === "Sync") {
+    const { hasRun, status: syncStatus } = status.sync;
+    if (syncStatus === "running") {
+      return <Loader2 data-testid="status-sync" className="ml-auto size-4 animate-spin text-blue-500" />;
+    }
+    if (syncStatus === "success") {
+      return <CheckCircle2 data-testid="status-sync" className="ml-auto size-4 text-green-600" />;
+    }
+    if (syncStatus === "error") {
+      return <AlertCircle data-testid="status-sync" className="ml-auto size-4 text-red-500" />;
+    }
+    if (!hasRun) {
+      return <AlertCircle data-testid="status-sync" className="ml-auto size-4 text-amber-500" />;
+    }
+  }
+
+  return null;
 }
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const [syncStatus, setSyncStatus] = useState<SyncStatus>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function init() {
-      const status = await fetchSyncStatusFromApi();
-      if (cancelled) return;
-      setSyncStatus(status);
-
-      if (status === "running") {
-        pollRef.current = setInterval(async () => {
-          const s = await fetchSyncStatusFromApi();
-          if (cancelled) return;
-          setSyncStatus(s);
-          if (s && s !== "running") {
-            if (pollRef.current) {
-              clearInterval(pollRef.current);
-              pollRef.current = null;
-            }
-          }
-        }, 2000);
-      }
-    }
-
-    init();
-
-    return () => {
-      cancelled = true;
-      if (pollRef.current) {
-        clearInterval(pollRef.current);
-        pollRef.current = null;
-      }
-    };
-  }, []);
+  const sidebarStatus = useSidebarStatus();
 
   return (
     <Sidebar>
@@ -143,9 +124,7 @@ export function AppSidebar() {
                     <Link href={item.href}>
                       <item.icon />
                       <span>{item.title}</span>
-                      {item.title === "Sync" && syncStatus && (
-                        <SyncStatusIndicator status={syncStatus} />
-                      )}
+                      <ConfigStatusIndicator title={item.title} status={sidebarStatus} />
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
