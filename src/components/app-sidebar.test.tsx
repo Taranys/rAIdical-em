@@ -1,21 +1,22 @@
 // @vitest-environment jsdom
-// US-023 + US-013: App sidebar tests
+// US-023 + improve-menu-ux: App sidebar tests
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import type { SidebarStatus } from "@/hooks/use-sidebar-status";
 
 // Mock next/navigation
 vi.mock("next/navigation", () => ({
   usePathname: vi.fn(),
 }));
 
-// Mock fetch globally
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
+// Mock useSidebarStatus hook
+const mockUseSidebarStatus = vi.fn<() => SidebarStatus>();
+vi.mock("@/hooks/use-sidebar-status", () => ({
+  useSidebarStatus: () => mockUseSidebarStatus(),
+}));
 
 import { usePathname } from "next/navigation";
-
-// Import after mock setup
 import { AppSidebar } from "./app-sidebar";
 
 // jsdom does not implement window.matchMedia — mock it for SidebarProvider's use-mobile hook
@@ -33,6 +34,12 @@ Object.defineProperty(window, "matchMedia", {
   })),
 });
 
+const DEFAULT_STATUS: SidebarStatus = {
+  settings: { configured: false },
+  team: { configured: false },
+  sync: { hasRun: false, status: null },
+};
+
 function renderSidebar() {
   return render(
     <SidebarProvider>
@@ -45,11 +52,7 @@ describe("AppSidebar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(usePathname).mockReturnValue("/");
-    // Default: no sync run
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ syncRun: null, history: [] }),
-    });
+    mockUseSidebarStatus.mockReturnValue(DEFAULT_STATUS);
   });
 
   afterEach(() => {
@@ -144,79 +147,105 @@ describe("AppSidebar", () => {
     expect(analyseGroup.textContent).toContain("Team Profiles");
     expect(analyseGroup.textContent).toContain("1:1 Prep");
 
-    // Configuration group contains Team, Sync, Settings
+    // Configuration group contains Settings, Team, Sync
+    expect(configGroup.textContent).toContain("Settings");
     expect(configGroup.textContent).toContain("Team");
     expect(configGroup.textContent).toContain("Sync");
-    expect(configGroup.textContent).toContain("Settings");
 
     // Analyse group should NOT contain config items
     expect(analyseGroup.textContent).not.toContain("Settings");
     expect(analyseGroup.textContent).not.toContain("Sync");
   });
 
-  // US-013: Sync status emoji indicator tests
-  it("shows success emoji when last sync was successful", async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({
-        syncRun: { id: 1, status: "success", prCount: 42, commentCount: 0, startedAt: "2024-06-01T10:00:00Z", completedAt: "2024-06-01T10:05:00Z", errorMessage: null },
-        history: [],
-      }),
-    });
+  // Configuration group order: Settings → Team → Sync
+  it("orders Configuration items as Settings, Team, Sync", () => {
+    const { container } = renderSidebar();
+    const configGroup = container.querySelectorAll("[data-sidebar='group']")[1];
+    const links = configGroup.querySelectorAll("a");
+    const titles = Array.from(links).map((a) => a.textContent?.replace(/\s+/g, " ").trim());
 
-    renderSidebar();
-
-    await waitFor(() => {
-      const indicator = screen.getByTestId("sync-status-dot");
-      expect(indicator).toBeInTheDocument();
-      expect(indicator.textContent).toBe("✅");
-    });
+    expect(titles[0]).toContain("Settings");
+    expect(titles[1]).toContain("Team");
+    expect(titles[2]).toContain("Sync");
   });
 
-  it("shows error emoji when last sync had an error", async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({
-        syncRun: { id: 1, status: "error", prCount: 5, commentCount: 0, startedAt: "2024-06-01T10:00:00Z", completedAt: "2024-06-01T10:01:00Z", errorMessage: "Error" },
-        history: [],
-      }),
+  // Status indicator tests
+  describe("config status indicators", () => {
+    it("shows amber alert for Settings when not configured", () => {
+      renderSidebar();
+      const icon = screen.getByTestId("status-settings");
+      expect(icon).toBeInTheDocument();
+      expect(icon).toHaveClass("text-amber-500");
     });
 
-    renderSidebar();
-
-    await waitFor(() => {
-      const indicator = screen.getByTestId("sync-status-dot");
-      expect(indicator).toBeInTheDocument();
-      expect(indicator.textContent).toBe("❌");
-    });
-  });
-
-  it("shows running emoji when sync is in progress", async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({
-        syncRun: { id: 1, status: "running", prCount: 5, commentCount: 0, startedAt: "2024-06-01T10:00:00Z", completedAt: null, errorMessage: null },
-        history: [],
-      }),
+    it("shows green check for Settings when configured", () => {
+      mockUseSidebarStatus.mockReturnValue({
+        ...DEFAULT_STATUS,
+        settings: { configured: true },
+      });
+      renderSidebar();
+      const icon = screen.getByTestId("status-settings");
+      expect(icon).toBeInTheDocument();
+      expect(icon).toHaveClass("text-green-600");
     });
 
-    renderSidebar();
-
-    await waitFor(() => {
-      const indicator = screen.getByTestId("sync-status-dot");
-      expect(indicator).toBeInTheDocument();
-      expect(indicator.textContent).toBe("🔄");
-    });
-  });
-
-  it("does not show dot when no sync has been run", async () => {
-    renderSidebar();
-
-    // Wait for fetch to complete
-    await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalled();
+    it("shows amber alert for Team when no members", () => {
+      renderSidebar();
+      const icon = screen.getByTestId("status-team");
+      expect(icon).toBeInTheDocument();
+      expect(icon).toHaveClass("text-amber-500");
     });
 
-    expect(screen.queryByTestId("sync-status-dot")).not.toBeInTheDocument();
+    it("shows green check for Team when members exist", () => {
+      mockUseSidebarStatus.mockReturnValue({
+        ...DEFAULT_STATUS,
+        team: { configured: true },
+      });
+      renderSidebar();
+      const icon = screen.getByTestId("status-team");
+      expect(icon).toBeInTheDocument();
+      expect(icon).toHaveClass("text-green-600");
+    });
+
+    it("shows amber alert for Sync when no sync has run", () => {
+      renderSidebar();
+      const icon = screen.getByTestId("status-sync");
+      expect(icon).toBeInTheDocument();
+      expect(icon).toHaveClass("text-amber-500");
+    });
+
+    it("shows green check for Sync when last sync was successful", () => {
+      mockUseSidebarStatus.mockReturnValue({
+        ...DEFAULT_STATUS,
+        sync: { hasRun: true, status: "success" },
+      });
+      renderSidebar();
+      const icon = screen.getByTestId("status-sync");
+      expect(icon).toBeInTheDocument();
+      expect(icon).toHaveClass("text-green-600");
+    });
+
+    it("shows red alert for Sync when last sync had an error", () => {
+      mockUseSidebarStatus.mockReturnValue({
+        ...DEFAULT_STATUS,
+        sync: { hasRun: true, status: "error" },
+      });
+      renderSidebar();
+      const icon = screen.getByTestId("status-sync");
+      expect(icon).toBeInTheDocument();
+      expect(icon).toHaveClass("text-red-500");
+    });
+
+    it("shows spinning loader for Sync when sync is running", () => {
+      mockUseSidebarStatus.mockReturnValue({
+        ...DEFAULT_STATUS,
+        sync: { hasRun: true, status: "running" },
+      });
+      renderSidebar();
+      const icon = screen.getByTestId("status-sync");
+      expect(icon).toBeInTheDocument();
+      expect(icon).toHaveClass("animate-spin");
+      expect(icon).toHaveClass("text-blue-500");
+    });
   });
 });
