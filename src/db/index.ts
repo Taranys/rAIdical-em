@@ -65,7 +65,15 @@ if (
   fs.existsSync(migrationsFolder)
 ) {
   (globalThis as Record<string, unknown>)[migrateKey] = true;
-  migrate(_state.db, { migrationsFolder });
+  try {
+    migrate(_state.db, { migrationsFolder });
+  } catch (e: unknown) {
+    // Tolerate "table already exists" from concurrent chunk evaluation
+    // during Next.js build (Turbopack may evaluate this module in
+    // multiple server chunks before globalThis guard takes effect).
+    const msg = e instanceof Error ? e.message : String(e);
+    if (!msg.includes("already exists")) throw e;
+  }
 }
 
 // US-2.17: Replace the active database with a new file.
