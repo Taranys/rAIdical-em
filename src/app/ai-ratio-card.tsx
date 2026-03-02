@@ -38,6 +38,7 @@ interface ChartRow {
   human: number;
   ai: number;
   mixed: number;
+  bot: number;
   total: number;
 }
 
@@ -45,6 +46,7 @@ const COLORS = {
   human: "hsl(142 71% 45%)", // green
   ai: "hsl(262 83% 58%)", // violet
   mixed: "hsl(32 95% 44%)", // orange
+  bot: "hsl(210 10% 58%)", // gray
 };
 
 function buildChartData(raw: RawRow[]): ChartRow[] {
@@ -53,7 +55,7 @@ function buildChartData(raw: RawRow[]): ChartRow[] {
   for (const row of raw) {
     let entry = map.get(row.author);
     if (!entry) {
-      entry = { author: row.author, human: 0, ai: 0, mixed: 0, total: 0 };
+      entry = { author: row.author, human: 0, ai: 0, mixed: 0, bot: 0, total: 0 };
       map.set(row.author, entry);
     }
     const key = row.aiGenerated as keyof typeof COLORS;
@@ -113,6 +115,7 @@ export function AiRatioCard() {
   const aiCount = teamTotal.find((t) => t.aiGenerated === "ai")?.count ?? 0;
   const humanCount = teamTotal.find((t) => t.aiGenerated === "human")?.count ?? 0;
   const mixedCount = teamTotal.find((t) => t.aiGenerated === "mixed")?.count ?? 0;
+  const botCount = teamTotal.find((t) => t.aiGenerated === "bot")?.count ?? 0;
 
   return (
     <Card>
@@ -120,7 +123,7 @@ export function AiRatioCard() {
         <CardTitle>AI vs Human Authorship</CardTitle>
         <CardDescription>
           {totalPRs} PR{totalPRs !== 1 ? "s" : ""} — {humanCount} human,{" "}
-          {aiCount} AI, {mixedCount} mixed during {period.label}
+          {aiCount} AI, {mixedCount} mixed, {botCount} bot during {period.label}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-8">
@@ -165,6 +168,12 @@ export function AiRatioCard() {
                     name="Mixed"
                     stackId="a"
                     fill={COLORS.mixed}
+                  />
+                  <Bar
+                    dataKey="bot"
+                    name="Bot"
+                    stackId="a"
+                    fill={COLORS.bot}
                     radius={[0, 4, 4, 0]}
                   />
                 </BarChart>
@@ -210,6 +219,19 @@ export function AiRatioCard() {
                     Mixed: {mixedCount} (
                     {totalPRs > 0
                       ? ((mixedCount / totalPRs) * 100).toFixed(0)
+                      : 0}
+                    %)
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-3 h-3 rounded-sm"
+                    style={{ backgroundColor: COLORS.bot }}
+                  />
+                  <span className="text-sm">
+                    Bot: {botCount} (
+                    {totalPRs > 0
+                      ? ((botCount / totalPRs) * 100).toFixed(0)
                       : 0}
                     %)
                   </span>

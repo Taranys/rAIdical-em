@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getSetting, setSetting, deleteSetting } from "@/db/settings";
 import {
   DEFAULT_AI_HEURISTICS,
+  migrateConfig,
   type AiHeuristicsConfig,
 } from "@/lib/ai-detection";
 
@@ -18,7 +19,7 @@ export async function GET() {
     });
   }
 
-  const config = JSON.parse(stored) as AiHeuristicsConfig;
+  const config = migrateConfig(JSON.parse(stored));
   return NextResponse.json({ configured: true, config });
 }
 
@@ -29,16 +30,12 @@ function isValidConfig(config: unknown): config is AiHeuristicsConfig {
 
   if (!Array.isArray(c.coAuthorPatterns)) return false;
   if (!Array.isArray(c.authorBotList)) return false;
-  if (!Array.isArray(c.branchNamePatterns)) return false;
-  if (!Array.isArray(c.labels)) return false;
 
   if (!c.enabled || typeof c.enabled !== "object") return false;
 
   const e = c.enabled as Record<string, unknown>;
   if (typeof e.coAuthor !== "boolean") return false;
   if (typeof e.authorBot !== "boolean") return false;
-  if (typeof e.branchName !== "boolean") return false;
-  if (typeof e.label !== "boolean") return false;
 
   return true;
 }

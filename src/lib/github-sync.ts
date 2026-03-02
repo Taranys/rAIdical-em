@@ -5,7 +5,7 @@ import { upsertReview } from "@/db/reviews";
 import { upsertReviewComment } from "@/db/review-comments";
 import { upsertPrComment } from "@/db/pr-comments";
 import { updateSyncRunProgress, completeSyncRun } from "@/db/sync-runs";
-import { classifyPullRequest, DEFAULT_AI_HEURISTICS, type AiHeuristicsConfig } from "@/lib/ai-detection";
+import { classifyPullRequest, DEFAULT_AI_HEURISTICS, migrateConfig, type AiHeuristicsConfig } from "@/lib/ai-detection";
 import { getSetting } from "@/db/settings";
 import { classifyComments } from "@/lib/classification-service";
 import { getActiveClassificationRun } from "@/db/classification-runs";
@@ -39,7 +39,7 @@ export async function syncPullRequests(
   try {
     const stored = getSetting("ai_heuristics");
     if (stored) {
-      aiConfig = JSON.parse(stored) as AiHeuristicsConfig;
+      aiConfig = migrateConfig(JSON.parse(stored));
     }
   } catch {
     // Fall back to defaults if config can't be loaded
@@ -79,8 +79,8 @@ export async function syncPullRequests(
 
       const state = mapPRState(pr);
 
-      // US-020: Classify PR as ai/human/mixed
-      let aiGenerated: "ai" | "human" | "mixed" = "human";
+      // US-020: Classify PR as ai/human/mixed/bot
+      let aiGenerated: "ai" | "human" | "mixed" | "bot" = "human";
       try {
         const { data: commits } = await octokit.rest.pulls.listCommits({
           owner,
@@ -89,11 +89,7 @@ export async function syncPullRequests(
         });
 
         aiGenerated = classifyPullRequest(
-          {
-            author: pr.user?.login ?? "unknown",
-            branchName: pr.head?.ref ?? null,
-            labels: (pr.labels ?? []).map((l: { name?: string }) => l.name ?? ""),
-          },
+          { author: pr.user?.login ?? "unknown" },
           commits.map((c: { commit: { message: string } }) => ({ message: c.commit.message })),
           aiConfig,
         );
