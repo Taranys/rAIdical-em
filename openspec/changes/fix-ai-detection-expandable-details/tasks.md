@@ -31,8 +31,16 @@
 - [ ] 5.4 Handle loading state with skeleton while fetching details
 - [ ] 5.5 Handle toggle behavior (click same author closes, click different switches)
 
-## 6. Validation
+## 6. UI — Reclassify Button
 
-- [ ] 6.1 Run `npm test` and ensure all existing and new tests pass
-- [ ] 6.2 Run `npm run build` and verify no TypeScript errors
-- [ ] 6.3 Run `npm run lint` and fix any issues
+- [ ] 6.1 Add a "Reclassifier" button in the `AiRatioCard` header (next to the title)
+- [ ] 6.2 On click, POST to `/api/sync` without `sinceDate` to trigger full sync
+- [ ] 6.3 Show loading spinner on the button and disable it during sync
+- [ ] 6.4 Poll `GET /api/sync` to detect sync completion, then refresh chart data
+- [ ] 6.5 Handle error states (sync already running 409, sync failure)
+
+## 7. Validation
+
+- [ ] 7.1 Run `npm test` and ensure all existing and new tests pass
+- [ ] 7.2 Run `npm run build` and verify no TypeScript errors
+- [ ] 7.3 Run `npm run lint` and fix any issues

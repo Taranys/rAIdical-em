@@ -57,8 +57,19 @@ Problèmes actuels :
 
 **Rationale** : Le collapsible s'intègre naturellement dans le flow de lecture du card et ne masque pas le chart.
 
+### 5. Bouton "Reclassifier" dans la card AI ratio
+
+**Décision** : Ajouter un bouton dans le header de la `AiRatioCard` qui déclenche un `POST /api/sync` sans `sinceDate` (sync complet depuis le début). Le bouton affiche un état loading pendant le sync, avec polling sur `GET /api/sync` pour suivre la progression et rafraîchir les données à la fin.
+
+**Alternatives considérées** :
+- *Créer un endpoint dédié de reclassification qui ne refetch que les commits* : nécessiterait de stocker les messages de commits en base, complexité supplémentaire pour un gain marginal
+- *Bouton sur la page Settings uniquement* : moins accessible, l'EM doit quitter le dashboard pour relancer
+
+**Rationale** : L'endpoint `POST /api/sync` existe déjà et supporte le sync complet. Un sync complet re-fetch les commits de chaque PR et reclassifie avec la config actuelle — c'est exactement ce qu'il faut. Le bouton dans la card rend l'action directement accessible là où l'EM constate le problème.
+
 ## Risks / Trade-offs
 
 - **Migration de données** : Les PRs existantes auront `classification_reason = null`. → Mitigation : afficher "Raison non disponible — resynchroniser pour obtenir le détail" dans l'UI.
 - **Performance de l'endpoint détails** : Si un auteur a beaucoup de PRs sur une longue période. → Mitigation : la requête est déjà filtrée par auteur + date range, pas de pagination nécessaire dans un premier temps (le nombre de PRs par personne sur une période dashboard est typiquement < 100).
 - **Changement de type de retour `classifyPullRequest`** : breaking change interne. → Mitigation : tous les call sites sont dans `github-sync.ts`, un seul endroit à adapter. Les tests de `ai-detection.ts` devront être mis à jour.
+- **Sync complet coûteux en API calls** : un sync complet re-fetch tous les PRs et commits. → Mitigation : le bouton affiche clairement que c'est un sync complet, l'état loading avec progression empêche les doubles clics, et le rate limit GitHub est affiché dans la sidebar.
