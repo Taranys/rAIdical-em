@@ -14,10 +14,12 @@ vi.mock("@/db/pull-requests", () => ({
     { author: "alice", aiGenerated: "human", count: 5 },
     { author: "alice", aiGenerated: "ai", count: 3 },
     { author: "bob", aiGenerated: "human", count: 7 },
+    { author: "bob", aiGenerated: "bot", count: 2 },
   ]),
   getAiRatioTeamTotal: vi.fn(() => [
     { aiGenerated: "human", count: 12 },
     { aiGenerated: "ai", count: 3 },
+    { aiGenerated: "bot", count: 2 },
   ]),
 }));
 
@@ -54,8 +56,8 @@ describe("GET /api/dashboard/ai-ratio", () => {
     expect(res.status).toBe(200);
 
     const json = await res.json();
-    expect(json.byMember).toHaveLength(3);
-    expect(json.teamTotal).toHaveLength(2);
+    expect(json.byMember).toHaveLength(4);
+    expect(json.teamTotal).toHaveLength(3);
     expect(json.byMember[0]).toEqual({
       author: "alice",
       aiGenerated: "human",

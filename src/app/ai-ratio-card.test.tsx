@@ -58,10 +58,12 @@ describe("AiRatioCard", () => {
           { author: "alice", aiGenerated: "human", count: 5 },
           { author: "alice", aiGenerated: "ai", count: 3 },
           { author: "bob", aiGenerated: "human", count: 7 },
+          { author: "bob", aiGenerated: "bot", count: 1 },
         ],
         teamTotal: [
           { aiGenerated: "human", count: 12 },
           { aiGenerated: "ai", count: 3 },
+          { aiGenerated: "bot", count: 1 },
         ],
       }),
     } as Response);
@@ -75,18 +77,20 @@ describe("AiRatioCard", () => {
     });
   });
 
-  it("shows correct team totals in description", async () => {
+  it("shows correct team totals in description including bot", async () => {
     vi.spyOn(global, "fetch").mockResolvedValue({
       json: async () => ({
         byMember: [
           { author: "alice", aiGenerated: "human", count: 5 },
           { author: "alice", aiGenerated: "ai", count: 3 },
           { author: "bob", aiGenerated: "mixed", count: 2 },
+          { author: "bob", aiGenerated: "bot", count: 1 },
         ],
         teamTotal: [
           { aiGenerated: "human", count: 5 },
           { aiGenerated: "ai", count: 3 },
           { aiGenerated: "mixed", count: 2 },
+          { aiGenerated: "bot", count: 1 },
         ],
       }),
     } as Response);
@@ -94,10 +98,11 @@ describe("AiRatioCard", () => {
     renderWithProvider(<AiRatioCard />);
 
     await waitFor(() => {
-      expect(screen.getByText(/10 PRs/)).toBeInTheDocument();
+      expect(screen.getByText(/11 PRs/)).toBeInTheDocument();
       expect(screen.getByText(/5 human/)).toBeInTheDocument();
       expect(screen.getByText(/3 AI/)).toBeInTheDocument();
       expect(screen.getByText(/2 mixed/)).toBeInTheDocument();
+      expect(screen.getByText(/1 bot/)).toBeInTheDocument();
     });
   });
 });

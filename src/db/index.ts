@@ -67,12 +67,11 @@ if (
   (globalThis as Record<string, unknown>)[migrateKey] = true;
   try {
     migrate(_state.db, { migrationsFolder });
-  } catch (e: unknown) {
-    // Tolerate "table already exists" from concurrent chunk evaluation
-    // during Next.js build (Turbopack may evaluate this module in
-    // multiple server chunks before globalThis guard takes effect).
-    const msg = e instanceof Error ? e.message : String(e);
-    if (!msg.includes("already exists")) throw e;
+  } catch (err: unknown) {
+    // Tolerate "table already exists" when parallel Vitest workers or
+    // concurrent Next.js Turbopack chunks race against the same DB file.
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!msg.includes("already exists")) throw err;
   }
 }
 

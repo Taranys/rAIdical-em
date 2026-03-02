@@ -35,7 +35,7 @@ export const pullRequests = sqliteTable(
     additions: integer("additions").notNull().default(0),
     deletions: integer("deletions").notNull().default(0),
     changedFiles: integer("changed_files").notNull().default(0),
-    aiGenerated: text("ai_generated").notNull().default("human"), // US-020: ai | human | mixed
+    aiGenerated: text("ai_generated").notNull().default("human"), // US-020: ai | human | mixed | bot
     rawJson: text("raw_json"),
   },
   (table) => [

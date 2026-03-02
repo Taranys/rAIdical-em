@@ -51,12 +51,11 @@ vi.mock("@/db/sync-runs", () => ({
 
 vi.mock("@/lib/ai-detection", () => ({
   classifyPullRequest: vi.fn(),
+  migrateConfig: vi.fn((config: unknown) => config),
   DEFAULT_AI_HEURISTICS: {
     coAuthorPatterns: ["*Claude*"],
     authorBotList: ["dependabot"],
-    branchNamePatterns: ["ai/*"],
-    labels: ["ai-generated"],
-    enabled: { coAuthor: true, authorBot: true, branchName: true, label: true },
+    enabled: { coAuthor: true, authorBot: true },
   },
 }));
 
@@ -580,7 +579,7 @@ describe("syncPullRequests", () => {
     await syncPullRequests("owner", "repo", "ghp_token", 1);
 
     expect(classifyPullRequest).toHaveBeenCalledWith(
-      { author: "octocat", branchName: "ai/my-feature", labels: ["ai-generated"] },
+      { author: "octocat" },
       [{ message: "Fix bug\n\nCo-Authored-By: Claude <noreply>" }],
       expect.any(Object),
     );
@@ -610,6 +609,18 @@ describe("syncPullRequests", () => {
     );
   });
 
+  it("passes 'bot' classification through to upsert", async () => {
+    mockPaginate.mockResolvedValue([makeListItem()]);
+    mockPullsGet.mockResolvedValue({ data: makeDetailPR() });
+    vi.mocked(classifyPullRequest).mockReturnValue("bot");
+
+    await syncPullRequests("owner", "repo", "ghp_token", 1);
+
+    expect(upsertPullRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ aiGenerated: "bot" }),
+    );
+  });
+
   it("defaults to 'human' when listCommits fails", async () => {
     mockPaginate.mockResolvedValue([makeListItem()]);
     mockPullsGet.mockResolvedValue({ data: makeDetailPR() });
@@ -628,9 +639,7 @@ describe("syncPullRequests", () => {
     const customConfig = {
       coAuthorPatterns: ["*MyBot*"],
       authorBotList: ["custom-bot"],
-      branchNamePatterns: ["bot/*"],
-      labels: ["automated"],
-      enabled: { coAuthor: true, authorBot: true, branchName: true, label: true },
+      enabled: { coAuthor: true, authorBot: true },
     };
     vi.mocked(getSetting).mockReturnValue(JSON.stringify(customConfig));
     mockPaginate.mockResolvedValue([makeListItem()]);

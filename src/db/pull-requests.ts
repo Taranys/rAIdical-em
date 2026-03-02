@@ -16,7 +16,7 @@ export interface PullRequestInput {
   additions: number;
   deletions: number;
   changedFiles: number;
-  aiGenerated: "ai" | "human" | "mixed";
+  aiGenerated: "ai" | "human" | "mixed" | "bot";
 }
 
 export function upsertPullRequest(

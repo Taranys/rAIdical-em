@@ -39,8 +39,6 @@ export function AiHeuristicsForm({ embedded = false }: { embedded?: boolean }) {
   // Track raw text inputs to avoid cursor issues with parse/join on every keystroke
   const [coAuthorText, setCoAuthorText] = useState("");
   const [authorBotText, setAuthorBotText] = useState("");
-  const [branchText, setBranchText] = useState("");
-  const [labelText, setLabelText] = useState("");
 
   const loadConfig = useCallback(async () => {
     try {
@@ -49,8 +47,6 @@ export function AiHeuristicsForm({ embedded = false }: { embedded?: boolean }) {
       setConfig(data.config);
       setCoAuthorText(joinList(data.config.coAuthorPatterns));
       setAuthorBotText(joinList(data.config.authorBotList));
-      setBranchText(joinList(data.config.branchNamePatterns));
-      setLabelText(joinList(data.config.labels));
     } catch {
       setFeedback({ type: "error", message: "Failed to load configuration." });
     }
@@ -65,8 +61,6 @@ export function AiHeuristicsForm({ embedded = false }: { embedded?: boolean }) {
     return {
       coAuthorPatterns: parseList(coAuthorText),
       authorBotList: parseList(authorBotText),
-      branchNamePatterns: parseList(branchText),
-      labels: parseList(labelText),
       enabled: config.enabled,
     };
   }
@@ -197,60 +191,6 @@ export function AiHeuristicsForm({ embedded = false }: { embedded?: boolean }) {
           </p>
         </div>
 
-        {/* Branch Name Pattern */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="enable-branch"
-              checked={config.enabled.branchName}
-              onCheckedChange={() => toggleEnabled("branchName")}
-            />
-            <Label htmlFor="enable-branch">
-              Enable branch name detection
-            </Label>
-          </div>
-          <Label htmlFor="branch-patterns">Branch name patterns</Label>
-          <Input
-            id="branch-patterns"
-            placeholder="e.g., ai/*, copilot/*, claude/*"
-            value={branchText}
-            onChange={(e) => {
-              setBranchText(e.target.value);
-              setFeedback(null);
-            }}
-            disabled={!config.enabled.branchName}
-          />
-          <p className="text-xs text-muted-foreground">
-            Comma-separated glob patterns to match branch names
-          </p>
-        </div>
-
-        {/* Label-Based */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="enable-label"
-              checked={config.enabled.label}
-              onCheckedChange={() => toggleEnabled("label")}
-            />
-            <Label htmlFor="enable-label">Enable label detection</Label>
-          </div>
-          <Label htmlFor="labels">GitHub labels</Label>
-          <Input
-            id="labels"
-            placeholder="e.g., ai-generated, ai-assisted, bot"
-            value={labelText}
-            onChange={(e) => {
-              setLabelText(e.target.value);
-              setFeedback(null);
-            }}
-            disabled={!config.enabled.label}
-          />
-          <p className="text-xs text-muted-foreground">
-            Comma-separated label names to match on PRs
-          </p>
-        </div>
-
         {/* Actions */}
         <div className="flex gap-2">
           <Button onClick={handleSave} disabled={isSaving}>
@@ -283,8 +223,7 @@ export function AiHeuristicsForm({ embedded = false }: { embedded?: boolean }) {
       <CardHeader>
         <CardTitle>AI Detection Rules</CardTitle>
         <CardDescription>
-          Configure which heuristics determine whether a PR is AI-generated.
-          Multiple rules can be active simultaneously.
+          Configure which heuristics determine whether a PR is AI-generated, bot-created, or human-authored.
         </CardDescription>
       </CardHeader>
       <CardContent>{content}</CardContent>

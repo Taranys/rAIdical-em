@@ -48,6 +48,27 @@ describe("GET /api/settings/ai-heuristics", () => {
     expect(data.configured).toBe(true);
     expect(data.config.authorBotList).toEqual(["custom-bot"]);
   });
+
+  it("migrates legacy config on read", async () => {
+    const legacyConfig = {
+      coAuthorPatterns: ["*Claude*"],
+      authorBotList: ["dependabot"],
+      branchNamePatterns: ["ai/*"],
+      labels: ["ai-generated"],
+      enabled: { coAuthor: true, authorBot: false, branchName: true, label: true },
+    };
+    mockGetSetting.mockReturnValue(JSON.stringify(legacyConfig));
+
+    const res = await GET();
+    const data = await res.json();
+
+    expect(data.configured).toBe(true);
+    expect(data.config).toEqual({
+      coAuthorPatterns: ["*Claude*"],
+      authorBotList: ["dependabot"],
+      enabled: { coAuthor: true, authorBot: false },
+    });
+  });
 });
 
 describe("PUT /api/settings/ai-heuristics", () => {
@@ -84,8 +105,6 @@ describe("PUT /api/settings/ai-heuristics", () => {
         config: {
           coAuthorPatterns: [],
           authorBotList: [],
-          branchNamePatterns: [],
-          labels: [],
           // missing enabled
         },
       }),
@@ -99,14 +118,22 @@ describe("PUT /api/settings/ai-heuristics", () => {
         config: {
           coAuthorPatterns: [],
           authorBotList: [],
-          branchNamePatterns: [],
-          labels: [],
           enabled: {
             coAuthor: "yes",
             authorBot: true,
-            branchName: true,
-            label: true,
           },
+        },
+      }),
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when authorBotList is missing", async () => {
+    const res = await PUT(
+      makeRequest({
+        config: {
+          coAuthorPatterns: [],
+          enabled: { coAuthor: true, authorBot: true },
         },
       }),
     );
