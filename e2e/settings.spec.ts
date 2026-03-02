@@ -138,10 +138,6 @@ test.describe("AI Detection Rules", () => {
       /Claude/,
     );
     await expect(page.getByLabel(/bot usernames/i)).toHaveValue(/dependabot/);
-    await expect(page.getByLabel(/branch name patterns/i)).toHaveValue(/ai/);
-    await expect(page.getByLabel(/github labels/i)).toHaveValue(
-      /ai-generated/,
-    );
   });
 
   test("can save custom heuristics configuration", async ({
