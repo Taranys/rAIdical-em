@@ -50,6 +50,13 @@
       "when": 1771968590573,
       "tag": "0006_workable_magma",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1772466341661,
+      "tag": "0007_chubby_leopardon",
+      "breakpoints": true
     }
   ]
 }

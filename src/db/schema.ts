@@ -36,6 +36,7 @@ export const pullRequests = sqliteTable(
     deletions: integer("deletions").notNull().default(0),
     changedFiles: integer("changed_files").notNull().default(0),
     aiGenerated: text("ai_generated").notNull().default("human"), // US-020: ai | human | mixed | bot
+    classificationReason: text("classification_reason"), // nullable — filled on sync, null for legacy rows
     rawJson: text("raw_json"),
   },
   (table) => [

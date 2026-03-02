@@ -14,6 +14,7 @@ import {
   getPRsByMember,
   getAiRatioByMember,
   getAiRatioTeamTotal,
+  getPRDetailsByAuthor,
 } from "./pull-requests";
 
 describe("pull-requests DAL (integration)", () => {
@@ -39,6 +40,7 @@ describe("pull-requests DAL (integration)", () => {
         deletions INTEGER NOT NULL DEFAULT 0,
         changed_files INTEGER NOT NULL DEFAULT 0,
         ai_generated TEXT NOT NULL DEFAULT 'human',
+        classification_reason TEXT,
         raw_json TEXT
       );
     `);
@@ -60,6 +62,7 @@ describe("pull-requests DAL (integration)", () => {
     deletions: 10,
     changedFiles: 3,
     aiGenerated: "human" as const,
+    classificationReason: null,
   };
 
   it("inserts a new pull request", () => {
@@ -123,6 +126,25 @@ describe("pull-requests DAL (integration)", () => {
   it("stores bot value in aiGenerated field", () => {
     const result = upsertPullRequest({ ...samplePR, aiGenerated: "bot" as const }, testDb);
     expect(result.aiGenerated).toBe("bot");
+  });
+
+  it("stores and updates classificationReason", () => {
+    const result = upsertPullRequest(
+      { ...samplePR, classificationReason: "No AI co-author found in 3 commits" },
+      testDb,
+    );
+    expect(result.classificationReason).toBe("No AI co-author found in 3 commits");
+
+    const updated = upsertPullRequest(
+      { ...samplePR, classificationReason: "All 3/3 commits have Co-Authored-By matching AI patterns" },
+      testDb,
+    );
+    expect(updated.classificationReason).toBe("All 3/3 commits have Co-Authored-By matching AI patterns");
+  });
+
+  it("stores null classificationReason for legacy PRs", () => {
+    const result = upsertPullRequest({ ...samplePR, classificationReason: null }, testDb);
+    expect(result.classificationReason).toBeNull();
   });
 
   // getPRsMergedByMember
@@ -615,6 +637,60 @@ describe("pull-requests DAL (integration)", () => {
     it("returns empty array for empty team list", () => {
       expect(getAiRatioByMember([], "2026-02-01T00:00:00Z", "2026-03-01T00:00:00Z", testDb)).toEqual([]);
       expect(getAiRatioTeamTotal([], "2026-02-01T00:00:00Z", "2026-03-01T00:00:00Z", testDb)).toEqual([]);
+    });
+  });
+
+  // getPRDetailsByAuthor
+  describe("getPRDetailsByAuthor", () => {
+    beforeEach(() => {
+      upsertPullRequest(
+        { ...samplePR, githubId: 400, number: 400, author: "alice", title: "AI fix", aiGenerated: "ai" as const, classificationReason: "All 2/2 commits have Co-Authored-By matching AI patterns", createdAt: "2026-02-05T10:00:00Z" },
+        testDb,
+      );
+      upsertPullRequest(
+        { ...samplePR, githubId: 401, number: 401, author: "alice", title: "Human fix", aiGenerated: "human" as const, classificationReason: "No AI co-author found in 3 commits", createdAt: "2026-02-10T10:00:00Z" },
+        testDb,
+      );
+      upsertPullRequest(
+        { ...samplePR, githubId: 402, number: 402, author: "alice", title: "Legacy PR", aiGenerated: "human" as const, classificationReason: null, createdAt: "2026-02-12T10:00:00Z" },
+        testDb,
+      );
+      upsertPullRequest(
+        { ...samplePR, githubId: 403, number: 403, author: "bob", title: "Bob PR", aiGenerated: "ai" as const, classificationReason: "All 1/1 commits", createdAt: "2026-02-08T10:00:00Z" },
+        testDb,
+      );
+    });
+
+    it("returns PRs for a specific author with classification details, sorted by createdAt desc", () => {
+      const result = getPRDetailsByAuthor("alice", "2026-02-01T00:00:00Z", "2026-03-01T00:00:00Z", testDb);
+
+      expect(result).toHaveLength(3);
+      expect(result[0].number).toBe(402); // most recent first
+      expect(result[1].number).toBe(401);
+      expect(result[2].number).toBe(400);
+    });
+
+    it("includes aiGenerated and classificationReason fields", () => {
+      const result = getPRDetailsByAuthor("alice", "2026-02-01T00:00:00Z", "2026-03-01T00:00:00Z", testDb);
+
+      expect(result[2].aiGenerated).toBe("ai");
+      expect(result[2].classificationReason).toBe("All 2/2 commits have Co-Authored-By matching AI patterns");
+    });
+
+    it("returns null classificationReason for legacy PRs", () => {
+      const result = getPRDetailsByAuthor("alice", "2026-02-01T00:00:00Z", "2026-03-01T00:00:00Z", testDb);
+
+      expect(result[0].classificationReason).toBeNull();
+    });
+
+    it("does not return PRs from other authors", () => {
+      const result = getPRDetailsByAuthor("alice", "2026-02-01T00:00:00Z", "2026-03-01T00:00:00Z", testDb);
+      expect(result.every((pr) => pr.number !== 403)).toBe(true);
+    });
+
+    it("returns empty array when no PRs in date range", () => {
+      const result = getPRDetailsByAuthor("alice", "2025-01-01T00:00:00Z", "2025-02-01T00:00:00Z", testDb);
+      expect(result).toEqual([]);
     });
   });
 });

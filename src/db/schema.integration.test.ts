@@ -46,6 +46,7 @@ describe("Phase 1 schema (integration)", () => {
         deletions INTEGER NOT NULL DEFAULT 0,
         changed_files INTEGER NOT NULL DEFAULT 0,
         ai_generated TEXT NOT NULL DEFAULT 'human',
+        classification_reason TEXT,
         raw_json TEXT
       );
 

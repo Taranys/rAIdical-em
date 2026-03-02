@@ -17,6 +17,7 @@ export interface PullRequestInput {
   deletions: number;
   changedFiles: number;
   aiGenerated: "ai" | "human" | "mixed" | "bot";
+  classificationReason: string | null;
 }
 
 export function upsertPullRequest(
@@ -37,6 +38,7 @@ export function upsertPullRequest(
       deletions: input.deletions,
       changedFiles: input.changedFiles,
       aiGenerated: input.aiGenerated,
+      classificationReason: input.classificationReason,
     })
     .onConflictDoUpdate({
       target: pullRequests.githubId,
@@ -51,6 +53,7 @@ export function upsertPullRequest(
         deletions: input.deletions,
         changedFiles: input.changedFiles,
         aiGenerated: input.aiGenerated,
+        classificationReason: input.classificationReason,
       },
     })
     .returning()
@@ -320,6 +323,34 @@ export function getAiRatioTeamTotal(
       ),
     )
     .groupBy(pullRequests.aiGenerated)
+    .all();
+}
+
+// Get individual PRs for an author with classification details (for AI ratio drill-down)
+export function getPRDetailsByAuthor(
+  author: string,
+  startDate: string,
+  endDate: string,
+  dbInstance: DbInstance = defaultDb,
+) {
+  return dbInstance
+    .select({
+      number: pullRequests.number,
+      title: pullRequests.title,
+      aiGenerated: pullRequests.aiGenerated,
+      classificationReason: pullRequests.classificationReason,
+      createdAt: pullRequests.createdAt,
+      state: pullRequests.state,
+    })
+    .from(pullRequests)
+    .where(
+      and(
+        eq(pullRequests.author, author),
+        gte(pullRequests.createdAt, startDate),
+        lt(pullRequests.createdAt, endDate),
+      ),
+    )
+    .orderBy(desc(pullRequests.createdAt))
     .all();
 }
 

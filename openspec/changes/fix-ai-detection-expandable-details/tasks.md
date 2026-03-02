@@ -1,0 +1,46 @@
+## 1. Schema & Migration
+
+- [x] 1.1 Add `classificationReason` column (nullable TEXT) to `pullRequests` in `src/db/schema.ts`
+- [x] 1.2 Generate Drizzle migration with `npm run db:generate`
+- [x] 1.3 Run migration with `npm run db:migrate`
+
+## 2. Classification Logic
+
+- [x] 2.1 Change `classifyPullRequest` return type from `AiClassification` to `{ classification: AiClassification, reason: string }` in `src/lib/ai-detection.ts`
+- [x] 2.2 Generate human-readable reason strings for each classification path (bot, ai, mixed, human, no commits)
+- [x] 2.3 Update unit tests in `src/lib/ai-detection.test.ts` to expect structured return type and verify reason strings
+
+## 3. Data Layer & Sync
+
+- [x] 3.1 Add `classificationReason` to `PullRequestInput` interface and `upsertPullRequest` in `src/db/pull-requests.ts`
+- [x] 3.2 Update `github-sync.ts` to destructure the new return type and pass `classificationReason` to upsert
+- [x] 3.3 Add new query `getPRDetailsByAuthor(author, startDate, endDate)` in `src/db/pull-requests.ts` returning individual PRs with `number`, `title`, `aiGenerated`, `classificationReason`, `createdAt`, `state`
+- [x] 3.4 Update integration tests in `src/db/pull-requests.integration.test.ts` for the new field and new query
+
+## 4. API Endpoint
+
+- [x] 4.1 Create `src/app/api/dashboard/ai-ratio/details/route.ts` with `GET` handler accepting `author`, `startDate`, `endDate` query params
+- [x] 4.2 Return 400 if required params are missing, return `{ prs: [...] }` sorted by createdAt desc
+- [x] 4.3 Write API route test
+
+## 5. UI — Expandable PR Details
+
+- [x] 5.1 Make chart bars clickable in `src/app/ai-ratio-card.tsx` — track selected author in state
+- [x] 5.2 Add collapsible panel below the chart that fetches and displays PRs for the selected author
+- [x] 5.3 Display each PR with: number, title, colored classification badge, and reason text (or fallback message if null)
+- [x] 5.4 Handle loading state with skeleton while fetching details
+- [x] 5.5 Handle toggle behavior (click same author closes, click different switches)
+
+## 6. UI — Reclassify Button
+
+- [x] 6.1 Add a "Reclassifier" button in the `AiRatioCard` header (next to the title)
+- [x] 6.2 On click, POST to `/api/sync` without `sinceDate` to trigger full sync
+- [x] 6.3 Show loading spinner on the button and disable it during sync
+- [x] 6.4 Poll `GET /api/sync` to detect sync completion, then refresh chart data
+- [x] 6.5 Handle error states (sync already running 409, sync failure)
+
+## 7. Validation
+
+- [x] 7.1 Run `npm test` and ensure all existing and new tests pass
+- [x] 7.2 Run `npm run build` and verify no TypeScript errors
+- [x] 7.3 Run `npm run lint` and fix any issues

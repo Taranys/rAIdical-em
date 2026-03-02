@@ -50,6 +50,7 @@ export function mapPullRequest(pr: GitHubPR): PullRequestInput {
     deletions: pr.deletions ?? 0,
     changedFiles: pr.changed_files ?? 0,
     aiGenerated: "human",
+    classificationReason: null,
   };
 }
 
