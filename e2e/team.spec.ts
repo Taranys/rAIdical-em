@@ -19,7 +19,14 @@ test.describe("Team page", () => {
     ).toBeVisible();
   });
 
-  test("shows empty state when no members", async ({ page }) => {
+  test("shows empty state when no members", async ({ page, request }) => {
+    // Clean up any existing members via API
+    const res = await request.get("/api/team");
+    const { members } = await res.json();
+    for (const member of members) {
+      await request.delete(`/api/team/${member.id}`);
+    }
+
     await page.goto("/team");
 
     await expect(page.getByText(/no team members yet/i)).toBeVisible();
