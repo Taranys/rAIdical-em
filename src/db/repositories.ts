@@ -1,6 +1,6 @@
 // Multi-repo support: repositories data access layer
 import { db as defaultDb, sqlite as defaultSqlite } from "./index";
-import { repositories, pullRequests, reviews, reviewComments, prComments, syncRuns } from "./schema";
+import { repositories } from "./schema";
 import { eq, asc } from "drizzle-orm";
 import type Database from "better-sqlite3";
 

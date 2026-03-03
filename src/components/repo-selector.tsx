@@ -1,7 +1,7 @@
 "use client";
 
 // Multi-repo: App-level repository selector persisted via URL query param
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
   Select,
@@ -27,19 +27,20 @@ export function RepoSelector() {
 
   const currentRepo = searchParams.get("repo") ?? ALL_REPOS_VALUE;
 
-  const loadRepositories = useCallback(async () => {
-    try {
-      const res = await fetch("/api/repositories");
-      const data = await res.json();
-      setRepositories(data);
-    } catch {
-      // Ignore — will show empty selector
-    }
-  }, []);
-
   useEffect(() => {
-    loadRepositories();
-  }, [loadRepositories]);
+    let cancelled = false;
+    async function load() {
+      try {
+        const res = await fetch("/api/repositories");
+        const data = await res.json();
+        if (!cancelled) setRepositories(data);
+      } catch {
+        // Ignore — will show empty selector
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, []);
 
   function handleChange(value: string) {
     const params = new URLSearchParams(searchParams.toString());

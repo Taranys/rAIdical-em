@@ -1,7 +1,7 @@
 "use client";
 
 // Multi-repo support: repository management card (list + add)
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -28,35 +28,33 @@ export function RepositoriesCard({ isPatConfigured: isPatConfiguredProp }: Repos
   const [isPatConfiguredLocal, setIsPatConfiguredLocal] = useState(false);
   const isPatConfigured = isPatConfiguredProp ?? isPatConfiguredLocal;
   const [repositories, setRepositories] = useState<Repository[]>([]);
-
-  const loadRepositories = useCallback(async () => {
-    try {
-      const res = await fetch("/api/repositories");
-      const data = await res.json();
-      setRepositories(data);
-    } catch {
-      // Ignore
-    }
-  }, []);
-
-  const checkPatConfigured = useCallback(async () => {
-    try {
-      const res = await fetch("/api/settings/github-pat");
-      const data = await res.json();
-      setIsPatConfiguredLocal(data.configured);
-    } catch {
-      // Ignore
-    }
-  }, []);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    checkPatConfigured();
-    loadRepositories();
-  }, [checkPatConfigured, loadRepositories]);
+    let cancelled = false;
+    async function load() {
+      try {
+        const [patRes, repoRes] = await Promise.all([
+          fetch("/api/settings/github-pat"),
+          fetch("/api/repositories"),
+        ]);
+        const patData = await patRes.json();
+        const repoData = await repoRes.json();
+        if (!cancelled) {
+          setIsPatConfiguredLocal(patData.configured);
+          setRepositories(repoData);
+        }
+      } catch {
+        // Ignore
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [refreshKey]);
 
   async function handleRemove(id: number) {
     await fetch(`/api/repositories/${id}`, { method: "DELETE" });
-    loadRepositories();
+    setRefreshKey((k) => k + 1);
   }
 
   return (
@@ -70,7 +68,7 @@ export function RepositoriesCard({ isPatConfigured: isPatConfiguredProp }: Repos
       <CardContent className="space-y-4">
         <RepositoryList repositories={repositories} onRemove={handleRemove} />
         <Separator />
-        <AddRepositoryForm isPatConfigured={isPatConfigured} onAdded={loadRepositories} />
+        <AddRepositoryForm isPatConfigured={isPatConfigured} onAdded={() => setRefreshKey((k) => k + 1)} />
       </CardContent>
     </Card>
   );
