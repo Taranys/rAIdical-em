@@ -164,10 +164,10 @@ test.describe("Categories Settings Page", () => {
       page.getByRole("heading", { name: "Skills" }),
     ).toBeVisible();
 
-    // Should show 8 default categories
-    await expect(page.getByText("Bug / Correctness")).toBeVisible();
-    await expect(page.getByText("Security")).toBeVisible();
-    await expect(page.getByText("Performance")).toBeVisible();
+    // Should show 8 default categories (use exact match to avoid strict mode violations)
+    await expect(page.getByText("Bug / Correctness", { exact: true })).toBeVisible();
+    await expect(page.getByText("Security", { exact: true })).toBeVisible();
+    await expect(page.getByText("Performance", { exact: true })).toBeVisible();
   });
 
   test("can navigate to categories page from sidebar", async ({ page }) => {
@@ -185,15 +185,18 @@ test.describe("Categories Settings Page", () => {
   test("can add a new category", async ({ page, request }) => {
     await page.goto("/settings/categories");
 
+    // Open the add form first
+    await page.getByRole("button", { name: /add category/i }).click();
+
     // Fill the add form
-    await page.getByPlaceholder("Category name").fill("Custom Test");
-    await page.getByPlaceholder("Explain to the LLM").fill("Custom test description");
+    await page.getByPlaceholder("e.g. Accessibility").fill("Custom Test");
+    await page.getByPlaceholder("Describe how the LLM should identify this category...").fill("Custom test description");
 
     // Submit
-    await page.getByRole("button", { name: /add/i }).click();
+    await page.getByRole("button", { name: /^add$/i }).click();
 
     // Verify it appears in the list
-    await expect(page.getByText("Custom Test")).toBeVisible();
+    await expect(page.getByText("Custom Test", { exact: true })).toBeVisible();
 
     // Cleanup
     await request.post("/api/categories/reset");
