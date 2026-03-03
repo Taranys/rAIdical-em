@@ -17,7 +17,11 @@ export async function GET(request: Request) {
     );
   }
 
-  const prs = getPRDetailsByAuthor(author, startDate, endDate);
+  const repositoryId = searchParams.get("repositoryId")
+    ? parseInt(searchParams.get("repositoryId")!, 10)
+    : undefined;
+
+  const prs = getPRDetailsByAuthor(author, startDate, endDate, undefined, repositoryId);
 
   return NextResponse.json({ prs });
 }

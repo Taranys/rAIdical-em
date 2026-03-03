@@ -24,6 +24,7 @@ export async function syncPullRequests(
   token: string,
   syncRunId: number,
   since?: string,
+  repositoryId?: number,
 ) {
   const octokit = new Octokit({ auth: token });
   let prCount = 0;
@@ -113,6 +114,7 @@ export async function syncPullRequests(
         changedFiles: pr.changed_files,
         aiGenerated,
         classificationReason,
+        repositoryId,
       });
       prCount++;
 
@@ -133,6 +135,7 @@ export async function syncPullRequests(
             reviewer,
             state: review.state,
             submittedAt: review.submitted_at ?? new Date().toISOString(),
+            repositoryId,
           });
           reviewCount++;
         }
@@ -160,6 +163,7 @@ export async function syncPullRequests(
             line: comment.line ?? null,
             createdAt: comment.created_at,
             updatedAt: comment.updated_at,
+            repositoryId,
           });
           commentCount++;
         }
@@ -185,6 +189,7 @@ export async function syncPullRequests(
             body: comment.body ?? "",
             createdAt: comment.created_at,
             updatedAt: comment.updated_at,
+            repositoryId,
           });
           commentCount++;
         }

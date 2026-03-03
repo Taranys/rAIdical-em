@@ -22,6 +22,11 @@ vi.mock("recharts", () => ({
   Legend: () => null,
 }));
 
+vi.mock("@/hooks/use-repository-filter", () => ({
+  useRepositoryFilter: () => undefined,
+  appendRepoParam: (params: URLSearchParams) => params,
+}));
+
 function renderWithProvider(ui: React.ReactElement) {
   return render(<PeriodProvider>{ui}</PeriodProvider>);
 }

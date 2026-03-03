@@ -12,6 +12,7 @@ export interface SyncRun {
   startedAt: string;
   completedAt: string | null;
   errorMessage: string | null;
+  repository: string;
 }
 
 interface UseSyncStatusOptions {

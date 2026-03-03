@@ -1,7 +1,7 @@
 // US-011, US-017: Reviews data access layer
 import { db as defaultDb } from "./index";
 import { reviews } from "./schema";
-import { count, and, gte, lt, inArray, sql } from "drizzle-orm";
+import { count, and, gte, lt, inArray, eq, sql } from "drizzle-orm";
 
 type DbInstance = typeof defaultDb;
 
@@ -11,6 +11,7 @@ export interface ReviewInput {
   reviewer: string;
   state: string;
   submittedAt: string;
+  repositoryId?: number | null;
 }
 
 export function upsertReview(
@@ -25,6 +26,7 @@ export function upsertReview(
       reviewer: input.reviewer,
       state: input.state,
       submittedAt: input.submittedAt,
+      repositoryId: input.repositoryId ?? undefined,
     })
     .onConflictDoUpdate({
       target: reviews.githubId,
@@ -33,6 +35,7 @@ export function upsertReview(
         reviewer: input.reviewer,
         state: input.state,
         submittedAt: input.submittedAt,
+        repositoryId: input.repositoryId ?? undefined,
       },
     })
     .returning()
@@ -56,6 +59,7 @@ export function getPRsReviewedByMember(
   startDate: string,
   endDate: string,
   dbInstance: DbInstance = defaultDb,
+  repositoryId?: number,
 ): { reviewer: string; count: number }[] {
   if (teamUsernames.length === 0) return [];
 
@@ -70,6 +74,7 @@ export function getPRsReviewedByMember(
         inArray(reviews.reviewer, teamUsernames),
         gte(reviews.submittedAt, startDate),
         lt(reviews.submittedAt, endDate),
+        repositoryId !== undefined ? eq(reviews.repositoryId, repositoryId) : undefined,
       ),
     )
     .groupBy(reviews.reviewer)

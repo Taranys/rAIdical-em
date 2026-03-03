@@ -20,6 +20,13 @@ describe("review-comments DAL (integration)", () => {
     testDb = drizzle(testSqlite, { schema });
 
     testSqlite.exec(`
+      CREATE TABLE repositories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        owner TEXT NOT NULL,
+        name TEXT NOT NULL,
+        added_at TEXT NOT NULL,
+        UNIQUE(owner, name)
+      );
       CREATE TABLE pull_requests (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         github_id INTEGER NOT NULL UNIQUE,
@@ -33,7 +40,8 @@ describe("review-comments DAL (integration)", () => {
         deletions INTEGER NOT NULL DEFAULT 0,
         changed_files INTEGER NOT NULL DEFAULT 0,
         ai_generated TEXT NOT NULL DEFAULT 'human',
-        raw_json TEXT
+        raw_json TEXT,
+        repository_id INTEGER REFERENCES repositories(id)
       );
       CREATE TABLE review_comments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -44,7 +52,8 @@ describe("review-comments DAL (integration)", () => {
         file_path TEXT,
         line INTEGER,
         created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        repository_id INTEGER REFERENCES repositories(id)
       );
     `);
 

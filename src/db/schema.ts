@@ -1,5 +1,19 @@
 // US-022: Phase 1 database schema / US-2.03: Phase 2 schema extension
-import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, index, unique } from "drizzle-orm/sqlite-core";
+
+// Multi-repo support: configured GitHub repositories
+export const repositories = sqliteTable(
+  "repositories",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    owner: text("owner").notNull(),
+    name: text("name").notNull(),
+    addedAt: text("added_at").notNull(),
+  },
+  (table) => [
+    unique("uq_repositories_owner_name").on(table.owner, table.name),
+  ]
+);
 
 // Key/value store for app settings (PAT, org, repo, etc.)
 export const settings = sqliteTable("settings", {
@@ -38,11 +52,13 @@ export const pullRequests = sqliteTable(
     aiGenerated: text("ai_generated").notNull().default("human"), // US-020: ai | human | mixed | bot
     classificationReason: text("classification_reason"), // nullable — filled on sync, null for legacy rows
     rawJson: text("raw_json"),
+    repositoryId: integer("repository_id").references(() => repositories.id),
   },
   (table) => [
     index("idx_pull_requests_author").on(table.author),
     index("idx_pull_requests_state").on(table.state),
     index("idx_pull_requests_created_at").on(table.createdAt),
+    index("idx_pull_requests_repository_id").on(table.repositoryId),
   ]
 );
 
@@ -58,10 +74,12 @@ export const reviews = sqliteTable(
     reviewer: text("reviewer").notNull(),
     state: text("state").notNull(), // APPROVED | CHANGES_REQUESTED | COMMENTED
     submittedAt: text("submitted_at").notNull(),
+    repositoryId: integer("repository_id").references(() => repositories.id),
   },
   (table) => [
     index("idx_reviews_reviewer").on(table.reviewer),
     index("idx_reviews_pull_request_id").on(table.pullRequestId),
+    index("idx_reviews_repository_id").on(table.repositoryId),
   ]
 );
 
@@ -80,10 +98,12 @@ export const reviewComments = sqliteTable(
     line: integer("line"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
+    repositoryId: integer("repository_id").references(() => repositories.id),
   },
   (table) => [
     index("idx_review_comments_reviewer").on(table.reviewer),
     index("idx_review_comments_pull_request_id").on(table.pullRequestId),
+    index("idx_review_comments_repository_id").on(table.repositoryId),
   ]
 );
 
@@ -100,10 +120,12 @@ export const prComments = sqliteTable(
     body: text("body").notNull(),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
+    repositoryId: integer("repository_id").references(() => repositories.id),
   },
   (table) => [
     index("idx_pr_comments_author").on(table.author),
     index("idx_pr_comments_pull_request_id").on(table.pullRequestId),
+    index("idx_pr_comments_repository_id").on(table.repositoryId),
   ]
 );
 
@@ -120,10 +142,12 @@ export const syncRuns = sqliteTable(
     reviewCount: integer("review_count").notNull().default(0),
     commentCount: integer("comment_count").notNull().default(0),
     errorMessage: text("error_message"),
+    repositoryId: integer("repository_id").references(() => repositories.id),
   },
   (table) => [
     index("idx_sync_runs_repository").on(table.repository),
     index("idx_sync_runs_status").on(table.status),
+    index("idx_sync_runs_repository_id").on(table.repositoryId),
   ]
 );
 

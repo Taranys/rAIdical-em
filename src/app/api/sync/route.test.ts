@@ -1,4 +1,4 @@
-// US-010 / US-014 / US-025: Sync API route unit tests
+// US-010 / US-014 / US-025 / Multi-repo: Sync API route unit tests
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/db/settings", () => ({
@@ -9,8 +9,14 @@ vi.mock("@/db/sync-runs", () => ({
   createSyncRun: vi.fn(),
   getLatestSyncRun: vi.fn(),
   getLatestSuccessfulSyncRun: vi.fn(),
-  getActiveSyncRun: vi.fn(),
-  getSyncRunHistory: vi.fn(),
+  getAnyActiveSyncRun: vi.fn(),
+  getSyncRunHistoryAll: vi.fn(),
+  getLatestSuccessfulSyncRunByRepoId: vi.fn(),
+}));
+
+vi.mock("@/db/repositories", () => ({
+  listRepositories: vi.fn(),
+  findRepositoryById: vi.fn(),
 }));
 
 vi.mock("@/lib/github-sync", () => ({
@@ -23,9 +29,10 @@ import {
   createSyncRun,
   getLatestSyncRun,
   getLatestSuccessfulSyncRun,
-  getActiveSyncRun,
-  getSyncRunHistory,
+  getAnyActiveSyncRun,
+  getSyncRunHistoryAll,
 } from "@/db/sync-runs";
+import { listRepositories } from "@/db/repositories";
 import { syncPullRequests } from "@/lib/github-sync";
 
 function setupValidSettings() {
@@ -64,6 +71,8 @@ const mockSyncRun = {
 describe("POST /api/sync", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default: no multi-repo repos configured (fallback to legacy settings)
+    vi.mocked(listRepositories).mockReturnValue([]);
   });
 
   it("returns 400 when no PAT configured", async () => {
@@ -86,12 +95,12 @@ describe("POST /api/sync", () => {
     const data = await res.json();
 
     expect(res.status).toBe(400);
-    expect(data.error).toMatch(/repository/i);
+    expect(data.error).toMatch(/repositor/i);
   });
 
   it("returns 409 when sync already running", async () => {
     setupValidSettings();
-    vi.mocked(getActiveSyncRun).mockReturnValue({
+    vi.mocked(getAnyActiveSyncRun).mockReturnValue({
       ...mockSyncRun,
       id: 1,
       status: "running",
@@ -104,9 +113,9 @@ describe("POST /api/sync", () => {
     expect(data.error).toMatch(/already/i);
   });
 
-  it("starts sync and returns syncRunId on success", async () => {
+  it("starts sync and returns syncRunId on success (legacy fallback)", async () => {
     setupValidSettings();
-    vi.mocked(getActiveSyncRun).mockReturnValue(null);
+    vi.mocked(getAnyActiveSyncRun).mockReturnValue(null);
     vi.mocked(getLatestSuccessfulSyncRun).mockReturnValue(null);
     vi.mocked(createSyncRun).mockReturnValue(mockSyncRun);
     vi.mocked(syncPullRequests).mockResolvedValue(10);
@@ -123,7 +132,7 @@ describe("POST /api/sync", () => {
   // US-014: Incremental sync tests
   it("passes completedAt as since when previous successful sync exists", async () => {
     setupValidSettings();
-    vi.mocked(getActiveSyncRun).mockReturnValue(null);
+    vi.mocked(getAnyActiveSyncRun).mockReturnValue(null);
     vi.mocked(getLatestSuccessfulSyncRun).mockReturnValue({
       ...mockSyncRun,
       id: 10,
@@ -148,7 +157,7 @@ describe("POST /api/sync", () => {
 
   it("does full sync when no previous successful sync exists", async () => {
     setupValidSettings();
-    vi.mocked(getActiveSyncRun).mockReturnValue(null);
+    vi.mocked(getAnyActiveSyncRun).mockReturnValue(null);
     vi.mocked(getLatestSuccessfulSyncRun).mockReturnValue(null);
     vi.mocked(createSyncRun).mockReturnValue(mockSyncRun);
     vi.mocked(syncPullRequests).mockResolvedValue(10);
@@ -161,7 +170,7 @@ describe("POST /api/sync", () => {
   // US-025: sinceDate from request body
   it("uses sinceDate from request body when provided", async () => {
     setupValidSettings();
-    vi.mocked(getActiveSyncRun).mockReturnValue(null);
+    vi.mocked(getAnyActiveSyncRun).mockReturnValue(null);
     vi.mocked(createSyncRun).mockReturnValue(mockSyncRun);
     vi.mocked(syncPullRequests).mockResolvedValue(10);
 
@@ -183,7 +192,7 @@ describe("POST /api/sync", () => {
 
   it("sinceDate overrides incremental sync", async () => {
     setupValidSettings();
-    vi.mocked(getActiveSyncRun).mockReturnValue(null);
+    vi.mocked(getAnyActiveSyncRun).mockReturnValue(null);
     vi.mocked(getLatestSuccessfulSyncRun).mockReturnValue({
       ...mockSyncRun,
       id: 10,
@@ -209,19 +218,21 @@ describe("POST /api/sync", () => {
 describe("GET /api/sync", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default: no multi-repo repos configured
+    vi.mocked(listRepositories).mockReturnValue([]);
   });
 
   it("returns null and empty history when no repository configured", async () => {
     vi.mocked(getSetting).mockReturnValue(null);
 
-    const res = await GET();
+    const res = await GET(new Request("http://localhost/api/sync"));
     const data = await res.json();
 
     expect(data.syncRun).toBeNull();
     expect(data.history).toEqual([]);
   });
 
-  it("returns latest sync run and history", async () => {
+  it("returns latest sync run and history (legacy fallback)", async () => {
     vi.mocked(getSetting).mockImplementation((key: string) => {
       if (key === "github_owner") return "owner";
       if (key === "github_repo") return "repo";
@@ -235,9 +246,9 @@ describe("GET /api/sync", () => {
       prCount: 42,
     };
     vi.mocked(getLatestSyncRun).mockReturnValue(mockRun);
-    vi.mocked(getSyncRunHistory).mockReturnValue([mockRun]);
+    vi.mocked(getSyncRunHistoryAll).mockReturnValue([mockRun]);
 
-    const res = await GET();
+    const res = await GET(new Request("http://localhost/api/sync"));
     const data = await res.json();
 
     expect(data.syncRun.status).toBe("success");
@@ -253,9 +264,9 @@ describe("GET /api/sync", () => {
       return null;
     });
     vi.mocked(getLatestSyncRun).mockReturnValue(null);
-    vi.mocked(getSyncRunHistory).mockReturnValue([]);
+    vi.mocked(getSyncRunHistoryAll).mockReturnValue([]);
 
-    const res = await GET();
+    const res = await GET(new Request("http://localhost/api/sync"));
     const data = await res.json();
 
     expect(data.syncRun).toBeNull();

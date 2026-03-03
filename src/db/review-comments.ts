@@ -14,6 +14,7 @@ export interface ReviewCommentInput {
   line: number | null;
   createdAt: string;
   updatedAt: string;
+  repositoryId?: number | null;
 }
 
 export function upsertReviewComment(
@@ -31,6 +32,7 @@ export function upsertReviewComment(
       line: input.line,
       createdAt: input.createdAt,
       updatedAt: input.updatedAt,
+      repositoryId: input.repositoryId ?? undefined,
     })
     .onConflictDoUpdate({
       target: reviewComments.githubId,
@@ -42,6 +44,7 @@ export function upsertReviewComment(
         line: input.line,
         createdAt: input.createdAt,
         updatedAt: input.updatedAt,
+        repositoryId: input.repositoryId ?? undefined,
       },
     })
     .returning()
@@ -76,6 +79,7 @@ export function getAvgCommentsPerReviewByMember(
   startDate: string,
   endDate: string,
   dbInstance: DbInstance = defaultDb,
+  repositoryId?: number,
 ) {
   if (teamUsernames.length === 0) return [];
 
@@ -92,6 +96,7 @@ export function getAvgCommentsPerReviewByMember(
         inArray(reviewComments.reviewer, teamUsernames),
         gte(reviewComments.createdAt, startDate),
         lt(reviewComments.createdAt, endDate),
+        repositoryId !== undefined ? eq(reviewComments.repositoryId, repositoryId) : undefined,
       ),
     )
     .groupBy(reviewComments.reviewer)

@@ -16,6 +16,14 @@ describe("Phase 1 schema (integration)", () => {
 
     // Create all tables via raw SQL matching the Drizzle schema
     testSqlite.exec(`
+      CREATE TABLE repositories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        owner TEXT NOT NULL,
+        name TEXT NOT NULL,
+        added_at TEXT NOT NULL,
+        UNIQUE(owner, name)
+      );
+
       CREATE TABLE settings (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL,
@@ -47,7 +55,8 @@ describe("Phase 1 schema (integration)", () => {
         changed_files INTEGER NOT NULL DEFAULT 0,
         ai_generated TEXT NOT NULL DEFAULT 'human',
         classification_reason TEXT,
-        raw_json TEXT
+        raw_json TEXT,
+        repository_id INTEGER REFERENCES repositories(id)
       );
 
       CREATE TABLE reviews (
@@ -56,7 +65,8 @@ describe("Phase 1 schema (integration)", () => {
         pull_request_id INTEGER NOT NULL REFERENCES pull_requests(id),
         reviewer TEXT NOT NULL,
         state TEXT NOT NULL,
-        submitted_at TEXT NOT NULL
+        submitted_at TEXT NOT NULL,
+        repository_id INTEGER REFERENCES repositories(id)
       );
 
       CREATE TABLE review_comments (
@@ -68,7 +78,8 @@ describe("Phase 1 schema (integration)", () => {
         file_path TEXT,
         line INTEGER,
         created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        repository_id INTEGER REFERENCES repositories(id)
       );
 
       CREATE TABLE pr_comments (
@@ -78,7 +89,8 @@ describe("Phase 1 schema (integration)", () => {
         author TEXT NOT NULL,
         body TEXT NOT NULL,
         created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        repository_id INTEGER REFERENCES repositories(id)
       );
 
       CREATE TABLE sync_runs (
@@ -90,7 +102,8 @@ describe("Phase 1 schema (integration)", () => {
         pr_count INTEGER NOT NULL DEFAULT 0,
         review_count INTEGER NOT NULL DEFAULT 0,
         comment_count INTEGER NOT NULL DEFAULT 0,
-        error_message TEXT
+        error_message TEXT,
+        repository_id INTEGER REFERENCES repositories(id)
       );
 
       CREATE TABLE classification_runs (
@@ -479,10 +492,10 @@ describe("Phase 1 schema (integration)", () => {
     ).toThrow();
   });
 
-  it("creates all 11 tables", () => {
+  it("creates all 12 tables", () => {
     const result = testSqlite
       .prepare("SELECT count(*) as count FROM sqlite_master WHERE type='table' AND name != 'sqlite_sequence'")
       .get() as { count: number };
-    expect(result.count).toBe(11);
+    expect(result.count).toBe(12);
   });
 });

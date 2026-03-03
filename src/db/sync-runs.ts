@@ -8,6 +8,7 @@ type DbInstance = typeof defaultDb;
 export function createSyncRun(
   repository: string,
   dbInstance: DbInstance = defaultDb,
+  repositoryId?: number,
 ) {
   return dbInstance
     .insert(syncRuns)
@@ -18,6 +19,7 @@ export function createSyncRun(
       prCount: 0,
       reviewCount: 0,
       commentCount: 0,
+      repositoryId: repositoryId ?? undefined,
     })
     .returning()
     .get();
@@ -121,6 +123,58 @@ export function getActiveSyncRun(
       .where(
         and(eq(syncRuns.repository, repository), eq(syncRuns.status, "running")),
       )
+      .get() ?? null
+  );
+}
+
+// Multi-repo: check if any sync is running across all repos
+export function getAnyActiveSyncRun(dbInstance: DbInstance = defaultDb) {
+  return (
+    dbInstance
+      .select()
+      .from(syncRuns)
+      .where(eq(syncRuns.status, "running"))
+      .get() ?? null
+  );
+}
+
+// Multi-repo: get sync run history for all repos or filtered by repositoryId
+export function getSyncRunHistoryAll(
+  limit: number = 20,
+  repositoryId?: number,
+  dbInstance: DbInstance = defaultDb,
+) {
+  if (repositoryId) {
+    return dbInstance
+      .select()
+      .from(syncRuns)
+      .where(eq(syncRuns.repositoryId, repositoryId))
+      .orderBy(desc(syncRuns.id))
+      .limit(limit)
+      .all();
+  }
+  return dbInstance
+    .select()
+    .from(syncRuns)
+    .orderBy(desc(syncRuns.id))
+    .limit(limit)
+    .all();
+}
+
+// Multi-repo: get latest successful sync run by repositoryId
+export function getLatestSuccessfulSyncRunByRepoId(
+  repositoryId: number,
+  dbInstance: DbInstance = defaultDb,
+) {
+  return (
+    dbInstance
+      .select()
+      .from(syncRuns)
+      .where(
+        and(eq(syncRuns.repositoryId, repositoryId), eq(syncRuns.status, "success")),
+      )
+      .orderBy(desc(syncRuns.id))
+      .limit(1)
       .get() ?? null
   );
 }

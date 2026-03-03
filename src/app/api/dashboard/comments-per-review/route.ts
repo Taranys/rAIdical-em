@@ -17,6 +17,10 @@ export async function GET(request: Request) {
     );
   }
 
+  const repositoryId = searchParams.get("repositoryId")
+    ? parseInt(searchParams.get("repositoryId")!, 10)
+    : undefined;
+
   const members = getAllTeamMembers();
   const teamUsernames = members.map((m) => m.githubUsername);
 
@@ -24,6 +28,8 @@ export async function GET(request: Request) {
     teamUsernames,
     startDate,
     endDate,
+    undefined,
+    repositoryId,
   );
 
   return NextResponse.json({ data });

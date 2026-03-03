@@ -1,7 +1,7 @@
 // US-023 + US-013: Application shell sidebar navigation with config status indicators
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   LayoutDashboard,
@@ -88,7 +88,12 @@ function ConfigStatusIndicator({ title, status }: { title: string; status: Sideb
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const sidebarStatus = useSidebarStatus();
+
+  // Multi-repo: preserve ?repo= param across navigation
+  const repoParam = searchParams.get("repo");
+  const repoSuffix = repoParam ? `?repo=${repoParam}` : "";
 
   return (
     <Sidebar>
@@ -108,7 +113,7 @@ export function AppSidebar() {
                     asChild
                     isActive={pathname === item.href}
                   >
-                    <Link href={item.href}>
+                    <Link href={`${item.href}${repoSuffix}`}>
                       <item.icon />
                       <span>{item.title}</span>
                     </Link>
@@ -129,7 +134,7 @@ export function AppSidebar() {
                     asChild
                     isActive={pathname === item.href}
                   >
-                    <Link href={item.href}>
+                    <Link href={`${item.href}${repoSuffix}`}>
                       <item.icon />
                       <span>{item.title}</span>
                       <ConfigStatusIndicator title={item.title} status={sidebarStatus} />

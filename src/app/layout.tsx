@@ -1,5 +1,6 @@
 // US-023: Application shell with sidebar navigation
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import "./globals.css";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -24,7 +25,9 @@ export default function RootLayout({
         <VibeKanbanDevTools />
         <AppProviders>
           <SidebarProvider>
-            <AppSidebar />
+            <Suspense>
+              <AppSidebar />
+            </Suspense>
             <SidebarInset>
               <AppHeader />
               <main className="flex-1">{children}</main>

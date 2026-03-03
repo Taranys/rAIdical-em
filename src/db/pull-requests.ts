@@ -1,7 +1,7 @@
 // US-010, US-015, US-016, US-025: Pull requests data access layer
 import { db as defaultDb } from "./index";
 import { pullRequests } from "./schema";
-import { count, and, gte, lt, inArray, eq, desc, sql } from "drizzle-orm";
+import { count, and, gte, lt, inArray, eq, desc, sql, type SQL } from "drizzle-orm";
 
 type DbInstance = typeof defaultDb;
 
@@ -18,6 +18,7 @@ export interface PullRequestInput {
   changedFiles: number;
   aiGenerated: "ai" | "human" | "mixed" | "bot";
   classificationReason: string | null;
+  repositoryId?: number | null;
 }
 
 export function upsertPullRequest(
@@ -39,6 +40,7 @@ export function upsertPullRequest(
       changedFiles: input.changedFiles,
       aiGenerated: input.aiGenerated,
       classificationReason: input.classificationReason,
+      repositoryId: input.repositoryId ?? undefined,
     })
     .onConflictDoUpdate({
       target: pullRequests.githubId,
@@ -54,6 +56,7 @@ export function upsertPullRequest(
         changedFiles: input.changedFiles,
         aiGenerated: input.aiGenerated,
         classificationReason: input.classificationReason,
+        repositoryId: input.repositoryId ?? undefined,
       },
     })
     .returning()
@@ -71,12 +74,18 @@ export function getPullRequestCount(
   return result?.count ?? 0;
 }
 
+// Multi-repo: helper to optionally add repositoryId condition
+function repoCondition(repositoryId?: number): SQL | undefined {
+  return repositoryId !== undefined ? eq(pullRequests.repositoryId, repositoryId) : undefined;
+}
+
 // PRs merged per team member within a date range
 export function getPRsMergedByMember(
   teamUsernames: string[],
   startDate: string,
   endDate: string,
   dbInstance: DbInstance = defaultDb,
+  repositoryId?: number,
 ): { author: string; count: number }[] {
   if (teamUsernames.length === 0) return [];
 
@@ -92,6 +101,7 @@ export function getPRsMergedByMember(
         eq(pullRequests.state, "merged"),
         gte(pullRequests.mergedAt, startDate),
         lt(pullRequests.mergedAt, endDate),
+        repoCondition(repositoryId),
       ),
     )
     .groupBy(pullRequests.author)
@@ -105,6 +115,7 @@ export function getPRsMergedPerWeek(
   startDate: string,
   endDate: string,
   dbInstance: DbInstance = defaultDb,
+  repositoryId?: number,
 ): { week: string; count: number }[] {
   if (teamUsernames.length === 0) return [];
 
@@ -122,6 +133,7 @@ export function getPRsMergedPerWeek(
         eq(pullRequests.state, "merged"),
         gte(pullRequests.mergedAt, startDate),
         lt(pullRequests.mergedAt, endDate),
+        repoCondition(repositoryId),
       ),
     )
     .groupBy(sql`strftime('%Y-W%W', ${pullRequests.mergedAt})`)
@@ -135,6 +147,7 @@ export function getPRsOpenedByMember(
   startDate: string,
   endDate: string,
   dbInstance: DbInstance = defaultDb,
+  repositoryId?: number,
 ): { author: string; count: number }[] {
   if (teamUsernames.length === 0) return [];
 
@@ -149,6 +162,7 @@ export function getPRsOpenedByMember(
         inArray(pullRequests.author, teamUsernames),
         gte(pullRequests.createdAt, startDate),
         lt(pullRequests.createdAt, endDate),
+        repoCondition(repositoryId),
       ),
     )
     .groupBy(pullRequests.author)
@@ -162,6 +176,7 @@ export function getPRsOpenedPerWeek(
   startDate: string,
   endDate: string,
   dbInstance: DbInstance = defaultDb,
+  repositoryId?: number,
 ): { week: string; count: number }[] {
   if (teamUsernames.length === 0) return [];
 
@@ -178,6 +193,7 @@ export function getPRsOpenedPerWeek(
         inArray(pullRequests.author, teamUsernames),
         gte(pullRequests.createdAt, startDate),
         lt(pullRequests.createdAt, endDate),
+        repoCondition(repositoryId),
       ),
     )
     .groupBy(sql`strftime('%Y-W%W', ${pullRequests.createdAt})`)
@@ -200,6 +216,7 @@ export function getMedianPRSizeByMember(
   startDate: string,
   endDate: string,
   dbInstance: DbInstance = defaultDb,
+  repositoryId?: number,
 ): { author: string; medianAdditions: number; medianDeletions: number; prCount: number }[] {
   if (teamUsernames.length === 0) return [];
 
@@ -215,6 +232,7 @@ export function getMedianPRSizeByMember(
         inArray(pullRequests.author, teamUsernames),
         gte(pullRequests.createdAt, startDate),
         lt(pullRequests.createdAt, endDate),
+        repoCondition(repositoryId),
       ),
     )
     .all();
@@ -250,6 +268,7 @@ export function getPRsByMember(
   startDate: string,
   endDate: string,
   dbInstance: DbInstance = defaultDb,
+  repositoryId?: number,
 ) {
   return dbInstance
     .select({
@@ -267,6 +286,7 @@ export function getPRsByMember(
         eq(pullRequests.author, author),
         gte(pullRequests.createdAt, startDate),
         lt(pullRequests.createdAt, endDate),
+        repoCondition(repositoryId),
       ),
     )
     .orderBy(desc(pullRequests.createdAt))
@@ -279,6 +299,7 @@ export function getAiRatioByMember(
   startDate: string,
   endDate: string,
   dbInstance: DbInstance = defaultDb,
+  repositoryId?: number,
 ): { author: string; aiGenerated: string; count: number }[] {
   if (teamUsernames.length === 0) return [];
 
@@ -294,6 +315,7 @@ export function getAiRatioByMember(
         inArray(pullRequests.author, teamUsernames),
         gte(pullRequests.createdAt, startDate),
         lt(pullRequests.createdAt, endDate),
+        repoCondition(repositoryId),
       ),
     )
     .groupBy(pullRequests.author, pullRequests.aiGenerated)
@@ -306,6 +328,7 @@ export function getAiRatioTeamTotal(
   startDate: string,
   endDate: string,
   dbInstance: DbInstance = defaultDb,
+  repositoryId?: number,
 ): { aiGenerated: string; count: number }[] {
   if (teamUsernames.length === 0) return [];
 
@@ -320,6 +343,7 @@ export function getAiRatioTeamTotal(
         inArray(pullRequests.author, teamUsernames),
         gte(pullRequests.createdAt, startDate),
         lt(pullRequests.createdAt, endDate),
+        repoCondition(repositoryId),
       ),
     )
     .groupBy(pullRequests.aiGenerated)
@@ -332,6 +356,7 @@ export function getPRDetailsByAuthor(
   startDate: string,
   endDate: string,
   dbInstance: DbInstance = defaultDb,
+  repositoryId?: number,
 ) {
   return dbInstance
     .select({
@@ -348,6 +373,7 @@ export function getPRDetailsByAuthor(
         eq(pullRequests.author, author),
         gte(pullRequests.createdAt, startDate),
         lt(pullRequests.createdAt, endDate),
+        repoCondition(repositoryId),
       ),
     )
     .orderBy(desc(pullRequests.createdAt))

@@ -20,11 +20,15 @@ export async function GET(request: Request) {
     );
   }
 
+  const repositoryId = searchParams.get("repositoryId")
+    ? parseInt(searchParams.get("repositoryId")!, 10)
+    : undefined;
+
   const members = getAllTeamMembers();
   const teamUsernames = members.map((m) => m.githubUsername);
 
-  const byMember = getPRsOpenedByMember(teamUsernames, startDate, endDate);
-  const byWeek = getPRsOpenedPerWeek(teamUsernames, startDate, endDate);
+  const byMember = getPRsOpenedByMember(teamUsernames, startDate, endDate, undefined, repositoryId);
+  const byWeek = getPRsOpenedPerWeek(teamUsernames, startDate, endDate, undefined, repositoryId);
 
   return NextResponse.json({ byMember, byWeek });
 }

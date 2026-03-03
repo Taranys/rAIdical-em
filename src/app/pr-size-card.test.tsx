@@ -5,6 +5,11 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { PrSizeCard } from "./pr-size-card";
 import { PeriodProvider } from "./dashboard-context";
 
+vi.mock("@/hooks/use-repository-filter", () => ({
+  useRepositoryFilter: () => undefined,
+  appendRepoParam: (params: URLSearchParams) => params,
+}));
+
 function renderWithProvider(ui: React.ReactElement) {
   return render(<PeriodProvider>{ui}</PeriodProvider>);
 }
