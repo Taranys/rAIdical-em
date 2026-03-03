@@ -49,13 +49,13 @@
 - [ ] 6.5 Update all analytics API routes to read `repositoryId` from query params and pass to query functions
 - [ ] 6.6 Write unit tests for filtered analytics queries (with repo, without repo, invalid repo)
 
-## 7. Dashboard Repo Filter UI
+## 7. App-Level Repo Filter UI
 
 - [ ] 7.1 Create `RepoSelector` dropdown component (lists repos + "All repositories" option)
-- [ ] 7.2 Integrate `RepoSelector` into dashboard layout, persisting selection as `repo` URL query param
-- [ ] 7.3 Pass selected `repositoryId` to all dashboard metric components and API calls
-- [ ] 7.4 Add repo filter to sync page history view
-- [ ] 7.5 Write unit tests for `RepoSelector` and filter propagation
+- [ ] 7.2 Integrate `RepoSelector` into root layout header (`src/app/layout.tsx`), next to `SidebarTrigger`, persisting selection as `repo` URL query param
+- [ ] 7.3 Update sidebar navigation links to preserve the `repo` query param when navigating between pages
+- [ ] 7.4 Pass selected `repositoryId` from URL to all page-level components and API calls (dashboard, sync, review quality, team profiles)
+- [ ] 7.5 Write unit tests for `RepoSelector` and cross-page filter propagation
 
 ## 8. Cleanup & Deprecation
 

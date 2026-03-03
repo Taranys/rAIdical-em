@@ -59,15 +59,17 @@ Engineering managers typically oversee teams contributing to 2-10 repositories. 
 - Parallel sync with Promise.all — risks hitting GitHub rate limits, complex error handling
 - Background job queue — over-engineered for the current use case
 
-### D4: Dashboard repo filter via query parameter
+### D4: App-level repo selector in root layout header
 
-**Decision:** Add a `repositoryId` query parameter to all analytics API routes. When absent, queries aggregate across all repos. The dashboard UI includes a dropdown selector that defaults to "All repositories".
+**Decision:** Place the `RepoSelector` dropdown in the root layout header (`src/app/layout.tsx`), next to the `SidebarTrigger`. The selected repository is stored as a `repo` query parameter in the URL. All pages (dashboard, sync, review quality, team profiles, etc.) read the `repo` param from the URL and pass it to their API calls. This avoids the user having to re-select a repository when navigating between pages.
 
-**Rationale:** Query parameter approach is stateless, bookmarkable, and works with Server Components. A global state/context would add unnecessary complexity.
+**Rationale:** A single selector in the app shell provides a consistent, global filter. The query parameter approach is stateless, bookmarkable, and works with Server Components. Placing it in the root layout means every page inherits the filter automatically.
 
 **Alternatives considered:**
+- Per-page selector — requires re-selection on each navigation, poor UX
+- React Context for repo state — adds client-side state complexity, not bookmarkable
 - Cookie-based filter — not bookmarkable, harder to debug
-- URL path segment (`/dashboard/repo/123`) — would require restructuring routes
+- URL path segment (`/repo/123/dashboard`) — would require restructuring all routes
 
 ### D5: Migration strategy for existing data
 
