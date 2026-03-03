@@ -86,6 +86,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Test environments:** Server-side code tests run in `node` environment; component tests run in `jsdom`.
 - **No coverage thresholds:** Tests must pass, but there is no enforced coverage minimum.
 
+## OpenSpec Conventions
+
+- **Language:** All OpenSpec artifacts (proposals, designs, specs, tasks) MUST be written in English. This includes file content, requirement names, scenario descriptions, and task descriptions.
+
 ## Interaction Style
 
 - **Langue:** Toutes les interactions doivent se faire en francais.

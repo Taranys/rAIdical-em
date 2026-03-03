@@ -1,8 +1,10 @@
 // US-023: Application shell with sidebar navigation
 import type { Metadata } from "next";
 import "./globals.css";
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { AppHeader } from "@/components/app-header";
+import { AppProviders } from "@/components/app-providers";
 import { VibeKanbanDevTools } from "@/components/vibe-kanban-web-companion";
 
 export const metadata: Metadata = {
@@ -20,15 +22,15 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <VibeKanbanDevTools />
-        <SidebarProvider>
-          <AppSidebar />
-          <SidebarInset>
-            <header className="flex h-12 items-center gap-2 border-b px-4">
-              <SidebarTrigger />
-            </header>
-            <main className="flex-1">{children}</main>
-          </SidebarInset>
-        </SidebarProvider>
+        <AppProviders>
+          <SidebarProvider>
+            <AppSidebar />
+            <SidebarInset>
+              <AppHeader />
+              <main className="flex-1">{children}</main>
+            </SidebarInset>
+          </SidebarProvider>
+        </AppProviders>
       </body>
     </html>
   );

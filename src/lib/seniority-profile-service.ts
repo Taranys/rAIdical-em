@@ -89,6 +89,38 @@ function standardDeviation(values: number[]): number {
   return Math.round(Math.sqrt(variance) * 100) / 100;
 }
 
+// --- Rationale generation ---
+
+export function generateTechnicalRationale(
+  metrics: { depthScore: number; volume: number; highValueRatio: number },
+  maturityLevel: MaturityLevel,
+  dimensionLabel?: string,
+): string {
+  const prefix = dimensionLabel ? `${dimensionLabel} — ` : "";
+  const depthPct = Math.round(metrics.depthScore);
+  const ratioPct = Math.round(metrics.highValueRatio * 100);
+
+  if (maturityLevel === "senior") {
+    return `${prefix}depth score ${depthPct}/100 (≥70), ${metrics.volume} comments (≥10), ${ratioPct}% high-value ratio (≥40%) — all senior thresholds met`;
+  }
+
+  if (maturityLevel === "experienced") {
+    const missing: string[] = [];
+    if (metrics.depthScore < 70) missing.push(`depth score ${depthPct}/100 (<70)`);
+    if (metrics.volume < 10) missing.push(`${metrics.volume} comments (<10)`);
+    if (metrics.highValueRatio < 0.4) missing.push(`high-value ratio ${ratioPct}% (<40%)`);
+
+    return `${prefix}depth score ${depthPct}/100 (≥40) and ${metrics.volume} comments (≥5) meet experienced level. Missing senior: ${missing.join(", ")}`;
+  }
+
+  // junior
+  const failedCriteria: string[] = [];
+  if (metrics.depthScore < 40) failedCriteria.push(`depth score ${depthPct}/100 (<40)`);
+  if (metrics.volume < 5) failedCriteria.push(`${metrics.volume} comments (<5)`);
+
+  return `${prefix}${failedCriteria.join(" and ")} — below experienced thresholds`;
+}
+
 // --- Main entry point ---
 
 export async function computeSeniorityProfiles(
@@ -210,16 +242,22 @@ export async function computeSeniorityProfiles(
           highValueRatio: langHighValueRatio,
         });
 
+        const langLabel = lang.charAt(0).toUpperCase() + lang.slice(1);
+        const langMetrics = {
+          depthScore: langDepthScore,
+          volume,
+          highValueRatio: Math.round(langHighValueRatio * 100) / 100,
+        };
+
         upsertSeniorityProfile({
           teamMemberId: member.id,
           dimensionName: lang,
           dimensionFamily: "technical",
           maturityLevel,
           supportingMetrics: {
-            depthScore: langDepthScore,
-            volume,
-            highValueRatio: Math.round(langHighValueRatio * 100) / 100,
+            ...langMetrics,
             consistency,
+            rationale: generateTechnicalRationale(langMetrics, maturityLevel, langLabel),
           },
         });
         profilesGenerated++;
@@ -240,17 +278,22 @@ export async function computeSeniorityProfiles(
           highValueRatio,
         });
 
+        const catMetrics = {
+          depthScore: overallDepthScore,
+          volume: dimVolume,
+          highValueRatio: Math.round(highValueRatio * 100) / 100,
+        };
+
         upsertSeniorityProfile({
           teamMemberId: member.id,
           dimensionName: dim.name,
           dimensionFamily: "technical",
           maturityLevel,
           supportingMetrics: {
-            depthScore: overallDepthScore,
-            volume: dimVolume,
+            ...catMetrics,
             totalComments,
-            highValueRatio: Math.round(highValueRatio * 100) / 100,
             consistency,
+            rationale: generateTechnicalRationale(catMetrics, maturityLevel),
           },
         });
         profilesGenerated++;
@@ -282,6 +325,7 @@ export async function computeSeniorityProfiles(
         } else {
           for (const score of result.scores) {
             const maturityLevel = deriveSoftSkillMaturityLevel(score.score);
+            const rationale = score.reasoning || `Score: ${score.score}/100 → ${maturityLevel}`;
             upsertSeniorityProfile({
               teamMemberId: member.id,
               dimensionName: score.name,
@@ -291,6 +335,7 @@ export async function computeSeniorityProfiles(
                 llmScore: score.score,
                 reasoning: score.reasoning,
                 totalCommentsEvaluated: memberComments.length,
+                rationale,
               },
             });
             profilesGenerated++;

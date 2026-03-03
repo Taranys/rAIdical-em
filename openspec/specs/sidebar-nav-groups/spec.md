@@ -10,7 +10,7 @@ The "Configuration" group SHALL contain, in order: Settings, Team, Sync.
 - **THEN** two navigation groups are visible with labels "Analyse" and "Configuration"
 - **AND** the "Analyse" group appears before the "Configuration" group
 
-#### Scenario: Items are in the correct group
+#### Scenario: Items are in the correct group and order
 - **WHEN** the sidebar is displayed
 - **THEN** Dashboard, Review Quality, Team Profiles, and 1:1 Prep are in the "Analyse" group
 - **AND** Settings, Team, and Sync are in the "Configuration" group, in that order

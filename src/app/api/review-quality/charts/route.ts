@@ -6,6 +6,7 @@ import {
   getCategoryTrendByWeek,
 } from "@/db/comment-classifications";
 import { getAllTeamMembers } from "@/db/team-members";
+import { getCategoryConfig } from "@/lib/category-colors.server";
 
 export const dynamic = "force-dynamic";
 
@@ -45,9 +46,13 @@ export async function GET(request: Request) {
     dateEnd ?? DEFAULT_END,
   );
 
+  // Include dynamic category config for chart rendering
+  const categoryConfig = getCategoryConfig();
+
   return NextResponse.json({
     teamDistribution,
     perReviewer,
     weeklyTrend,
+    categoryConfig,
   });
 }

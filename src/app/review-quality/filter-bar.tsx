@@ -10,9 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { COMMENT_CATEGORIES } from "@/lib/llm/classifier";
-import { CATEGORY_CONFIG } from "@/lib/category-colors";
-import type { CommentCategory } from "@/lib/llm/classifier";
+import { CATEGORY_CONFIG, type CategoryDisplayConfig } from "@/lib/category-colors";
 import { PERIOD_LABELS, type PeriodPreset } from "@/lib/date-periods";
 
 interface TeamMember {
@@ -43,6 +41,7 @@ interface FilterBarProps {
   teamMembers: TeamMember[];
   periodPreset: PeriodPreset;
   onPeriodChange: (preset: PeriodPreset) => void;
+  categoryConfig?: Record<string, CategoryDisplayConfig>;
 }
 
 export function FilterBar({
@@ -51,10 +50,15 @@ export function FilterBar({
   teamMembers,
   periodPreset,
   onPeriodChange,
+  categoryConfig,
 }: FilterBarProps) {
   function update(key: keyof Filters, value: string) {
     onChange({ ...filters, [key]: value });
   }
+
+  // Use dynamic config if provided, otherwise fall back to hardcoded
+  const config: Record<string, CategoryDisplayConfig> = categoryConfig ?? CATEGORY_CONFIG;
+  const categorySlugs = Object.keys(config);
 
   return (
     <div className="flex flex-wrap items-end gap-4">
@@ -98,9 +102,9 @@ export function FilterBar({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All categories</SelectItem>
-            {COMMENT_CATEGORIES.map((cat) => (
+            {categorySlugs.map((cat) => (
               <SelectItem key={cat} value={cat}>
-                {CATEGORY_CONFIG[cat as CommentCategory].label}
+                {config[cat]?.label ?? cat}
               </SelectItem>
             ))}
           </SelectContent>

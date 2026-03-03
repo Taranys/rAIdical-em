@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
+  Tags,
 } from "lucide-react";
 import {
   Sidebar,
@@ -38,6 +39,7 @@ const DASHBOARD_ITEMS = [
 
 const CONFIG_ITEMS = [
   { title: "Settings", href: "/settings", icon: Settings },
+  { title: "Skills", href: "/settings/categories", icon: Tags },
   { title: "Team", href: "/team", icon: Users },
   { title: "Sync", href: "/sync", icon: RefreshCw },
 ];
@@ -48,6 +50,12 @@ function ConfigStatusIndicator({ title, status }: { title: string; status: Sideb
       <CheckCircle2 data-testid="status-settings" className="ml-auto size-4 text-green-600" />
     ) : (
       <AlertCircle data-testid="status-settings" className="ml-auto size-4 text-amber-500" />
+    );
+  }
+
+  if (title === "Skills") {
+    return (
+      <CheckCircle2 data-testid="status-skills" className="ml-auto size-4 text-green-600" />
     );
   }
 
