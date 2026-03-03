@@ -161,7 +161,7 @@ test.describe("Categories Settings Page", () => {
     await page.goto("/settings/categories");
 
     await expect(
-      page.getByRole("heading", { name: "Category Management" }),
+      page.getByRole("heading", { name: "Skills" }),
     ).toBeVisible();
 
     // Should show 8 default categories
@@ -174,11 +174,11 @@ test.describe("Categories Settings Page", () => {
     await page.goto("/");
 
     const sidebar = page.locator("[data-sidebar='sidebar']");
-    await sidebar.getByRole("link", { name: "Categories" }).click();
+    await sidebar.getByRole("link", { name: "Skills" }).click();
 
     await expect(page).toHaveURL("/settings/categories");
     await expect(
-      page.getByRole("heading", { name: "Category Management" }),
+      page.getByRole("heading", { name: "Skills" }),
     ).toBeVisible();
   });
 

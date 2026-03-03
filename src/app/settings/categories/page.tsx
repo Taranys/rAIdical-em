@@ -180,7 +180,7 @@ export default function CategoriesPage() {
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <h1 className="text-4xl font-bold tracking-tight mb-8">Categories</h1>
+        <h1 className="text-4xl font-bold tracking-tight mb-8">Skills</h1>
         <div className="flex items-center gap-2 text-muted-foreground">
           <Loader2 className="size-4 animate-spin" /> Loading categories...
         </div>
@@ -192,9 +192,9 @@ export default function CategoriesPage() {
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight">Categories</h1>
+          <h1 className="text-4xl font-bold tracking-tight">Skills</h1>
           <p className="text-muted-foreground mt-1">
-            Define classification categories used by the LLM to analyze review comments.
+            Define the review skills used by the LLM to classify review comments.
           </p>
         </div>
       </div>

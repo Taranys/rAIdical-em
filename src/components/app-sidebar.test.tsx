@@ -147,9 +147,9 @@ describe("AppSidebar", () => {
     expect(analyseGroup.textContent).toContain("Team Profiles");
     expect(analyseGroup.textContent).toContain("1:1 Prep");
 
-    // Configuration group contains Settings, Categories, Team, Sync
+    // Configuration group contains Settings, Skills, Team, Sync
     expect(configGroup.textContent).toContain("Settings");
-    expect(configGroup.textContent).toContain("Categories");
+    expect(configGroup.textContent).toContain("Skills");
     expect(configGroup.textContent).toContain("Team");
     expect(configGroup.textContent).toContain("Sync");
 
@@ -158,17 +158,24 @@ describe("AppSidebar", () => {
     expect(analyseGroup.textContent).not.toContain("Sync");
   });
 
-  // Configuration group order: Settings → Categories → Team → Sync
-  it("orders Configuration items as Settings, Categories, Team, Sync", () => {
+  // Configuration group order: Settings → Skills → Team → Sync
+  it("orders Configuration items as Settings, Skills, Team, Sync", () => {
     const { container } = renderSidebar();
     const configGroup = container.querySelectorAll("[data-sidebar='group']")[1];
     const links = configGroup.querySelectorAll("a");
     const titles = Array.from(links).map((a) => a.textContent?.replace(/\s+/g, " ").trim());
 
     expect(titles[0]).toContain("Settings");
-    expect(titles[1]).toContain("Categories");
+    expect(titles[1]).toContain("Skills");
     expect(titles[2]).toContain("Team");
     expect(titles[3]).toContain("Sync");
+  });
+
+  it("shows green check for Skills (always configured via auto-seed)", () => {
+    renderSidebar();
+    const icon = screen.getByTestId("status-skills");
+    expect(icon).toBeInTheDocument();
+    expect(icon).toHaveClass("text-green-600");
   });
 
   // Status indicator tests
