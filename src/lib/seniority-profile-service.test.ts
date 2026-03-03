@@ -19,7 +19,10 @@ vi.mock("@/db/seniority-profiles", () => ({
   deleteAllProfiles: vi.fn(),
 }));
 
-import { computeSeniorityProfiles } from "./seniority-profile-service";
+import {
+  computeSeniorityProfiles,
+  generateTechnicalRationale,
+} from "./seniority-profile-service";
 import { getAllTeamMembers } from "@/db/team-members";
 import {
   getClassifiedCommentsForProfile,
@@ -473,5 +476,172 @@ describe("maturity level derivation", () => {
         maturityLevel: "experienced",
       }),
     );
+  });
+});
+
+describe("generateTechnicalRationale", () => {
+  it("generates senior rationale with all thresholds met", () => {
+    const rationale = generateTechnicalRationale(
+      { depthScore: 78, volume: 15, highValueRatio: 0.45 },
+      "senior",
+    );
+    expect(rationale).toContain("depth score 78/100 (≥70)");
+    expect(rationale).toContain("15 comments (≥10)");
+    expect(rationale).toContain("45% high-value ratio (≥40%)");
+    expect(rationale).toContain("all senior thresholds met");
+  });
+
+  it("generates experienced rationale with missing senior criteria", () => {
+    const rationale = generateTechnicalRationale(
+      { depthScore: 52, volume: 7, highValueRatio: 0.2 },
+      "experienced",
+    );
+    expect(rationale).toContain("depth score 52/100 (≥40)");
+    expect(rationale).toContain("7 comments (≥5)");
+    expect(rationale).toContain("meet experienced level");
+    expect(rationale).toContain("Missing senior:");
+    expect(rationale).toContain("high-value ratio 20% (<40%)");
+  });
+
+  it("generates junior rationale with failed experienced thresholds", () => {
+    const rationale = generateTechnicalRationale(
+      { depthScore: 25, volume: 3, highValueRatio: 0.1 },
+      "junior",
+    );
+    expect(rationale).toContain("depth score 25/100 (<40)");
+    expect(rationale).toContain("3 comments (<5)");
+    expect(rationale).toContain("below experienced thresholds");
+  });
+
+  it("includes dimension label when provided", () => {
+    const rationale = generateTechnicalRationale(
+      { depthScore: 55, volume: 8, highValueRatio: 0.25 },
+      "experienced",
+      "TypeScript",
+    );
+    expect(rationale).toMatch(/^TypeScript — /);
+  });
+
+  it("omits dimension label when not provided", () => {
+    const rationale = generateTechnicalRationale(
+      { depthScore: 78, volume: 15, highValueRatio: 0.45 },
+      "senior",
+    );
+    expect(rationale).toMatch(/^depth score/);
+  });
+
+  it("handles boundary values at experienced threshold", () => {
+    const rationale = generateTechnicalRationale(
+      { depthScore: 40, volume: 5, highValueRatio: 0.1 },
+      "experienced",
+    );
+    expect(rationale).toContain("meet experienced level");
+    expect(rationale).toContain("Missing senior:");
+  });
+
+  it("handles boundary values at senior threshold", () => {
+    const rationale = generateTechnicalRationale(
+      { depthScore: 70, volume: 10, highValueRatio: 0.4 },
+      "senior",
+    );
+    expect(rationale).toContain("all senior thresholds met");
+  });
+});
+
+describe("rationale included in all profile computations", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("every upsertSeniorityProfile call includes a rationale string in supportingMetrics", async () => {
+    vi.mocked(getAllTeamMembers).mockReturnValue([
+      {
+        id: 1,
+        githubUsername: "alice",
+        displayName: "Alice",
+        avatarUrl: null,
+        color: "#E25A3B",
+        isActive: 1,
+        createdAt: "2026-01-01",
+        updatedAt: "2026-01-01",
+      },
+    ]);
+    vi.mocked(getClassifiedCommentsForProfile).mockReturnValue([
+      { reviewer: "alice", filePath: "src/app.ts", category: "bug_correctness", confidence: 90, body: "Bug", prTitle: "PR1" },
+      { reviewer: "alice", filePath: "src/auth.ts", category: "security", confidence: 85, body: "XSS", prTitle: "PR2" },
+      { reviewer: "alice", filePath: "src/perf.ts", category: "performance", confidence: 80, body: "Perf", prTitle: "PR3" },
+    ]);
+    vi.mocked(getCategoryDistributionByReviewer).mockReturnValue([
+      { reviewer: "alice", category: "bug_correctness", count: 1 },
+      { reviewer: "alice", category: "security", count: 1 },
+      { reviewer: "alice", category: "performance", count: 1 },
+    ]);
+    vi.mocked(mockLLMService.classify).mockResolvedValueOnce({
+      content: JSON.stringify({
+        scores: [
+          { name: "pedagogy", score: 60, reasoning: "Good teacher" },
+          { name: "cross_team_awareness", score: 45, reasoning: "Some awareness" },
+          { name: "boldness", score: 30, reasoning: "" },
+          { name: "thoroughness", score: 80, reasoning: "Very thorough" },
+        ],
+      }),
+    });
+
+    await computeSeniorityProfiles({ llmService: mockLLMService });
+
+    const calls = vi.mocked(upsertSeniorityProfile).mock.calls;
+    expect(calls.length).toBeGreaterThan(0);
+
+    for (const [data] of calls) {
+      expect(data.supportingMetrics).toHaveProperty("rationale");
+      expect(typeof data.supportingMetrics.rationale).toBe("string");
+      expect((data.supportingMetrics.rationale as string).length).toBeGreaterThan(0);
+    }
+  });
+
+  it("soft skill rationale uses LLM reasoning as passthrough", async () => {
+    vi.mocked(getAllTeamMembers).mockReturnValue([
+      {
+        id: 1,
+        githubUsername: "alice",
+        displayName: "Alice",
+        avatarUrl: null,
+        color: "#E25A3B",
+        isActive: 1,
+        createdAt: "2026-01-01",
+        updatedAt: "2026-01-01",
+      },
+    ]);
+    vi.mocked(getClassifiedCommentsForProfile).mockReturnValue([
+      { reviewer: "alice", filePath: "src/app.ts", category: "bug_correctness", confidence: 90, body: "Bug", prTitle: "PR" },
+    ]);
+    vi.mocked(getCategoryDistributionByReviewer).mockReturnValue([
+      { reviewer: "alice", category: "bug_correctness", count: 1 },
+    ]);
+    vi.mocked(mockLLMService.classify).mockResolvedValueOnce({
+      content: JSON.stringify({
+        scores: [
+          { name: "pedagogy", score: 50, reasoning: "Average explanations" },
+          { name: "cross_team_awareness", score: 30, reasoning: "Narrow focus" },
+          { name: "boldness", score: 75, reasoning: "Challenges well" },
+          { name: "thoroughness", score: 90, reasoning: "Very thorough reviewer" },
+        ],
+      }),
+    });
+
+    await computeSeniorityProfiles({ llmService: mockLLMService });
+
+    const calls = vi.mocked(upsertSeniorityProfile).mock.calls;
+    const softSkillCalls = calls.filter(([d]) => d.dimensionFamily === "soft_skill");
+
+    // boldness: has reasoning → passthrough
+    const boldness = softSkillCalls.find(([d]) => d.dimensionName === "boldness");
+    expect(boldness).toBeDefined();
+    expect(boldness![0].supportingMetrics.rationale).toBe("Challenges well");
+
+    // pedagogy: has reasoning → passthrough
+    const pedagogy = softSkillCalls.find(([d]) => d.dimensionName === "pedagogy");
+    expect(pedagogy).toBeDefined();
+    expect(pedagogy![0].supportingMetrics.rationale).toBe("Average explanations");
   });
 });

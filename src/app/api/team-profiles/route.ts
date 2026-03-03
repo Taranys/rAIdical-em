@@ -16,12 +16,23 @@ export async function GET() {
       displayName: member.displayName,
       avatarUrl: member.avatarUrl,
       color: member.color,
-      profiles: profiles.map((p) => ({
-        dimensionName: p.dimensionName,
-        dimensionFamily: p.dimensionFamily,
-        maturityLevel: p.maturityLevel,
-        lastComputedAt: p.lastComputedAt,
-      })),
+      profiles: profiles.map((p) => {
+        let supportingMetrics: Record<string, unknown> | null = null;
+        if (p.supportingMetrics) {
+          try {
+            supportingMetrics = JSON.parse(p.supportingMetrics);
+          } catch {
+            supportingMetrics = null;
+          }
+        }
+        return {
+          dimensionName: p.dimensionName,
+          dimensionFamily: p.dimensionFamily,
+          maturityLevel: p.maturityLevel,
+          lastComputedAt: p.lastComputedAt,
+          supportingMetrics,
+        };
+      }),
     };
   });
 
