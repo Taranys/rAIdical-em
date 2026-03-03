@@ -23,6 +23,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
 import { usePeriod } from "./dashboard-context";
 
 interface RawRow {
@@ -273,6 +275,15 @@ export function AiRatioCard() {
         )}
       </CardHeader>
       <CardContent className="space-y-8">
+        <Alert className="border-amber-500/50 text-amber-900 bg-amber-50 dark:bg-amber-950 dark:text-amber-200 [&>svg]:text-amber-600">
+          <AlertTriangle />
+          <AlertTitle>Classification expérimentale</AlertTitle>
+          <AlertDescription>
+            La détection AI/Human repose sur des heuristiques simples (co-auteurs
+            dans les commits, noms de bots) et peut produire des résultats
+            incorrects. Vérifiez manuellement les classifications en cas de doute.
+          </AlertDescription>
+        </Alert>
         {chartData.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No PRs found for the selected period. Make sure you have team
