@@ -23,10 +23,20 @@ const MATURITY_LABELS: Record<number, string> = {
   3: "Senior",
 };
 
-interface Profile {
+export interface SupportingMetrics {
+  rationale?: string;
+  depthScore?: number;
+  volume?: number;
+  highValueRatio?: number;
+  llmScore?: number;
+  [key: string]: unknown;
+}
+
+export interface Profile {
   dimensionName: string;
   dimensionFamily: string;
   maturityLevel: string;
+  supportingMetrics?: SupportingMetrics | null;
 }
 
 interface SeniorityRadarChartProps {
@@ -34,10 +44,23 @@ interface SeniorityRadarChartProps {
   color: string;
 }
 
+interface ChartDataEntry {
+  dimension: string;
+  level: number;
+  label: string;
+  rationale: string;
+  fullMark: number;
+}
+
 interface TooltipPayloadEntry {
   name: string;
   value: number;
-  payload: { dimension: string; level: number; label: string };
+  payload: ChartDataEntry;
+}
+
+function truncateRationale(rationale: string, maxLength = 100): string {
+  if (rationale.length <= maxLength) return rationale;
+  return rationale.slice(0, maxLength) + "…";
 }
 
 function CustomTooltip({
@@ -50,14 +73,19 @@ function CustomTooltip({
   if (!active || !payload?.[0]) return null;
   const entry = payload[0];
   return (
-    <div className="rounded-md border bg-background px-3 py-2 text-sm shadow-sm">
+    <div className="rounded-md border bg-background px-3 py-2 text-sm shadow-sm max-w-xs">
       <p className="font-medium">{entry.payload.dimension}</p>
       <p className="text-muted-foreground">{entry.payload.label}</p>
+      {entry.payload.rationale && (
+        <p className="text-muted-foreground text-xs mt-1">
+          {truncateRationale(entry.payload.rationale)}
+        </p>
+      )}
     </div>
   );
 }
 
-function formatDimensionName(name: string): string {
+export function formatDimensionName(name: string): string {
   return name
     .replace(/_/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
@@ -75,10 +103,11 @@ export function SeniorityRadarChart({
     );
   }
 
-  const chartData = profiles.map((p) => ({
+  const chartData: ChartDataEntry[] = profiles.map((p) => ({
     dimension: formatDimensionName(p.dimensionName),
     level: MATURITY_LEVELS[p.maturityLevel] ?? 0,
     label: MATURITY_LABELS[MATURITY_LEVELS[p.maturityLevel] ?? 0] ?? "Unknown",
+    rationale: p.supportingMetrics?.rationale ?? "",
     fullMark: 3,
   }));
 
