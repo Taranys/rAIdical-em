@@ -11,28 +11,47 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CATEGORY_CONFIG, type CategoryDisplayConfig } from "@/lib/category-colors";
+import { PERIOD_LABELS, type PeriodPreset } from "@/lib/date-periods";
 
 interface TeamMember {
   githubUsername: string;
   displayName: string;
 }
 
-interface Filters {
+export interface Filters {
   category: string;
   reviewer: string;
-  dateStart: string;
-  dateEnd: string;
   minConfidence: string;
 }
+
+const PERIOD_OPTIONS: PeriodPreset[] = [
+  "this-week",
+  "last-week",
+  "this-sprint",
+  "last-sprint",
+  "this-month",
+  "last-month",
+  "this-quarter",
+  "last-quarter",
+];
 
 interface FilterBarProps {
   filters: Filters;
   onChange: (filters: Filters) => void;
   teamMembers: TeamMember[];
+  periodPreset: PeriodPreset;
+  onPeriodChange: (preset: PeriodPreset) => void;
   categoryConfig?: Record<string, CategoryDisplayConfig>;
 }
 
-export function FilterBar({ filters, onChange, teamMembers, categoryConfig }: FilterBarProps) {
+export function FilterBar({
+  filters,
+  onChange,
+  teamMembers,
+  periodPreset,
+  onPeriodChange,
+  categoryConfig,
+}: FilterBarProps) {
   function update(key: keyof Filters, value: string) {
     onChange({ ...filters, [key]: value });
   }
@@ -43,6 +62,32 @@ export function FilterBar({ filters, onChange, teamMembers, categoryConfig }: Fi
 
   return (
     <div className="flex flex-wrap items-end gap-4">
+      {/* Period selector */}
+      <div className="space-y-1">
+        <Label htmlFor="filter-period" className="text-xs">
+          Period
+        </Label>
+        <Select
+          value={periodPreset}
+          onValueChange={(v) => onPeriodChange(v as PeriodPreset)}
+        >
+          <SelectTrigger
+            id="filter-period"
+            className="w-[200px]"
+            data-testid="period-selector"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PERIOD_OPTIONS.map((option) => (
+              <SelectItem key={option} value={option}>
+                {PERIOD_LABELS[option]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* Category filter */}
       <div className="space-y-1">
         <Label htmlFor="filter-category" className="text-xs">
@@ -87,32 +132,6 @@ export function FilterBar({ filters, onChange, teamMembers, categoryConfig }: Fi
             ))}
           </SelectContent>
         </Select>
-      </div>
-
-      {/* Date range */}
-      <div className="space-y-1">
-        <Label htmlFor="filter-date-start" className="text-xs">
-          From
-        </Label>
-        <Input
-          id="filter-date-start"
-          type="date"
-          className="w-[150px]"
-          value={filters.dateStart}
-          onChange={(e) => update("dateStart", e.target.value)}
-        />
-      </div>
-      <div className="space-y-1">
-        <Label htmlFor="filter-date-end" className="text-xs">
-          To
-        </Label>
-        <Input
-          id="filter-date-end"
-          type="date"
-          className="w-[150px]"
-          value={filters.dateEnd}
-          onChange={(e) => update("dateEnd", e.target.value)}
-        />
       </div>
 
       {/* Confidence threshold */}
