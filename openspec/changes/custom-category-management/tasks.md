@@ -2,14 +2,14 @@
 
 - [ ] 1.1 Ajouter la table `custom_categories` dans `src/db/schema.ts` (id, slug, label, description, color, sortOrder, createdAt, updatedAt)
 - [ ] 1.2 Générer la migration Drizzle (`npm run db:generate`) et l'appliquer (`npm run db:migrate`)
-- [ ] 1.3 Créer le fichier DAL `src/db/custom-categories.ts` avec les opérations CRUD (getAll, create, update, delete, reorder, count par catégorie)
+- [ ] 1.3 Créer le fichier DAL `src/db/custom-categories.ts` avec les opérations CRUD (getAll, create, update, delete, reorder, count par catégorie) et la logique d'auto-seed des 8 catégories par défaut quand la table est vide
 
 ## 2. API Routes
 
 - [ ] 2.1 Créer `src/app/api/categories/route.ts` — GET (liste catégories custom ou default) et POST (créer catégorie)
 - [ ] 2.2 Créer `src/app/api/categories/[id]/route.ts` — PUT (modifier) et DELETE (supprimer)
 - [ ] 2.3 Créer `src/app/api/categories/reorder/route.ts` — PUT (réordonner les catégories)
-- [ ] 2.4 Créer `src/app/api/categories/seed/route.ts` — POST (initialiser avec les catégories par défaut)
+- [ ] 2.4 Créer `src/app/api/categories/reset/route.ts` — POST (réinitialiser les catégories par défaut)
 - [ ] 2.5 Créer `src/app/api/categories/reclassify/route.ts` — POST (déclencher la reclassification batch)
 
 ## 3. Classification dynamique
@@ -31,7 +31,7 @@
 - [ ] 5.2 Créer le composant liste des catégories avec pastille couleur, label, slug et description
 - [ ] 5.3 Créer le formulaire d'ajout/édition de catégorie (label, slug auto-généré, description textarea, color picker)
 - [ ] 5.4 Implémenter le drag-and-drop pour réordonner les catégories
-- [ ] 5.5 Ajouter le bouton "Initialiser avec les catégories par défaut" (affiché quand la table est vide)
+- [ ] 5.5 Ajouter le bouton "Réinitialiser les catégories par défaut" avec dialogue de confirmation
 - [ ] 5.6 Ajouter le bouton "Reclassifier tous les commentaires" avec dialogue de confirmation et barre de progression
 - [ ] 5.7 Ajouter la suppression avec dialogue de confirmation affichant le nombre de commentaires impactés
 
@@ -41,8 +41,8 @@
 
 ## 7. Tests
 
-- [ ] 7.1 Tests unitaires du DAL `custom-categories.ts` (CRUD, reorder, fallback)
+- [ ] 7.1 Tests unitaires du DAL `custom-categories.ts` (CRUD, reorder, auto-seed)
 - [ ] 7.2 Tests unitaires de `buildClassificationPrompt()` avec catégories custom
 - [ ] 7.3 Tests unitaires de `parseClassificationResponse()` avec catégories dynamiques
-- [ ] 7.4 Tests d'intégration des API routes categories (GET, POST, PUT, DELETE, reorder, seed)
+- [ ] 7.4 Tests d'intégration des API routes categories (GET avec auto-seed, POST, PUT, DELETE, reorder, reset)
 - [ ] 7.5 Test E2E : parcours complet création de catégories + reclassification

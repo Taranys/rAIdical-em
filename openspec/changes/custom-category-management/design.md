@@ -33,11 +33,13 @@ L'utilisateur veut pouvoir définir ses propres catégories avec un nom et une d
 
 **Alternative écartée:** Stocker dans la table `settings` en JSON — moins flexible pour les requêtes et les index.
 
-### 2. Fallback sur les catégories par défaut
+### 2. Auto-seed des catégories par défaut
 
-**Choix:** Si la table `custom_categories` est vide, le système utilise les 8 catégories hardcodées actuelles comme fallback. Au premier lancement de la page, on propose de "seed" avec les catégories par défaut.
+**Choix:** Au premier appel `GET /api/categories`, si la table `custom_categories` est vide, le système insère automatiquement les 8 catégories par défaut (avec leurs slugs, labels, descriptions et couleurs actuelles). L'utilisateur voit directement les catégories et peut les modifier, supprimer ou en ajouter.
 
-**Rationale:** Pas de breaking change pour les utilisateurs existants. Le seeding facilite la personnalisation progressive.
+**Rationale:** Pas de friction au premier lancement — l'utilisateur a immédiatement un jeu de catégories manipulable. Pas de bouton "Initialiser" ni de logique de fallback : une seule source de vérité (la table DB).
+
+**Alternative écartée:** Afficher les catégories hardcodées en fallback avec un bouton "Initialiser" — ajoute de la complexité (deux chemins de lecture) et une action manuelle inutile.
 
 ### 3. Reclassification en batch
 
@@ -53,7 +55,7 @@ L'utilisateur veut pouvoir définir ses propres catégories avec un nom et une d
 
 ### 5. Couleurs dynamiques
 
-**Choix:** `CATEGORY_CONFIG` devient une fonction `getCategoryConfig()` qui lit la DB si des catégories custom existent, sinon retourne le config hardcodé. Côté client, les couleurs sont servies par l'API avec les catégories.
+**Choix:** `CATEGORY_CONFIG` devient une fonction `getCategoryConfig()` qui lit les catégories depuis la DB (toujours peuplée grâce à l'auto-seed). Côté client, les couleurs sont servies par l'API avec les catégories.
 
 **Rationale:** Les composants existants (donut chart, bar chart, filtres) continuent de fonctionner sans modification de leur interface — ils reçoivent juste un config différent.
 
