@@ -12,15 +12,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SummaryBar } from "./summary-bar";
-import { FilterBar } from "./filter-bar";
+import { FilterBar, type Filters } from "./filter-bar";
 import { CommentsTable, type ClassifiedComment } from "./comments-table";
 import { CommentDetailSheet } from "./comment-detail-sheet";
 import { CategoryDonutChart } from "./category-donut-chart";
 import { CategoryPerPersonChart } from "./category-per-person-chart";
 import { CategoryTrendChart } from "./category-trend-chart";
 import { ClassificationRunHistory } from "./classification-run-history";
-import { MonthNavigator } from "./month-navigator";
-import { getMonthStart, getMonthEnd } from "@/lib/date-periods";
+import {
+  getDateRangeForPreset,
+  type PeriodPreset,
+} from "@/lib/date-periods";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface CategoryDistribution {
@@ -57,35 +59,33 @@ interface TeamMember {
   displayName: string;
 }
 
-interface Filters {
-  category: string;
-  reviewer: string;
+// Date range params derived from period preset, used for API calls
+interface DateRangeParams {
   dateStart: string;
   dateEnd: string;
-  minConfidence: string;
 }
 
 const PAGE_SIZE = 20;
+
+const DEFAULT_PERIOD: PeriodPreset = "this-month";
 
 function toDateString(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-function getInitialMonth(): Date {
-  return new Date();
-}
-
-function getFiltersForMonth(month: Date, base?: Filters): Filters {
+function getDateParamsForPreset(preset: PeriodPreset): DateRangeParams {
+  const range = getDateRangeForPreset(preset);
   return {
-    ...(base ?? { category: "all", reviewer: "all", minConfidence: "" }),
-    dateStart: toDateString(getMonthStart(month)),
-    dateEnd: toDateString(getMonthEnd(month)),
+    dateStart: toDateString(new Date(range.startDate)),
+    dateEnd: toDateString(new Date(range.endDate)),
   };
 }
 
-const INITIAL_MONTH = getInitialMonth();
-
-const DEFAULT_FILTERS: Filters = getFiltersForMonth(INITIAL_MONTH);
+const DEFAULT_FILTERS: Filters = {
+  category: "all",
+  reviewer: "all",
+  minConfidence: "",
+};
 
 const DEFAULT_CHART_DATA: ChartData = {
   teamDistribution: [],
@@ -102,6 +102,7 @@ interface CommentsResponse {
 
 async function fetchCommentsFromApi(
   filters: Filters,
+  dateParams: DateRangeParams,
   sortBy: string,
   sortOrder: string,
   page: number = 1,
@@ -111,8 +112,8 @@ async function fetchCommentsFromApi(
     params.set("category", filters.category);
   if (filters.reviewer && filters.reviewer !== "all")
     params.set("reviewer", filters.reviewer);
-  if (filters.dateStart) params.set("dateStart", filters.dateStart);
-  if (filters.dateEnd) params.set("dateEnd", filters.dateEnd);
+  if (dateParams.dateStart) params.set("dateStart", dateParams.dateStart);
+  if (dateParams.dateEnd) params.set("dateEnd", dateParams.dateEnd);
   if (filters.minConfidence)
     params.set("minConfidence", filters.minConfidence);
   params.set("sortBy", sortBy);
@@ -151,12 +152,15 @@ async function fetchRepoUrlFromApi(): Promise<string | null> {
 }
 
 // US-2.08: Fetch charts data (date + reviewer filters only)
-async function fetchChartsFromApi(filters: Filters): Promise<ChartData> {
+async function fetchChartsFromApi(
+  filters: Filters,
+  dateParams: DateRangeParams,
+): Promise<ChartData> {
   const params = new URLSearchParams();
   if (filters.reviewer && filters.reviewer !== "all")
     params.set("reviewer", filters.reviewer);
-  if (filters.dateStart) params.set("dateStart", filters.dateStart);
-  if (filters.dateEnd) params.set("dateEnd", filters.dateEnd);
+  if (dateParams.dateStart) params.set("dateStart", dateParams.dateStart);
+  if (dateParams.dateEnd) params.set("dateEnd", dateParams.dateEnd);
 
   const res = await fetch(`/api/review-quality/charts?${params}`);
   return res.json();
@@ -174,23 +178,31 @@ export function ReviewQualityContent() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [repoUrl, setRepoUrl] = useState<string | null>(null);
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
+  const [periodPreset, setPeriodPreset] =
+    useState<PeriodPreset>(DEFAULT_PERIOD);
   const [sortBy, setSortBy] = useState<"date" | "confidence" | "category">(
     "date",
   );
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [selectedComment, setSelectedComment] =
     useState<ClassifiedComment | null>(null);
-  const [currentMonth, setCurrentMonth] = useState<Date>(INITIAL_MONTH);
   const [isLoading, setIsLoading] = useState(true);
   const initRef = useRef(false);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const dateParams = getDateParamsForPreset(periodPreset);
 
   // Reload comments whenever filters, sort, or page change (after initial load)
   const reloadComments = useCallback(
-    async (f: Filters, sb: string, so: string, page: number) => {
+    async (
+      f: Filters,
+      dp: DateRangeParams,
+      sb: string,
+      so: string,
+      page: number,
+    ) => {
       try {
-        const data = await fetchCommentsFromApi(f, sb, so, page);
+        const data = await fetchCommentsFromApi(f, dp, sb, so, page);
         setComments(data.comments);
         setTotalCount(data.totalCount);
         setCurrentPage(data.page);
@@ -202,29 +214,40 @@ export function ReviewQualityContent() {
   );
 
   // US-2.08: Reload charts when filters change
-  const reloadCharts = useCallback(async (f: Filters) => {
-    try {
-      const data = await fetchChartsFromApi(f);
-      setChartData(data);
-    } catch {
-      // Silently fail
-    }
-  }, []);
+  const reloadCharts = useCallback(
+    async (f: Filters, dp: DateRangeParams) => {
+      try {
+        const data = await fetchChartsFromApi(f, dp);
+        setChartData(data);
+      } catch {
+        // Silently fail
+      }
+    },
+    [],
+  );
 
   // Initial load — runs once
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
 
+    const initialDateParams = getDateParamsForPreset(DEFAULT_PERIOD);
+
     async function init() {
       try {
         const [commentsData, summaryData, teamData, url, charts] =
           await Promise.all([
-            fetchCommentsFromApi(DEFAULT_FILTERS, "date", "desc", 1),
+            fetchCommentsFromApi(
+              DEFAULT_FILTERS,
+              initialDateParams,
+              "date",
+              "desc",
+              1,
+            ),
             fetchSummaryFromApi(),
             fetchTeamMembersFromApi(),
             fetchRepoUrlFromApi(),
-            fetchChartsFromApi(DEFAULT_FILTERS),
+            fetchChartsFromApi(DEFAULT_FILTERS, initialDateParams),
           ]);
         setComments(commentsData.comments);
         setTotalCount(commentsData.totalCount);
@@ -245,14 +268,16 @@ export function ReviewQualityContent() {
   function handleFiltersChange(newFilters: Filters) {
     setFilters(newFilters);
     setCurrentPage(1);
-    reloadComments(newFilters, sortBy, sortOrder, 1);
-    reloadCharts(newFilters);
+    reloadComments(newFilters, dateParams, sortBy, sortOrder, 1);
+    reloadCharts(newFilters, dateParams);
   }
 
-  function handleMonthChange(month: Date) {
-    setCurrentMonth(month);
-    const newFilters = getFiltersForMonth(month, filters);
-    handleFiltersChange(newFilters);
+  function handlePeriodChange(preset: PeriodPreset) {
+    setPeriodPreset(preset);
+    const newDateParams = getDateParamsForPreset(preset);
+    setCurrentPage(1);
+    reloadComments(filters, newDateParams, sortBy, sortOrder, 1);
+    reloadCharts(filters, newDateParams);
   }
 
   // US-2.16: Reclassify a comment manually
@@ -274,7 +299,7 @@ export function ReviewQualityContent() {
 
       // Reload both comments and summary to reflect changes everywhere
       const [commentsData, summaryData] = await Promise.all([
-        fetchCommentsFromApi(filters, sortBy, sortOrder, currentPage),
+        fetchCommentsFromApi(filters, dateParams, sortBy, sortOrder, currentPage),
         fetchSummaryFromApi(),
       ]);
       setComments(commentsData.comments);
@@ -306,12 +331,12 @@ export function ReviewQualityContent() {
     setSortBy(newSortBy);
     setSortOrder(newSortOrder);
     setCurrentPage(1);
-    reloadComments(filters, newSortBy, newSortOrder, 1);
+    reloadComments(filters, dateParams, newSortBy, newSortOrder, 1);
   }
 
   function handlePageChange(page: number) {
     setCurrentPage(page);
-    reloadComments(filters, sortBy, sortOrder, page);
+    reloadComments(filters, dateParams, sortBy, sortOrder, page);
   }
 
   return (
@@ -319,6 +344,22 @@ export function ReviewQualityContent() {
       <h1 className="text-4xl font-bold tracking-tight mb-6">
         Review Quality
       </h1>
+
+      {/* Filters — top of page for scope-first UX */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Filters</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <FilterBar
+            filters={filters}
+            onChange={handleFiltersChange}
+            teamMembers={teamMembers}
+            periodPreset={periodPreset}
+            onPeriodChange={handlePeriodChange}
+          />
+        </CardContent>
+      </Card>
 
       {/* Summary bar */}
       <Card className="mb-6">
@@ -381,37 +422,15 @@ export function ReviewQualityContent() {
         </CardContent>
       </Card>
 
-      {/* Filters */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <FilterBar
-            filters={filters}
-            onChange={handleFiltersChange}
-            teamMembers={teamMembers}
-          />
-        </CardContent>
-      </Card>
-
       {/* Comments table */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>
-                Classified Comments{!isLoading && ` (${totalCount})`}
-              </CardTitle>
-              <CardDescription>
-                Click a row to view full details. Sort by clicking column headers.
-              </CardDescription>
-            </div>
-            <MonthNavigator
-              currentMonth={currentMonth}
-              onMonthChange={handleMonthChange}
-            />
-          </div>
+          <CardTitle>
+            Classified Comments{!isLoading && ` (${totalCount})`}
+          </CardTitle>
+          <CardDescription>
+            Click a row to view full details. Sort by clicking column headers.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -428,7 +447,10 @@ export function ReviewQualityContent() {
                 repoUrl={repoUrl}
               />
               {totalCount > 0 && (
-                <div className="flex items-center justify-center gap-4 mt-4" data-testid="pagination-controls">
+                <div
+                  className="flex items-center justify-center gap-4 mt-4"
+                  data-testid="pagination-controls"
+                >
                   <Button
                     variant="outline"
                     size="sm"
@@ -439,7 +461,10 @@ export function ReviewQualityContent() {
                     <ChevronLeft className="h-4 w-4 mr-1" />
                     Previous
                   </Button>
-                  <span className="text-sm text-muted-foreground" data-testid="pagination-indicator">
+                  <span
+                    className="text-sm text-muted-foreground"
+                    data-testid="pagination-indicator"
+                  >
                     Page {currentPage} of {totalPages}
                   </span>
                   <Button
