@@ -16,5 +16,5 @@
 ## 4. Tests et validation
 
 - [x] 4.1 Mettre à jour les tests existants du Dashboard et de la page 1:1 pour refléter le provider global (wrapping test avec `PeriodProvider` au bon niveau)
-- [ ] 4.2 Vérifier que le build passe (`npm run build`) et que le lint est propre (`npm run lint`)
+- [x] 4.2 Vérifier que le build passe (`npm run build`) et que le lint est propre (`npm run lint`)
 - [ ] 4.3 Vérifier le comportement print de la page 1:1 (le `period.label` reste visible dans le contenu imprimé)
