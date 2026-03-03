@@ -2,9 +2,17 @@
 // US-2.08: Added chartColor (hsl) for Recharts consumption
 import type { CommentCategory } from "@/lib/llm/classifier";
 
+export interface CategoryDisplayConfig {
+  bg: string;
+  text: string;
+  label: string;
+  chartColor: string;
+}
+
+// Hardcoded default config (safe to import in Client Components)
 export const CATEGORY_CONFIG: Record<
   CommentCategory,
-  { bg: string; text: string; label: string; chartColor: string }
+  CategoryDisplayConfig
 > = {
   bug_correctness: {
     bg: "bg-red-100",

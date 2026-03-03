@@ -147,8 +147,9 @@ describe("AppSidebar", () => {
     expect(analyseGroup.textContent).toContain("Team Profiles");
     expect(analyseGroup.textContent).toContain("1:1 Prep");
 
-    // Configuration group contains Settings, Team, Sync
+    // Configuration group contains Settings, Categories, Team, Sync
     expect(configGroup.textContent).toContain("Settings");
+    expect(configGroup.textContent).toContain("Categories");
     expect(configGroup.textContent).toContain("Team");
     expect(configGroup.textContent).toContain("Sync");
 
@@ -157,16 +158,17 @@ describe("AppSidebar", () => {
     expect(analyseGroup.textContent).not.toContain("Sync");
   });
 
-  // Configuration group order: Settings → Team → Sync
-  it("orders Configuration items as Settings, Team, Sync", () => {
+  // Configuration group order: Settings → Categories → Team → Sync
+  it("orders Configuration items as Settings, Categories, Team, Sync", () => {
     const { container } = renderSidebar();
     const configGroup = container.querySelectorAll("[data-sidebar='group']")[1];
     const links = configGroup.querySelectorAll("a");
     const titles = Array.from(links).map((a) => a.textContent?.replace(/\s+/g, " ").trim());
 
     expect(titles[0]).toContain("Settings");
-    expect(titles[1]).toContain("Team");
-    expect(titles[2]).toContain("Sync");
+    expect(titles[1]).toContain("Categories");
+    expect(titles[2]).toContain("Team");
+    expect(titles[3]).toContain("Sync");
   });
 
   // Status indicator tests

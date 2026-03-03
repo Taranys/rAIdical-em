@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
+  Tags,
 } from "lucide-react";
 import {
   Sidebar,
@@ -38,6 +39,7 @@ const DASHBOARD_ITEMS = [
 
 const CONFIG_ITEMS = [
   { title: "Settings", href: "/settings", icon: Settings },
+  { title: "Categories", href: "/settings/categories", icon: Tags },
   { title: "Team", href: "/team", icon: Users },
   { title: "Sync", href: "/sync", icon: RefreshCw },
 ];

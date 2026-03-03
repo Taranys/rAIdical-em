@@ -127,6 +127,27 @@ export const syncRuns = sqliteTable(
   ]
 );
 
+// --- Custom categories for comment classification ---
+
+// User-defined classification categories (auto-seeded with defaults on first access)
+export const customCategories = sqliteTable(
+  "custom_categories",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    slug: text("slug").notNull().unique(), // snake_case identifier used in classifications
+    label: text("label").notNull(), // Display name
+    description: text("description").notNull(), // LLM instruction for classification
+    color: text("color").notNull(), // Hex color (e.g. "#ef4444")
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    index("idx_custom_categories_slug").on(table.slug),
+    index("idx_custom_categories_sort_order").on(table.sortOrder),
+  ]
+);
+
 // --- Phase 2: Review Quality Analysis ---
 
 // US-2.03: Batch classification job tracking
