@@ -277,11 +277,11 @@ export function AiRatioCard() {
       <CardContent className="space-y-8">
         <Alert className="border-amber-500/50 text-amber-900 bg-amber-50 dark:bg-amber-950 dark:text-amber-200 [&>svg]:text-amber-600">
           <AlertTriangle />
-          <AlertTitle>Classification expérimentale</AlertTitle>
+          <AlertTitle>Experimental classification</AlertTitle>
           <AlertDescription>
-            La détection AI/Human repose sur des heuristiques simples (co-auteurs
-            dans les commits, noms de bots) et peut produire des résultats
-            incorrects. Vérifiez manuellement les classifications en cas de doute.
+            AI/Human detection relies on simple heuristics (commit co-authors,
+            bot names) and may produce incorrect results. Please verify
+            classifications manually when in doubt.
           </AlertDescription>
         </Alert>
         {chartData.length === 0 ? (
