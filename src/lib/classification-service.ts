@@ -5,6 +5,7 @@ import {
   buildClassificationPrompt,
   parseClassificationResponse,
   isClassificationError,
+  type CategoryDefinition,
 } from "@/lib/llm/classifier";
 import { getSetting } from "@/db/settings";
 import {
@@ -19,6 +20,10 @@ import {
   getClassificationSummary,
   type CommentToClassify,
 } from "@/db/comment-classifications";
+import { getAllCategories } from "@/db/custom-categories";
+import { commentClassifications } from "@/db/schema";
+import { db } from "@/db";
+import { eq } from "drizzle-orm";
 
 export interface ClassifyOptions {
   batchSize?: number;
@@ -39,6 +44,13 @@ export interface ClassifyResult {
   };
 }
 
+// Load custom categories as CategoryDefinition[] for the classifier
+function loadCategoryDefinitions(): CategoryDefinition[] | undefined {
+  const categories = getAllCategories();
+  if (categories.length === 0) return undefined;
+  return categories.map((c) => ({ slug: c.slug, description: c.description }));
+}
+
 // US-2.05: Main entry point for batch classification
 export async function classifyComments(
   options: ClassifyOptions = {},
@@ -47,6 +59,10 @@ export async function classifyComments(
 
   const modelUsed = getSetting("llm_model") ?? "unknown";
   const llmService = options.llmService ?? createLLMServiceFromSettings();
+
+  // Load custom categories for dynamic prompt
+  const categoryDefs = loadCategoryDefinitions();
+  const validSlugs = categoryDefs?.map((c) => c.slug);
 
   // Create a classification run
   const run = createClassificationRun(modelUsed);
@@ -82,14 +98,17 @@ export async function classifyComments(
 
     for (const comment of batch) {
       try {
-        const prompt = buildClassificationPrompt({
-          body: comment.body,
-          filePath: comment.filePath ?? undefined,
-          prTitle: comment.prTitle,
-        });
+        const prompt = buildClassificationPrompt(
+          {
+            body: comment.body,
+            filePath: comment.filePath ?? undefined,
+            prTitle: comment.prTitle,
+          },
+          categoryDefs,
+        );
 
         const response = await llmService.classify(prompt);
-        const result = parseClassificationResponse(response.content);
+        const result = parseClassificationResponse(response.content, validSlugs);
 
         if (isClassificationError(result)) {
           errors++;
@@ -128,4 +147,17 @@ export async function classifyComments(
     errors,
     summary,
   };
+}
+
+// Reclassify all comments: delete non-manual classifications and re-run batch
+export async function reclassifyAllComments(
+  options: ClassifyOptions = {},
+): Promise<ClassifyResult> {
+  // Delete all non-manual classifications
+  db.delete(commentClassifications)
+    .where(eq(commentClassifications.isManual, 0))
+    .run();
+
+  // Re-run classification (all comments are now "unclassified")
+  return classifyComments(options);
 }

@@ -30,8 +30,14 @@ export interface ClassificationInput {
   diffSnippet?: string;
 }
 
+// Custom category definition for dynamic prompt building
+export interface CategoryDefinition {
+  slug: string;
+  description: string;
+}
+
 export interface ClassificationResult {
-  category: CommentCategory;
+  category: string;
   confidence: number; // 0–100 integer (DB-ready)
   reasoning: string;
 }
@@ -41,10 +47,9 @@ export interface ClassificationParseError {
   rawContent: string;
 }
 
-// --- Prompt builder ---
+// --- Default category descriptions (hardcoded fallback) ---
 
-export function buildClassificationPrompt(input: ClassificationInput): string {
-  const categoryDescriptions = `- bug_correctness: Points out bugs, logic errors, incorrect behavior, or missing null checks
+const DEFAULT_CATEGORY_DESCRIPTIONS = `- bug_correctness: Points out bugs, logic errors, incorrect behavior, or missing null checks
 - security: Flags security vulnerabilities, injection risks, or unsafe practices
 - performance: Highlights performance bottlenecks, inefficient algorithms, or unnecessary re-renders
 - readability_maintainability: Suggests clearer naming, better structure, or easier-to-read code
@@ -52,6 +57,24 @@ export function buildClassificationPrompt(input: ClassificationInput): string {
 - architecture_design: Addresses design patterns, system structure, API contracts, or architectural concerns
 - missing_test_coverage: Points out missing tests, untested edge cases, or poor test quality
 - question_clarification: Asks a question or seeks clarification about intent or behavior`;
+
+// --- Prompt builder ---
+
+export function buildClassificationPrompt(
+  input: ClassificationInput,
+  categories?: CategoryDefinition[],
+): string {
+  const categoryDescriptions = categories && categories.length > 0
+    ? categories.map((c) => `- ${c.slug}: ${c.description}`).join("\n")
+    : DEFAULT_CATEGORY_DESCRIPTIONS;
+
+  const categoryCount = categories && categories.length > 0
+    ? categories.length
+    : 8;
+
+  const categorySlugs = categories && categories.length > 0
+    ? categories.map((c) => c.slug)
+    : COMMENT_CATEGORIES;
 
   const contextLines: string[] = [];
   if (input.prTitle) contextLines.push(`PR Title: ${input.prTitle}`);
@@ -61,14 +84,17 @@ export function buildClassificationPrompt(input: ClassificationInput): string {
   const contextSection =
     contextLines.length > 0 ? `\n\nContext:\n${contextLines.join("\n")}` : "";
 
+  const lastCategorySlug = categorySlugs[categorySlugs.length - 1];
+  const firstCategorySlug = categorySlugs[0];
+
   return `You are a code review analyst. Classify the following code review comment into exactly one category.
 
 Categories and their meaning:
 ${categoryDescriptions}
 
 Rules:
-- If the comment is very short or lacks specific content (e.g. "LGTM", "+1"), classify as "question_clarification" with low confidence (0.1–0.3).
-- If the comment appears bot-generated (automated messages, dependency update notices), classify as "nitpick_style" with confidence 0.4.
+- If the comment is very short or lacks specific content (e.g. "LGTM", "+1"), classify as "${lastCategorySlug}" with low confidence (0.1–0.3).
+- If the comment appears bot-generated (automated messages, dependency update notices), classify as "${firstCategorySlug}" with confidence 0.4.
 - If the comment covers multiple topics, pick the single most dominant category.
 - Always return valid JSON with no markdown fences, no extra text.${contextSection}
 
@@ -79,7 +105,7 @@ ${input.body}
 
 Respond with this exact JSON structure:
 {
-  "category": "<one of the 8 categories>",
+  "category": "<one of the ${categoryCount} categories>",
   "confidence": <float between 0.0 and 1.0>,
   "reasoning": "<one sentence explaining the classification>"
 }`;
@@ -88,7 +114,8 @@ Respond with this exact JSON structure:
 // --- Response parser ---
 
 export function parseClassificationResponse(
-  content: string
+  content: string,
+  validSlugs?: string[],
 ): ClassificationResult | ClassificationParseError {
   const cleaned = content
     .trim()
@@ -108,10 +135,11 @@ export function parseClassificationResponse(
 
   const obj = parsed as Record<string, unknown>;
 
-  // Validate category
+  // Validate category against provided slugs or hardcoded defaults
+  const allowedCategories = validSlugs ?? (COMMENT_CATEGORIES as string[]);
   if (
     typeof obj.category !== "string" ||
-    !COMMENT_CATEGORIES.includes(obj.category as CommentCategory)
+    !allowedCategories.includes(obj.category)
   ) {
     return {
       error: `Invalid category: ${String(obj.category)}`,
@@ -137,7 +165,7 @@ export function parseClassificationResponse(
   }
 
   return {
-    category: obj.category as CommentCategory,
+    category: obj.category,
     confidence: Math.round(obj.confidence * 100),
     reasoning: obj.reasoning.trim(),
   };

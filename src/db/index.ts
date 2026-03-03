@@ -70,8 +70,10 @@ if (
   } catch (err: unknown) {
     // Tolerate "table already exists" when parallel Vitest workers or
     // concurrent Next.js Turbopack chunks race against the same DB file.
+    // DrizzleError wraps the SqliteError in `cause`, so check both.
     const msg = err instanceof Error ? err.message : String(err);
-    if (!msg.includes("already exists")) throw err;
+    const causeMsg = err instanceof Error && err.cause instanceof Error ? err.cause.message : "";
+    if (!msg.includes("already exists") && !causeMsg.includes("already exists")) throw err;
   }
 }
 
