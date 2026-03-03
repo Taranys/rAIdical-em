@@ -1,72 +1,72 @@
 ## Context
 
-Les catégories de classification sont actuellement définies en dur dans `src/lib/llm/classifier.ts` (type `CommentCategory` + tableau `COMMENT_CATEGORIES` + descriptions dans le prompt). Elles sont consommées par :
-- `category-colors.ts` — couleurs et labels pour l'affichage
-- `seniority-dimensions.ts` — mapping catégories → dimensions techniques
-- Le prompt LLM dans `buildClassificationPrompt()` — descriptions textuelles
-- Les pages Review Quality et Team Profiles — filtres, charts, radar
+Classification categories are currently hardcoded in `src/lib/llm/classifier.ts` (the `CommentCategory` type + `COMMENT_CATEGORIES` array + descriptions in the prompt). They are consumed by:
+- `category-colors.ts` — colors and labels for display
+- `seniority-dimensions.ts` — mapping categories to technical dimensions
+- The LLM prompt in `buildClassificationPrompt()` — textual descriptions
+- Review Quality and Team Profiles pages — filters, charts, radar
 
-L'utilisateur veut pouvoir définir ses propres catégories avec un nom et une description (instruction pour le LLM), puis relancer la classification.
+The user wants to define their own categories with a name and a description (LLM instruction), then re-run classification.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Permettre à l'utilisateur de définir ses propres catégories via une page dédiée
-- Chaque catégorie a un nom (slug), un label d'affichage, une description/instruction pour le LLM, et une couleur
-- Le classifier LLM utilise dynamiquement les catégories custom quand elles existent
-- L'utilisateur peut relancer la classification de tous les commentaires avec ses nouvelles catégories
-- Les pages existantes s'adaptent automatiquement aux catégories définies
+- Allow the user to define custom categories via a dedicated page
+- Each category has a slug, a display label, a description/instruction for the LLM, and a color
+- The LLM classifier dynamically uses custom categories when they exist
+- The user can re-run classification of all comments with the new categories
+- Existing pages automatically adapt to the defined categories
 
 **Non-Goals:**
-- Gestion de plusieurs jeux de catégories (presets) — un seul jeu actif à la fois
-- Historique des versions de catégories
-- Migration automatique des anciennes classifications vers les nouvelles catégories
-- Catégories par membre d'équipe — les catégories sont globales
+- Multiple category sets (presets) — only one active set at a time
+- Category version history
+- Automatic migration of old classifications to new categories
+- Per-team-member categories — categories are global
 
 ## Decisions
 
-### 1. Stockage en SQLite avec table `custom_categories`
+### 1. SQLite storage with `custom_categories` table
 
-**Choix:** Nouvelle table Drizzle `custom_categories` avec les champs : `id`, `slug` (unique, snake_case), `label`, `description`, `color` (hex), `sortOrder`, `createdAt`, `updatedAt`.
+**Choice:** New Drizzle table `custom_categories` with fields: `id`, `slug` (unique, snake_case), `label`, `description`, `color` (hex), `sortOrder`, `createdAt`, `updatedAt`.
 
-**Rationale:** Cohérent avec le pattern existant (SQLite + Drizzle). Le slug sert d'identifiant stable pour les `comment_classifications.category`. Le `sortOrder` permet à l'utilisateur de contrôler l'ordre d'affichage.
+**Rationale:** Consistent with existing patterns (SQLite + Drizzle). The slug serves as a stable identifier for `comment_classifications.category`. The `sortOrder` lets the user control display order.
 
-**Alternative écartée:** Stocker dans la table `settings` en JSON — moins flexible pour les requêtes et les index.
+**Alternative rejected:** Storing in the `settings` table as JSON — less flexible for queries and indexes.
 
-### 2. Auto-seed des catégories par défaut
+### 2. Auto-seed default categories
 
-**Choix:** Au premier appel `GET /api/categories`, si la table `custom_categories` est vide, le système insère automatiquement les 8 catégories par défaut (avec leurs slugs, labels, descriptions et couleurs actuelles). L'utilisateur voit directement les catégories et peut les modifier, supprimer ou en ajouter.
+**Choice:** On the first `GET /api/categories` call, if the `custom_categories` table is empty, the system automatically inserts the 8 default categories (with their current slugs, labels, descriptions and colors). The user immediately sees the categories and can modify, delete, or add new ones.
 
-**Rationale:** Pas de friction au premier lancement — l'utilisateur a immédiatement un jeu de catégories manipulable. Pas de bouton "Initialiser" ni de logique de fallback : une seule source de vérité (la table DB).
+**Rationale:** No friction at first launch — the user immediately has a manipulable set of categories. No "Initialize" button or fallback logic: a single source of truth (the DB table).
 
-**Alternative écartée:** Afficher les catégories hardcodées en fallback avec un bouton "Initialiser" — ajoute de la complexité (deux chemins de lecture) et une action manuelle inutile.
+**Alternative rejected:** Displaying hardcoded categories as fallback with an "Initialize" button — adds complexity (two read paths) and an unnecessary manual action.
 
-### 3. Reclassification en batch
+### 3. Batch reclassification
 
-**Choix:** Réutiliser le mécanisme existant de `classification_runs` + `classification-service.ts`. Le bouton "Reclassifier" crée un nouveau `classification_run`, supprime les classifications existantes (non manuelles), et relance le batch.
+**Choice:** Reuse the existing `classification_runs` + `classification-service.ts` mechanism. The "Reclassify" button creates a new `classification_run`, deletes existing non-manual classifications, and re-runs the batch.
 
-**Rationale:** Infrastructure déjà en place. Les classifications manuelles (`isManual=1`) sont préservées.
+**Rationale:** Infrastructure already in place. Manual classifications (`isManual=1`) are preserved.
 
-### 4. Prompt LLM dynamique
+### 4. Dynamic LLM prompt
 
-**Choix:** `buildClassificationPrompt()` accepte un paramètre optionnel `categories: CustomCategory[]`. Si fourni, il construit la section catégories du prompt à partir de ces données au lieu du texte hardcodé.
+**Choice:** `buildClassificationPrompt()` accepts an optional `categories: CustomCategory[]` parameter. If provided, it builds the categories section of the prompt from this data instead of the hardcoded text.
 
-**Rationale:** Changement minimal dans le classifier. Le format du prompt reste identique, seul le contenu des catégories change.
+**Rationale:** Minimal change to the classifier. The prompt format stays identical, only the category content changes.
 
-### 5. Couleurs dynamiques
+### 5. Dynamic colors
 
-**Choix:** `CATEGORY_CONFIG` devient une fonction `getCategoryConfig()` qui lit les catégories depuis la DB (toujours peuplée grâce à l'auto-seed). Côté client, les couleurs sont servies par l'API avec les catégories.
+**Choice:** `CATEGORY_CONFIG` becomes a function `getCategoryConfig()` that reads categories from the DB (always populated thanks to auto-seed). Client-side, colors are served by the API along with categories.
 
-**Rationale:** Les composants existants (donut chart, bar chart, filtres) continuent de fonctionner sans modification de leur interface — ils reçoivent juste un config différent.
+**Rationale:** Existing components (donut chart, bar chart, filters) continue working without interface changes — they just receive a different config.
 
-### 6. Page dans Settings
+### 6. Settings page
 
-**Choix:** Route `/settings/categories` avec un formulaire inline (pas de modal). Liste des catégories avec drag-and-drop pour réordonner, boutons edit/delete, et formulaire d'ajout en bas.
+**Choice:** Route `/settings/categories` with an inline form (no modal). Category list with drag-and-drop for reordering, edit/delete buttons, and an add form at the bottom.
 
-**Rationale:** Pattern cohérent avec une page de configuration. Le drag-and-drop rend le réordonnancement intuitif.
+**Rationale:** Consistent pattern for a configuration page. Drag-and-drop makes reordering intuitive.
 
 ## Risks / Trade-offs
 
-- **[Reclassification longue]** → La reclassification de tous les commentaires peut être lente (appels LLM). Mitigation : réutiliser le mécanisme fire-and-forget existant avec feedback de progression.
-- **[Catégories supprimées]** → Si l'utilisateur supprime une catégorie qui a des classifications, les données historiques deviennent orphelines. Mitigation : soft-delete ou warning avant suppression avec nombre de commentaires affectés.
-- **[Mapping seniority cassé]** → Les dimensions techniques de séniorité sont mappées aux catégories hardcodées. Mitigation : pour la V1, le mapping séniorité reste sur les catégories par défaut. L'adaptation du mapping séniorité est un chantier séparé.
+- **[Long reclassification]** — Reclassifying all comments can be slow (LLM calls). Mitigation: reuse the existing fire-and-forget mechanism with progress feedback.
+- **[Deleted categories]** — If the user deletes a category that has classifications, historical data becomes orphaned. Mitigation: soft-delete or warning before deletion showing the number of affected comments.
+- **[Broken seniority mapping]** — Technical seniority dimensions are mapped to hardcoded categories. Mitigation: for V1, seniority mapping stays on default categories. Adapting seniority mapping is a separate effort.

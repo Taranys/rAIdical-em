@@ -1,28 +1,28 @@
 ## Why
 
-Les 8 catégories de classification des commentaires de review sont actuellement codées en dur dans `src/lib/llm/classifier.ts`. Chaque équipe et chaque engineering manager a des préoccupations différentes — certains veulent traquer les commentaires liés à l'accessibilité, d'autres à la documentation, d'autres encore à la dette technique. Pouvoir définir ses propres catégories (nom + description pour guider le LLM) et relancer la classification permet d'adapter l'outil à son contexte réel.
+The 8 comment classification categories are currently hardcoded in `src/lib/llm/classifier.ts`. Every team and every engineering manager has different concerns — some want to track accessibility comments, others documentation, others technical debt. Being able to define custom categories (name + LLM instruction) and re-run classification allows the tool to adapt to each user's real context.
 
 ## What Changes
 
-- Nouvelle table SQLite `custom_categories` pour stocker les catégories définies par l'utilisateur (nom, description/instruction LLM, couleur, ordre d'affichage)
-- Nouvelle page `/settings/categories` avec une interface CRUD pour gérer les catégories (ajouter, modifier, supprimer, réordonner)
-- API routes pour le CRUD des catégories et le déclenchement de la reclassification
-- Le classifier LLM utilise les catégories custom (si elles existent) au lieu des catégories hardcodées
-- Bouton "Reclassifier" sur la page des catégories pour relancer la classification de tous les commentaires avec les nouvelles catégories
-- Les pages existantes (Review Quality, Team Profiles) s'adaptent dynamiquement aux catégories définies par l'utilisateur
+- New SQLite table `custom_categories` to store user-defined categories (slug, label, LLM description, color, sort order)
+- New `/settings/categories` page with full CRUD interface to manage categories (add, edit, delete, reorder)
+- API routes for category CRUD and reclassification triggering
+- LLM classifier uses custom categories (when they exist) instead of hardcoded ones
+- "Reclassify" button on the categories page to re-run classification of all comments with the new categories
+- Existing pages (Review Quality, Team Profiles) dynamically adapt to user-defined categories
 
 ## Capabilities
 
 ### New Capabilities
-- `category-crud`: Page de gestion des catégories personnalisées — CRUD complet avec nom, description LLM, couleur et ordre d'affichage
-- `dynamic-classification`: Le classifier LLM utilise les catégories custom au lieu des catégories hardcodées, avec possibilité de relancer la classification
+- `category-crud`: Custom category management page — full CRUD with slug, label, LLM description, color and sort order
+- `dynamic-classification`: LLM classifier uses custom categories instead of hardcoded ones, with ability to re-run classification
 
 ### Modified Capabilities
-_Aucune spec existante modifiée au niveau des requirements._
+_No existing spec requirements are modified._
 
 ## Impact
 
-- **Database**: Nouvelle table `custom_categories` + migration Drizzle
-- **Backend**: `src/lib/llm/classifier.ts` (prompt dynamique), `src/lib/category-colors.ts` (config dynamique), `src/lib/seniority-dimensions.ts` (mapping dynamique)
-- **Frontend**: Nouvelle page `/settings/categories`, adaptation des composants de Review Quality et Team Profiles pour lire les catégories depuis la DB
-- **API**: Nouvelles routes `/api/categories` (CRUD) et `/api/categories/reclassify` (trigger)
+- **Database**: New `custom_categories` table + Drizzle migration
+- **Backend**: `src/lib/llm/classifier.ts` (dynamic prompt), `src/lib/category-colors.ts` (dynamic config), `src/lib/seniority-dimensions.ts` (dynamic mapping)
+- **Frontend**: New `/settings/categories` page, adaptation of Review Quality and Team Profiles components to read categories from DB
+- **API**: New routes `/api/categories` (CRUD) and `/api/categories/reclassify` (trigger)

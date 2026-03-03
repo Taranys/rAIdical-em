@@ -1,42 +1,42 @@
 ## ADDED Requirements
 
-### Requirement: Prompt LLM dynamique basé sur les catégories custom
-Le classifier LLM DOIT construire le prompt de classification en utilisant les catégories custom (si elles existent) au lieu des catégories hardcodées.
+### Requirement: Dynamic LLM prompt based on custom categories
+The LLM classifier SHALL build the classification prompt using custom categories (if they exist) instead of hardcoded categories.
 
-#### Scenario: Classification avec catégories custom
-- **WHEN** des catégories custom existent et qu'un commentaire est classifié
-- **THEN** le prompt LLM contient uniquement les catégories custom avec leurs descriptions comme instructions de classification
+#### Scenario: Classification with custom categories
+- **WHEN** custom categories exist and a comment is classified
+- **THEN** the LLM prompt contains only the custom categories with their descriptions as classification instructions
 
-#### Scenario: Classification sans catégories custom (fallback)
-- **WHEN** aucune catégorie custom n'existe et qu'un commentaire est classifié
-- **THEN** le prompt LLM utilise les 8 catégories par défaut hardcodées (comportement actuel inchangé)
+#### Scenario: Classification without custom categories (fallback)
+- **WHEN** no custom categories exist and a comment is classified
+- **THEN** the LLM prompt uses the 8 hardcoded default categories (current behavior unchanged)
 
-#### Scenario: Format du prompt pour les catégories custom
-- **WHEN** le prompt est construit avec des catégories custom
-- **THEN** chaque catégorie apparaît sous la forme `- <slug>: <description>` et la réponse attendue référence le slug
+#### Scenario: Prompt format for custom categories
+- **WHEN** the prompt is built with custom categories
+- **THEN** each category appears as `- <slug>: <description>` and the expected response references the slug
 
-### Requirement: Reclassification de tous les commentaires
-Le système DOIT permettre de relancer la classification de tous les commentaires existants avec les catégories actuelles.
+### Requirement: Reclassification of all comments
+The system SHALL allow re-running classification of all existing comments with the current categories.
 
-#### Scenario: Déclenchement de la reclassification
-- **WHEN** l'utilisateur clique sur "Reclassifier tous les commentaires" sur la page `/settings/categories`
-- **THEN** un nouveau `classification_run` est créé, les classifications non-manuelles existantes sont supprimées, et la classification batch est relancée
+#### Scenario: Trigger reclassification
+- **WHEN** the user clicks "Reclassify all comments" on the `/settings/categories` page
+- **THEN** a new `classification_run` is created, non-manual existing classifications are deleted, and batch classification is re-run
 
-#### Scenario: Préservation des classifications manuelles
-- **WHEN** une reclassification est lancée et que certains commentaires ont des classifications manuelles (`isManual=1`)
-- **THEN** ces classifications manuelles sont préservées et non recalculées
+#### Scenario: Preserve manual classifications
+- **WHEN** a reclassification is triggered and some comments have manual classifications (`isManual=1`)
+- **THEN** those manual classifications are preserved and not recomputed
 
-#### Scenario: Feedback de progression
-- **WHEN** une reclassification est en cours
-- **THEN** la page affiche une barre de progression avec le nombre de commentaires traités / total
+#### Scenario: Progress feedback
+- **WHEN** a reclassification is in progress
+- **THEN** the page displays a progress bar with the number of comments processed / total
 
-### Requirement: Adaptation dynamique des couleurs et labels
-Les composants d'affichage (charts, filtres, badges) DOIVENT utiliser les couleurs et labels des catégories custom quand elles existent.
+### Requirement: Dynamic color and label adaptation
+Display components (charts, filters, badges) SHALL use custom category colors and labels when they exist.
 
-#### Scenario: Charts avec catégories custom
-- **WHEN** des catégories custom sont définies et que l'utilisateur consulte la page Review Quality
-- **THEN** les charts (donut, bar, trend) utilisent les couleurs et labels des catégories custom
+#### Scenario: Charts with custom categories
+- **WHEN** custom categories are defined and the user views the Review Quality page
+- **THEN** charts (donut, bar, trend) use custom category colors and labels
 
-#### Scenario: Filtres avec catégories custom
-- **WHEN** des catégories custom sont définies et que l'utilisateur utilise les filtres de la page Review Quality
-- **THEN** les options de filtre reflètent les catégories custom (labels et couleurs)
+#### Scenario: Filters with custom categories
+- **WHEN** custom categories are defined and the user uses Review Quality page filters
+- **THEN** filter options reflect custom categories (labels and colors)

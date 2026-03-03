@@ -1,69 +1,69 @@
 ## ADDED Requirements
 
 ### Requirement: Custom categories database table
-Le système DOIT stocker les catégories personnalisées dans une table `custom_categories` avec les champs : `id` (PK auto-increment), `slug` (text unique, snake_case), `label` (text), `description` (text — instruction pour le LLM), `color` (text, hex), `sortOrder` (integer), `createdAt` (text ISO), `updatedAt` (text ISO).
+The system SHALL store custom categories in a `custom_categories` table with fields: `id` (PK auto-increment), `slug` (text unique, snake_case), `label` (text), `description` (text — LLM instruction), `color` (text, hex), `sortOrder` (integer), `createdAt` (text ISO), `updatedAt` (text ISO).
 
-#### Scenario: Auto-seed au premier accès
-- **WHEN** la table `custom_categories` est vide et qu'un appel GET est fait à `/api/categories`
-- **THEN** le système insère automatiquement les 8 catégories par défaut (avec slugs, labels, descriptions et couleurs) dans la table et les retourne
+#### Scenario: Auto-seed on first access
+- **WHEN** the `custom_categories` table is empty and a GET request is made to `/api/categories`
+- **THEN** the system automatically inserts the 8 default categories (with slugs, labels, descriptions and colors) into the table and returns them
 
-### Requirement: API CRUD pour les catégories
-Le système DOIT exposer des routes API pour gérer les catégories personnalisées :
-- `GET /api/categories` — liste toutes les catégories (custom si elles existent, sinon default)
-- `POST /api/categories` — créer une nouvelle catégorie
-- `PUT /api/categories/:id` — modifier une catégorie existante
-- `DELETE /api/categories/:id` — supprimer une catégorie
+### Requirement: CRUD API for categories
+The system SHALL expose API routes to manage custom categories:
+- `GET /api/categories` — list all categories (auto-seeded if table is empty)
+- `POST /api/categories` — create a new category
+- `PUT /api/categories/:id` — update an existing category
+- `DELETE /api/categories/:id` — delete a category
 
-#### Scenario: Lister les catégories
-- **WHEN** un appel GET est fait à `/api/categories`
-- **THEN** le système retourne les catégories de la table `custom_categories` triées par `sortOrder` (auto-seedées si la table était vide)
+#### Scenario: List categories
+- **WHEN** a GET request is made to `/api/categories`
+- **THEN** the system returns categories from the `custom_categories` table sorted by `sortOrder` (auto-seeded if the table was empty)
 
-#### Scenario: Créer une catégorie
-- **WHEN** un appel POST est fait avec `{ slug, label, description, color }`
-- **THEN** la catégorie est créée avec un `sortOrder` auto-incrémenté et le système retourne la catégorie créée
+#### Scenario: Create a category
+- **WHEN** a POST request is made with `{ slug, label, description, color }`
+- **THEN** the category is created with an auto-incremented `sortOrder` and the system returns the created category
 
-#### Scenario: Créer une catégorie avec slug dupliqué
-- **WHEN** un appel POST est fait avec un `slug` déjà existant
-- **THEN** le système retourne une erreur 409 Conflict
+#### Scenario: Create a category with duplicate slug
+- **WHEN** a POST request is made with a `slug` that already exists
+- **THEN** the system returns a 409 Conflict error
 
-#### Scenario: Modifier une catégorie
-- **WHEN** un appel PUT est fait à `/api/categories/:id` avec des champs mis à jour
-- **THEN** la catégorie est mise à jour et le système retourne la catégorie modifiée
+#### Scenario: Update a category
+- **WHEN** a PUT request is made to `/api/categories/:id` with updated fields
+- **THEN** the category is updated and the system returns the modified category
 
-#### Scenario: Supprimer une catégorie
-- **WHEN** un appel DELETE est fait à `/api/categories/:id`
-- **THEN** la catégorie est supprimée de la table
+#### Scenario: Delete a category
+- **WHEN** a DELETE request is made to `/api/categories/:id`
+- **THEN** the category is removed from the table
 
-#### Scenario: Réordonner les catégories
-- **WHEN** un appel PUT est fait à `/api/categories/reorder` avec un tableau d'IDs dans le nouvel ordre
-- **THEN** les `sortOrder` de toutes les catégories sont mis à jour selon l'ordre fourni
+#### Scenario: Reorder categories
+- **WHEN** a PUT request is made to `/api/categories/reorder` with an array of IDs in the new order
+- **THEN** the `sortOrder` of all categories is updated according to the provided order
 
-### Requirement: Page de gestion des catégories
-Le système DOIT fournir une page `/settings/categories` permettant de gérer les catégories.
+### Requirement: Category management page
+The system SHALL provide a `/settings/categories` page to manage categories.
 
-#### Scenario: Affichage de la liste des catégories
-- **WHEN** l'utilisateur accède à `/settings/categories`
-- **THEN** la page affiche la liste des catégories avec pour chaque : pastille de couleur, label, slug, et description (tronquée)
+#### Scenario: Display category list
+- **WHEN** the user navigates to `/settings/categories`
+- **THEN** the page displays the list of categories with for each: color swatch, label, slug, and description (truncated)
 
-#### Scenario: Ajout d'une nouvelle catégorie
-- **WHEN** l'utilisateur clique sur "Ajouter une catégorie" et remplit le formulaire (label, slug auto-généré, description, couleur)
-- **THEN** la catégorie est créée via l'API et apparaît dans la liste
+#### Scenario: Add a new category
+- **WHEN** the user clicks "Add category" and fills the form (label, auto-generated slug, description, color)
+- **THEN** the category is created via the API and appears in the list
 
-#### Scenario: Modification d'une catégorie
-- **WHEN** l'utilisateur clique sur le bouton d'édition d'une catégorie
-- **THEN** un formulaire inline s'affiche avec les valeurs actuelles, modifiables et enregistrables
+#### Scenario: Edit a category
+- **WHEN** the user clicks the edit button on a category
+- **THEN** an inline form appears with current values, editable and saveable
 
-#### Scenario: Suppression d'une catégorie avec avertissement
-- **WHEN** l'utilisateur clique sur le bouton de suppression d'une catégorie qui a des classifications associées
-- **THEN** un dialogue de confirmation s'affiche indiquant le nombre de commentaires classifiés dans cette catégorie
+#### Scenario: Delete a category with warning
+- **WHEN** the user clicks the delete button on a category that has associated classifications
+- **THEN** a confirmation dialog appears showing the number of comments classified in that category
 
-#### Scenario: Réordonnancement par drag-and-drop
-- **WHEN** l'utilisateur réordonne les catégories par drag-and-drop
-- **THEN** les positions sont mises à jour via l'API et l'ordre est reflété partout dans l'application
+#### Scenario: Drag-and-drop reordering
+- **WHEN** the user reorders categories via drag-and-drop
+- **THEN** positions are updated via the API and the order is reflected everywhere in the application
 
-### Requirement: Réinitialisation aux catégories par défaut
-Le système DOIT permettre de restaurer les catégories par défaut.
+### Requirement: Reset to default categories
+The system SHALL allow restoring the default categories.
 
-#### Scenario: Bouton reset
-- **WHEN** l'utilisateur clique sur "Réinitialiser les catégories par défaut"
-- **THEN** un dialogue de confirmation s'affiche, et si confirmé, toutes les catégories custom sont supprimées et les 8 catégories par défaut sont réinsérées
+#### Scenario: Reset button
+- **WHEN** the user clicks "Reset to default categories"
+- **THEN** a confirmation dialog appears, and if confirmed, all custom categories are deleted and the 8 default categories are re-inserted
