@@ -1,53 +1,53 @@
 ## Context
 
-Le `PeriodProvider` (React Context + useState) est actuellement instancié indépendamment dans `DashboardContent` et `OneOnOneContent`. Chaque page a sa propre instance avec un état par défaut "this-month". Quand l'utilisateur change la période sur une page puis navigue, la sélection est perdue.
+The `PeriodProvider` (React Context + useState) is currently instantiated independently in `DashboardContent` and `OneOnOneContent`. Each page has its own instance with a default state of "this-month". When the user changes the period on one page and navigates away, the selection is lost.
 
-Le root layout (`src/app/layout.tsx`) fournit déjà un shell global avec `SidebarProvider`, `AppSidebar`, et un header contenant le `SidebarTrigger`. C'est le point d'ancrage naturel pour un contexte global.
+The root layout (`src/app/layout.tsx`) already provides a global shell with `SidebarProvider`, `AppSidebar`, and a header containing the `SidebarTrigger`. This is the natural anchor point for a global context.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- La période sélectionnée persiste lors de la navigation entre pages
-- Le PeriodSelector est accessible depuis toutes les pages dans le header global
-- Les pages existantes (Dashboard, 1:1) continuent de fonctionner avec le contexte global sans régression
+- The selected period persists across page navigation
+- The PeriodSelector is accessible from all pages in the global header
+- Existing pages (Dashboard, 1:1) continue to work with the global context without regressions
 
 **Non-Goals:**
-- Persister la période sélectionnée au-delà d'un refresh (localStorage, URL params) — pas dans cette itération
-- Unifier le sélecteur de trimestre de la page Sync ou le sélecteur de mois de Review Quality avec le PeriodSelector — ces pages ont des besoins spécifiques
-- Ajouter de nouveaux presets de période
+- Persisting the selected period beyond a refresh (localStorage, URL params) — not in this iteration
+- Unifying the Sync page quarter selector or the Review Quality month selector with the PeriodSelector — these pages have specific needs
+- Adding new period presets
 
 ## Decisions
 
-### 1. Remonter le PeriodProvider dans le root layout
+### 1. Lift PeriodProvider to the root layout
 
-**Choix :** Wrapper les `children` du root layout avec le `PeriodProvider`, en le plaçant à l'intérieur du `SidebarProvider` existant.
+**Choice:** Wrap the root layout's `children` with the `PeriodProvider`, placing it inside the existing `SidebarProvider`.
 
-**Rationale :** C'est l'approche la plus simple. Le provider est déjà un composant React Context standard sans effets de bord. Le remonter dans l'arbre ne change pas son API — `usePeriod()` fonctionnera identiquement depuis n'importe quelle page.
+**Rationale:** This is the simplest approach. The provider is already a standard React Context component with no side effects. Lifting it up the tree doesn't change its API — `usePeriod()` will work identically from any page.
 
-**Alternative considérée :** Créer un layout intermédiaire (`(dashboard)/layout.tsx`) pour ne wraper que les pages qui utilisent la période. Rejeté car cela complexifie la structure sans bénéfice : le provider est léger et les pages qui n'utilisent pas `usePeriod()` ne sont pas impactées.
+**Alternative considered:** Create an intermediate layout (`(dashboard)/layout.tsx`) to only wrap pages that use the period. Rejected because it adds complexity without benefit: the provider is lightweight and pages that don't use `usePeriod()` are not affected.
 
-### 2. Déplacer le PeriodSelector dans le header global
+### 2. Move PeriodSelector to the global header
 
-**Choix :** Ajouter le `PeriodSelector` dans le `<header>` du root layout, à côté du `SidebarTrigger`, aligné à droite avec un `ml-auto`.
+**Choice:** Add the `PeriodSelector` to the root layout's `<header>`, next to the `SidebarTrigger`, right-aligned with `ml-auto`.
 
-**Rationale :** Le header est déjà présent sur toutes les pages. Placer le sélecteur ici le rend accessible partout sans duplication. Le layout existant (flex, h-12) peut accueillir le composant sans modification structurelle majeure.
+**Rationale:** The header is already present on all pages. Placing the selector here makes it accessible everywhere without duplication. The existing layout (flex, h-12) can accommodate the component without major structural changes.
 
-**Alternative considérée :** Placer le sélecteur dans la sidebar. Rejeté car la sidebar peut être fermée et le sélecteur doit toujours être visible.
+**Alternative considered:** Place the selector in the sidebar. Rejected because the sidebar can be collapsed and the selector must always be visible.
 
-### 3. Extraire le header dans un composant client dédié
+### 3. Extract the header into a dedicated client component
 
-**Choix :** Créer un composant `AppHeader` ("use client") qui contient le `SidebarTrigger` et le `PeriodSelector`. Le root layout (Server Component) importera ce composant.
+**Choice:** Create an `AppHeader` component ("use client") containing the `SidebarTrigger` and the `PeriodSelector`. The root layout (Server Component) will import this component.
 
-**Rationale :** Le root layout est un Server Component. Le `PeriodSelector` a besoin de `usePeriod()` (client-side). Extraire le header dans un composant client permet de garder le layout comme Server Component tout en utilisant le contexte.
+**Rationale:** The root layout is a Server Component. The `PeriodSelector` needs `usePeriod()` (client-side). Extracting the header into a client component keeps the layout as a Server Component while using the context.
 
-### 4. Supprimer les PeriodProvider et PeriodSelector locaux
+### 4. Remove local PeriodProvider and PeriodSelector
 
-**Choix :** Retirer le `PeriodProvider` wrapper de `DashboardContent` et `OneOnOneContent`, et supprimer le `PeriodSelector` de leurs en-têtes de page. Les composants continueront d'appeler `usePeriod()` normalement car le provider est maintenant au-dessus dans l'arbre.
+**Choice:** Remove the `PeriodProvider` wrapper from `DashboardContent` and `OneOnOneContent`, and remove the `PeriodSelector` from their page headers. Components will continue calling `usePeriod()` normally since the provider is now above them in the tree.
 
-**Rationale :** Évite les double-providers (qui créeraient des contextes isolés) et la duplication du sélecteur.
+**Rationale:** Avoids double-providers (which would create isolated contexts) and selector duplication.
 
 ## Risks / Trade-offs
 
-- **[Le header est un Server Component]** → Mitigation : extraction d'un composant `AppHeader` client. Impact minimal car le header ne fait pas de server-side fetching.
-- **[Pages sans besoin de période voient le sélecteur]** → Trade-off acceptable. Les pages Team, Settings, Team Profiles ne l'utilisent pas mais le sélecteur reste discret dans le header. Si besoin futur, on pourra le masquer conditionnellement par route.
-- **[Print layout de la page 1:1]** → La page 1:1 utilise `print:hidden` sur le PeriodSelector local. Avec le sélecteur dans le header global, le header entier a vocation à être masqué en impression (`print:hidden` sur le header). Vérifier que le `period.label` en mode print fonctionne toujours.
+- **[Header is a Server Component]** → Mitigation: extract a client `AppHeader` component. Minimal impact since the header doesn't do server-side fetching.
+- **[Pages without period needs see the selector]** → Acceptable trade-off. Team, Settings, and Team Profiles pages don't use it but the selector remains unobtrusive in the header. If needed later, it can be conditionally hidden by route.
+- **[Print layout for the 1:1 page]** → The 1:1 page uses `print:hidden` on the local PeriodSelector. With the selector in the global header, the entire header is hidden during printing (`print:hidden` on the header). Verify that `period.label` in print mode still works.
