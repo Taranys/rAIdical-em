@@ -188,9 +188,9 @@ test.describe("Categories Settings Page", () => {
     // Open the add form first
     await page.getByRole("button", { name: /add category/i }).click();
 
-    // Fill the add form
-    await page.getByPlaceholder("e.g. Accessibility").fill("Custom Test");
-    await page.getByPlaceholder("Describe how the LLM should identify this category...").fill("Custom test description");
+    // Fill the add form (use getByRole to avoid placeholder case-insensitive collisions)
+    await page.getByRole("textbox", { name: "Label" }).fill("Custom Test");
+    await page.getByRole("textbox", { name: "LLM Description" }).fill("Custom test description");
 
     // Submit
     await page.getByRole("button", { name: /^add$/i }).click();
