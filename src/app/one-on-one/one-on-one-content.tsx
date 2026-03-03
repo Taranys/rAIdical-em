@@ -27,8 +27,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { PeriodProvider, usePeriod } from "@/app/dashboard-context";
-import { PeriodSelector } from "@/app/period-selector";
+import { usePeriod } from "@/app/dashboard-context";
 
 interface TeamMember {
   id: number;
@@ -150,9 +149,6 @@ function OneOnOneInner() {
         <h1 className="text-4xl font-bold tracking-tight print:text-2xl">
           1:1 Preparation
         </h1>
-        <div className="flex items-center gap-4 print:hidden">
-          <PeriodSelector />
-        </div>
       </div>
 
       {/* Member Selector */}
@@ -446,9 +442,5 @@ function OneOnOneInner() {
 }
 
 export function OneOnOneContent() {
-  return (
-    <PeriodProvider>
-      <OneOnOneInner />
-    </PeriodProvider>
-  );
+  return <OneOnOneInner />;
 }
