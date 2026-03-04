@@ -2,6 +2,7 @@
 
 // US-007, US-008, US-024: Team members page with add/remove/import member functionality
 import { useCallback, useEffect, useState } from "react";
+import { useSidebarStatusContext } from "@/contexts/sidebar-status-context";
 import { ImportGitHubSheet } from "./import-github-sheet";
 import {
   Card,
@@ -60,6 +61,7 @@ interface Feedback {
 }
 
 export default function TeamPage() {
+  const { refresh: refreshSidebarStatus } = useSidebarStatusContext();
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [username, setUsername] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -108,6 +110,7 @@ export default function TeamPage() {
         });
         setUsername("");
         fetchMembers();
+        refreshSidebarStatus();
       } else {
         setFeedback({
           type: "error",
@@ -136,6 +139,7 @@ export default function TeamPage() {
           message: `Successfully removed ${member.displayName} (@${member.githubUsername})`,
         });
         fetchMembers();
+        refreshSidebarStatus();
       } else {
         setFeedback({
           type: "error",
@@ -318,7 +322,7 @@ export default function TeamPage() {
         open={isImportOpen}
         onOpenChange={setIsImportOpen}
         existingMembers={members.map((m) => m.githubUsername)}
-        onImportComplete={fetchMembers}
+        onImportComplete={() => { fetchMembers(); refreshSidebarStatus(); }}
       />
     </div>
   );

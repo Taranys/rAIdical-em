@@ -2,6 +2,7 @@
 
 // US-2.01 / US-2.06: LLM provider configuration form
 import { useCallback, useEffect, useState } from "react";
+import { useSidebarStatusContext } from "@/contexts/sidebar-status-context";
 import {
   Card,
   CardContent,
@@ -33,6 +34,7 @@ interface Feedback {
 }
 
 export function LlmProviderForm() {
+  const { refresh: refreshSidebarStatus } = useSidebarStatusContext();
   const [provider, setProvider] = useState<LlmProvider | "">("");
   const [model, setModel] = useState("");
   const [apiKey, setApiKey] = useState("");
@@ -107,6 +109,7 @@ export function LlmProviderForm() {
         });
         setApiKey("");
         setIsConfigured(true);
+        refreshSidebarStatus();
       } else {
         setFeedback({
           type: "error",
@@ -162,6 +165,7 @@ export function LlmProviderForm() {
       setModel("");
       setApiKey("");
       setFeedback({ type: "success", message: "LLM configuration deleted." });
+      refreshSidebarStatus();
     } catch {
       setFeedback({
         type: "error",
@@ -205,6 +209,7 @@ export function LlmProviderForm() {
           type: "success",
           message: data.message || "API key imported from Claude Code.",
         });
+        refreshSidebarStatus();
       } else {
         setFeedback({
           type: "error",

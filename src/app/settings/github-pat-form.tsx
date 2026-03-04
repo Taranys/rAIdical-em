@@ -2,6 +2,7 @@
 
 // US-005: GitHub PAT configuration form
 import { useCallback, useEffect, useState } from "react";
+import { useSidebarStatusContext } from "@/contexts/sidebar-status-context";
 import {
   Card,
   CardContent,
@@ -22,6 +23,7 @@ interface GitHubPatFormProps {
 }
 
 export function GitHubPatForm({ onPatChange }: GitHubPatFormProps) {
+  const { refresh: refreshSidebarStatus } = useSidebarStatusContext();
   const [token, setToken] = useState("");
   const [isConfigured, setIsConfigured] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -61,6 +63,7 @@ export function GitHubPatForm({ onPatChange }: GitHubPatFormProps) {
         setToken("");
         setIsConfigured(true);
         onPatChange?.(true);
+        refreshSidebarStatus();
       } else {
         setFeedback({
           type: "error",
@@ -111,6 +114,7 @@ export function GitHubPatForm({ onPatChange }: GitHubPatFormProps) {
       setIsConfigured(false);
       setFeedback({ type: "success", message: "PAT deleted." });
       onPatChange?.(false);
+      refreshSidebarStatus();
     } catch {
       setFeedback({ type: "error", message: "Failed to delete PAT." });
     } finally {

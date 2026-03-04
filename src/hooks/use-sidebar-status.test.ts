@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
+import { createElement, type ReactNode } from "react";
 import { useSidebarStatus } from "./use-sidebar-status";
+import { SidebarStatusProvider } from "@/contexts/sidebar-status-context";
 
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
@@ -19,17 +21,15 @@ const ALL_CONFIGURED = {
   sync: { hasRun: true, status: "success" },
 };
 
-const NOTHING_CONFIGURED = {
-  settings: { configured: false },
-  team: { configured: false },
-  sync: { hasRun: false, status: null },
-};
-
 const SYNC_RUNNING = {
   settings: { configured: true },
   team: { configured: true },
   sync: { hasRun: true, status: "running" },
 };
+
+function wrapper({ children }: { children: ReactNode }) {
+  return createElement(SidebarStatusProvider, null, children);
+}
 
 describe("useSidebarStatus", () => {
   beforeEach(() => {
@@ -44,7 +44,7 @@ describe("useSidebarStatus", () => {
   it("fetches sidebar status on mount", async () => {
     mockFetch.mockResolvedValue(mockApiResponse(ALL_CONFIGURED));
 
-    const { result } = renderHook(() => useSidebarStatus());
+    const { result } = renderHook(() => useSidebarStatus(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.settings.configured).toBe(true);
@@ -58,7 +58,7 @@ describe("useSidebarStatus", () => {
   it("returns initial unconfigured state before fetch completes", () => {
     mockFetch.mockResolvedValue(mockApiResponse(ALL_CONFIGURED));
 
-    const { result } = renderHook(() => useSidebarStatus());
+    const { result } = renderHook(() => useSidebarStatus(), { wrapper });
 
     expect(result.current.settings.configured).toBe(false);
     expect(result.current.team.configured).toBe(false);
@@ -68,7 +68,7 @@ describe("useSidebarStatus", () => {
   it("starts polling when sync is running", async () => {
     mockFetch.mockResolvedValue(mockApiResponse(SYNC_RUNNING));
 
-    const { result } = renderHook(() => useSidebarStatus());
+    const { result } = renderHook(() => useSidebarStatus(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.sync.status).toBe("running");
@@ -93,7 +93,7 @@ describe("useSidebarStatus", () => {
       .mockResolvedValueOnce(mockApiResponse(SYNC_RUNNING))
       .mockResolvedValue(mockApiResponse(completedResponse));
 
-    const { result } = renderHook(() => useSidebarStatus());
+    const { result } = renderHook(() => useSidebarStatus(), { wrapper });
 
     await waitFor(() => {
       expect(result.current.sync.status).toBe("running");
@@ -119,7 +119,7 @@ describe("useSidebarStatus", () => {
   it("handles fetch errors gracefully", async () => {
     mockFetch.mockRejectedValue(new Error("Network error"));
 
-    const { result } = renderHook(() => useSidebarStatus());
+    const { result } = renderHook(() => useSidebarStatus(), { wrapper });
 
     // Should keep initial state on error
     await act(async () => {

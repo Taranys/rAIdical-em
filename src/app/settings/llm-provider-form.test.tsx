@@ -2,6 +2,12 @@
 // US-2.01: Unit tests for LLM provider form component
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+
+// Mock sidebar status context before importing component
+vi.mock("@/contexts/sidebar-status-context", () => ({
+  useSidebarStatusContext: () => ({ status: { settings: { configured: false }, team: { configured: false }, sync: { hasRun: false, status: null } }, refresh: vi.fn().mockResolvedValue(undefined) }),
+}));
+
 import { LlmProviderForm } from "./llm-provider-form";
 
 function mockFetch(responses: Record<string, unknown>) {

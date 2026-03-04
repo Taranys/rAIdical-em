@@ -2,6 +2,7 @@
 
 // Multi-repo support: repository management card (list + add)
 import { useEffect, useState } from "react";
+import { useSidebarStatusContext } from "@/contexts/sidebar-status-context";
 import {
   Card,
   CardContent,
@@ -25,6 +26,7 @@ interface RepositoriesCardProps {
 }
 
 export function RepositoriesCard({ isPatConfigured: isPatConfiguredProp }: RepositoriesCardProps) {
+  const { refresh: refreshSidebarStatus } = useSidebarStatusContext();
   const [isPatConfiguredLocal, setIsPatConfiguredLocal] = useState(false);
   const isPatConfigured = isPatConfiguredProp ?? isPatConfiguredLocal;
   const [repositories, setRepositories] = useState<Repository[]>([]);
@@ -55,6 +57,7 @@ export function RepositoriesCard({ isPatConfigured: isPatConfiguredProp }: Repos
   async function handleRemove(id: number) {
     await fetch(`/api/repositories/${id}`, { method: "DELETE" });
     setRefreshKey((k) => k + 1);
+    refreshSidebarStatus();
   }
 
   return (
@@ -68,7 +71,7 @@ export function RepositoriesCard({ isPatConfigured: isPatConfiguredProp }: Repos
       <CardContent className="space-y-4">
         <RepositoryList repositories={repositories} onRemove={handleRemove} />
         <Separator />
-        <AddRepositoryForm isPatConfigured={isPatConfigured} onAdded={() => setRefreshKey((k) => k + 1)} />
+        <AddRepositoryForm isPatConfigured={isPatConfigured} onAdded={() => { setRefreshKey((k) => k + 1); refreshSidebarStatus(); }} />
       </CardContent>
     </Card>
   );
