@@ -68,13 +68,15 @@ test.describe("GitHub PAT Configuration", () => {
 });
 
 // US-006: GitHub Repository Configuration E2E tests
+// Serial mode: these tests share PAT state in the database
 test.describe("GitHub Repository Configuration", () => {
+  test.describe.configure({ mode: "serial" });
   test("settings page shows repository form with heading", async ({
     page,
   }) => {
     await page.goto("/settings");
 
-    await expect(page.getByText("Target Repository")).toBeVisible();
+    await expect(page.getByText("Repositories", { exact: true })).toBeVisible();
   });
 
   test("repository form shows PAT required message when no PAT configured", async ({
@@ -87,7 +89,7 @@ test.describe("GitHub Repository Configuration", () => {
     await page.goto("/settings");
 
     await expect(
-      page.getByText(/configure a github pat above/i),
+      page.getByText(/configure a github pat above before adding repositories/i),
     ).toBeVisible();
   });
 
@@ -102,16 +104,18 @@ test.describe("GitHub Repository Configuration", () => {
 
     await page.goto("/settings");
 
-    // Owner and repo fields should be visible
-    await expect(page.getByLabel(/owner/i)).toBeVisible();
-    await expect(page.getByLabel(/repository/i)).toBeVisible();
-
-    // Verify and Save buttons (scoped to repo card to avoid matching LLM "Verify Key")
+    // Scope to Repositories card
     const repoCard = page
       .locator('[data-slot="card"]')
-      .filter({ hasText: "Target Repository" });
+      .filter({ hasText: "Repositories" });
+
+    // Wait for the form to load (client-side fetch detects PAT is configured)
+    await expect(repoCard.getByLabel(/owner/i)).toBeVisible({ timeout: 10000 });
+    await expect(repoCard.getByLabel(/repository/i)).toBeVisible();
+
+    // Add Repository button
     await expect(
-      repoCard.getByRole("button", { name: /verify/i }),
+      repoCard.getByRole("button", { name: /add repository/i }),
     ).toBeVisible();
 
     // Clean up
