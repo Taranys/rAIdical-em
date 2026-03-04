@@ -1,14 +1,25 @@
 "use client";
 
 // Multi-repo support: form to add a new repository
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { SearchableInput } from "./searchable-input";
 
 interface Feedback {
   type: "success" | "error";
   message: string;
+}
+
+interface OwnerResult {
+  login: string;
+  type: "user" | "org";
+}
+
+interface RepoResult {
+  name: string;
+  fullName: string;
+  description: string | null;
+  isPrivate: boolean;
 }
 
 interface AddRepositoryFormProps {
@@ -18,9 +29,60 @@ interface AddRepositoryFormProps {
 
 export function AddRepositoryForm({ isPatConfigured, onAdded }: AddRepositoryFormProps) {
   const [owner, setOwner] = useState("");
+  const [owners, setOwners] = useState<OwnerResult[]>([]);
   const [name, setName] = useState("");
+  const [repos, setRepos] = useState<RepoResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const loadOwners = useCallback(async () => {
+    try {
+      const res = await fetch("/api/settings/github-owners");
+      const data = await res.json();
+      if (data.owners) {
+        setOwners(data.owners);
+      }
+    } catch {
+      // Ignore — owner suggestions are optional
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isPatConfigured) {
+      loadOwners();
+    }
+  }, [isPatConfigured, loadOwners]);
+
+  function handleOwnerChange(value: string) {
+    setOwner(value);
+    setName("");
+    setRepos([]);
+    setFeedback(null);
+  }
+
+  function searchRepos(query: string) {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!owner.trim()) return;
+
+    debounceRef.current = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const params = new URLSearchParams({ owner: owner.trim() });
+        if (query.trim()) params.set("q", query.trim());
+        const res = await fetch(`/api/settings/github-repos?${params}`);
+        const data = await res.json();
+        if (data.repos) {
+          setRepos(data.repos);
+        }
+      } catch {
+        // Ignore search errors
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+  }
 
   async function handleAdd() {
     if (!owner.trim() || !name.trim()) return;
@@ -39,6 +101,7 @@ export function AddRepositoryForm({ isPatConfigured, onAdded }: AddRepositoryFor
         setFeedback({ type: "success", message: `Repository ${owner.trim()}/${name.trim()} added.` });
         setOwner("");
         setName("");
+        setRepos([]);
         onAdded();
       } else {
         setFeedback({ type: "error", message: data.error || "Failed to add repository." });
@@ -62,21 +125,56 @@ export function AddRepositoryForm({ isPatConfigured, onAdded }: AddRepositoryFor
     <div className="space-y-3">
       <div className="flex gap-2">
         <div className="flex-1">
-          <Label htmlFor="add-repo-owner">Owner</Label>
-          <Input
+          <SearchableInput
             id="add-repo-owner"
+            label="Owner"
             placeholder="e.g., my-org"
             value={owner}
-            onChange={(e) => { setOwner(e.target.value); setFeedback(null); }}
+            onChange={handleOwnerChange}
+            items={owners}
+            getKey={(o) => o.login}
+            filterItem={(o, q) => o.login.toLowerCase().includes(q.toLowerCase())}
+            onSelect={(o) => handleOwnerChange(o.login)}
+            renderItem={(o) => (
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{o.login}</span>
+                <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                  {o.type}
+                </span>
+              </div>
+            )}
+            listLabel="Owner suggestions"
+            showAllOnFocus
           />
         </div>
         <div className="flex-1">
-          <Label htmlFor="add-repo-name">Repository</Label>
-          <Input
+          <SearchableInput
             id="add-repo-name"
-            placeholder="e.g., frontend"
+            label="Repository"
+            placeholder="Type to search repositories..."
             value={name}
-            onChange={(e) => { setName(e.target.value); setFeedback(null); }}
+            onChange={(value) => { setName(value); setFeedback(null); searchRepos(value); }}
+            disabled={!owner.trim()}
+            items={repos}
+            getKey={(r) => r.name}
+            filterItem={() => true}
+            onSelect={(r) => { setName(r.name); setFeedback(null); }}
+            renderItem={(r) => (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{r.name}</span>
+                  {r.isPrivate && (
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                      Private
+                    </span>
+                  )}
+                </div>
+                {r.description && (
+                  <p className="text-xs text-muted-foreground truncate">{r.description}</p>
+                )}
+              </>
+            )}
+            isLoading={isSearching}
           />
         </div>
       </div>
