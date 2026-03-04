@@ -61,6 +61,7 @@ export function ImportGitHubSheet({
   const [teams, setTeams] = useState<GitHubTeam[]>([]);
   const [selectedTeam, setSelectedTeam] = useState("");
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
+  const [importError, setImportError] = useState<string | null>(null);
   const [browseFilter, setBrowseFilter] = useState("");
 
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -93,6 +94,7 @@ export function ImportGitHubSheet({
       setResults([]);
       setSelected(new Set());
       setImportResults(new Map());
+      setImportError(null);
       setRateLimit(null);
       setSelectedOrg("");
       setTeams([]);
@@ -225,36 +227,44 @@ export function ImportGitHubSheet({
   }
 
   async function handleImport() {
+    setImportError(null);
     setIsImporting(true);
-    const newResults = new Map<string, ImportResult>();
-    const usernames = Array.from(selected);
-    setImportProgress({ current: 0, total: usernames.length });
+    try {
+      const newResults = new Map<string, ImportResult>();
+      const usernames = Array.from(selected);
+      setImportProgress({ current: 0, total: usernames.length });
 
-    for (let i = 0; i < usernames.length; i++) {
-      const username = usernames[i];
-      setImportProgress({ current: i + 1, total: usernames.length });
-      try {
-        const res = await fetch("/api/team", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username }),
-        });
-        if (res.ok) {
-          newResults.set(username, "success");
-        } else if (res.status === 409) {
-          newResults.set(username, "skipped");
-        } else {
+      for (let i = 0; i < usernames.length; i++) {
+        const username = usernames[i];
+        setImportProgress({ current: i + 1, total: usernames.length });
+        try {
+          const res = await fetch("/api/team", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username }),
+          });
+          if (res.ok) {
+            newResults.set(username, "success");
+          } else if (res.status === 409) {
+            newResults.set(username, "skipped");
+          } else {
+            newResults.set(username, "error");
+          }
+        } catch {
           newResults.set(username, "error");
         }
-      } catch {
-        newResults.set(username, "error");
       }
-    }
 
-    setImportResults(newResults);
-    setSelected(new Set());
-    setIsImporting(false);
-    onImportComplete();
+      setImportResults(newResults);
+      setSelected(new Set());
+      onImportComplete();
+    } catch (error) {
+      setImportError(
+        error instanceof Error ? error.message : "An unexpected error occurred during import.",
+      );
+    } finally {
+      setIsImporting(false);
+    }
   }
 
   function isExisting(login: string) {
@@ -445,10 +455,16 @@ export function ImportGitHubSheet({
 
         {/* Footer */}
         <SheetFooter className="flex-row items-center justify-between border-t pt-4">
-          <span className="text-sm text-muted-foreground">
-            {selectedCount > 0 ? `${selectedCount} selected` : "No users selected"}
-          </span>
+          <div className="flex flex-col gap-1">
+            <span className="text-sm text-muted-foreground">
+              {selectedCount > 0 ? `${selectedCount} selected` : "No users selected"}
+            </span>
+            {importError && (
+              <p className="text-sm text-destructive">{importError}</p>
+            )}
+          </div>
           <Button
+            type="button"
             onClick={handleImport}
             disabled={selectedCount === 0 || isImporting}
           >

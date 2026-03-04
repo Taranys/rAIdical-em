@@ -265,6 +265,56 @@ describe("ImportGitHubSheet", () => {
     });
   });
 
+  it("shows per-user error badge when fetch throws", async () => {
+    const fetchMock = mockFetchResponses({
+      "GET /api/team/github-search": {
+        body: {
+          users: [
+            { login: "crash-user", name: "Crash User", avatarUrl: "https://avatars.example.com/1" },
+          ],
+          rateLimit: { remaining: 28, reset: 1700000000 },
+        },
+      },
+    });
+    const originalFetch = fetchMock;
+    globalThis.fetch = vi.fn((url: string, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        return Promise.reject(new Error("Network failure"));
+      }
+      return originalFetch(url, init);
+    }) as unknown as typeof globalThis.fetch;
+
+    render(<ImportGitHubSheet {...defaultProps} />);
+
+    await act(async () => {
+      fireEvent.change(screen.getByPlaceholderText(/search github/i), {
+        target: { value: "crash" },
+      });
+      vi.advanceTimersByTime(350);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("crash-user")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("checkbox"));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /import/i }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Error")).toBeInTheDocument();
+    });
+  });
+
+  it("import button has type=button to prevent form submission", () => {
+    globalThis.fetch = mockFetchResponses({});
+    render(<ImportGitHubSheet {...defaultProps} />);
+    const importButton = screen.getByRole("button", { name: /import/i });
+    expect(importButton).toHaveAttribute("type", "button");
+  });
+
   it("switches to browse organization mode", async () => {
     const fetchMock = mockFetchResponses({
       "GET /api/settings/github-owners": {
