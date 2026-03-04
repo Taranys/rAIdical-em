@@ -1,7 +1,7 @@
 "use client";
 
 // US-2.01 / US-2.06: LLM provider configuration form
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSidebarStatusContext } from "@/contexts/sidebar-status-context";
 import {
   Card,
@@ -27,13 +27,19 @@ import {
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AiHeuristicsForm } from "./ai-heuristics-form";
+import { cn } from "@/lib/utils";
 
 interface Feedback {
   type: "success" | "error";
   message: string;
 }
 
-export function LlmProviderForm() {
+interface LlmProviderFormProps {
+  className?: string;
+  onConfiguredChange?: (isConfigured: boolean) => void;
+}
+
+export function LlmProviderForm({ className, onConfiguredChange }: LlmProviderFormProps = {}) {
   const { refresh: refreshSidebarStatus } = useSidebarStatusContext();
   const [provider, setProvider] = useState<LlmProvider | "">("");
   const [model, setModel] = useState("");
@@ -47,6 +53,13 @@ export function LlmProviderForm() {
   // US-2.06: Auto-classify toggle state
   const [autoClassifyEnabled, setAutoClassifyEnabled] = useState(true);
   const [autoClassifyLoading, setAutoClassifyLoading] = useState(true);
+
+  const onConfiguredChangeRef = useRef(onConfiguredChange);
+  onConfiguredChangeRef.current = onConfiguredChange;
+
+  useEffect(() => {
+    onConfiguredChangeRef.current?.(isConfigured);
+  }, [isConfigured]);
 
   const checkConfigured = useCallback(async () => {
     try {
@@ -227,7 +240,7 @@ export function LlmProviderForm() {
   }
 
   return (
-    <Card>
+    <Card className={cn(className)}>
       <CardHeader>
         <CardTitle>AI / LLM</CardTitle>
         <CardDescription>

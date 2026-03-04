@@ -1,7 +1,7 @@
 "use client";
 
 // Multi-repo support: repository management card (list + add)
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSidebarStatusContext } from "@/contexts/sidebar-status-context";
 import {
   Card,
@@ -13,6 +13,7 @@ import {
 import { RepositoryList } from "./repository-list";
 import { AddRepositoryForm } from "./add-repository-form";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 interface Repository {
   id: number;
@@ -23,9 +24,11 @@ interface Repository {
 
 interface RepositoriesCardProps {
   isPatConfigured?: boolean;
+  className?: string;
+  onConfiguredChange?: (isConfigured: boolean) => void;
 }
 
-export function RepositoriesCard({ isPatConfigured: isPatConfiguredProp }: RepositoriesCardProps) {
+export function RepositoriesCard({ isPatConfigured: isPatConfiguredProp, className, onConfiguredChange }: RepositoriesCardProps) {
   const { refresh: refreshSidebarStatus } = useSidebarStatusContext();
   const [isPatConfiguredLocal, setIsPatConfiguredLocal] = useState(false);
   const isPatConfigured = isPatConfiguredProp ?? isPatConfiguredLocal;
@@ -54,6 +57,13 @@ export function RepositoriesCard({ isPatConfigured: isPatConfiguredProp }: Repos
     return () => { cancelled = true; };
   }, [refreshKey]);
 
+  const onConfiguredChangeRef = useRef(onConfiguredChange);
+  onConfiguredChangeRef.current = onConfiguredChange;
+
+  useEffect(() => {
+    onConfiguredChangeRef.current?.(repositories.length > 0);
+  }, [repositories]);
+
   async function handleRemove(id: number) {
     await fetch(`/api/repositories/${id}`, { method: "DELETE" });
     setRefreshKey((k) => k + 1);
@@ -61,7 +71,7 @@ export function RepositoriesCard({ isPatConfigured: isPatConfiguredProp }: Repos
   }
 
   return (
-    <Card>
+    <Card className={cn(className)}>
       <CardHeader>
         <CardTitle>Repositories</CardTitle>
         <CardDescription>

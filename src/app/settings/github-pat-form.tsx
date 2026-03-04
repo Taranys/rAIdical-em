@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 interface Feedback {
   type: "success" | "error";
@@ -19,10 +20,11 @@ interface Feedback {
 }
 
 interface GitHubPatFormProps {
+  className?: string;
   onPatChange?: (isConfigured: boolean) => void;
 }
 
-export function GitHubPatForm({ onPatChange }: GitHubPatFormProps) {
+export function GitHubPatForm({ className, onPatChange }: GitHubPatFormProps) {
   const { refresh: refreshSidebarStatus } = useSidebarStatusContext();
   const [token, setToken] = useState("");
   const [isConfigured, setIsConfigured] = useState(false);
@@ -36,10 +38,11 @@ export function GitHubPatForm({ onPatChange }: GitHubPatFormProps) {
       const res = await fetch("/api/settings/github-pat");
       const data = await res.json();
       setIsConfigured(data.configured);
+      onPatChange?.(data.configured);
     } catch {
       // Ignore — assume not configured
     }
-  }, []);
+  }, [onPatChange]);
 
   useEffect(() => {
     checkConfigured();
@@ -123,7 +126,7 @@ export function GitHubPatForm({ onPatChange }: GitHubPatFormProps) {
   }
 
   return (
-    <Card>
+    <Card className={cn(className)}>
       <CardHeader>
         <CardTitle>GitHub Personal Access Token</CardTitle>
         <CardDescription>
