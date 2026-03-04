@@ -17,11 +17,15 @@ export async function GET(request: Request) {
     );
   }
 
+  const repositoryId = searchParams.get("repositoryId")
+    ? parseInt(searchParams.get("repositoryId")!, 10)
+    : undefined;
+
   const members = getAllTeamMembers();
   const teamUsernames = members.map((m) => m.githubUsername);
 
-  const byMember = getAiRatioByMember(teamUsernames, startDate, endDate);
-  const teamTotal = getAiRatioTeamTotal(teamUsernames, startDate, endDate);
+  const byMember = getAiRatioByMember(teamUsernames, startDate, endDate, undefined, repositoryId);
+  const teamTotal = getAiRatioTeamTotal(teamUsernames, startDate, endDate, undefined, repositoryId);
 
   return NextResponse.json({ byMember, teamTotal });
 }

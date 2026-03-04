@@ -17,11 +17,15 @@ export async function GET(request: Request) {
     );
   }
 
+  const repositoryId = searchParams.get("repositoryId")
+    ? parseInt(searchParams.get("repositoryId")!, 10)
+    : undefined;
+
   const members = getAllTeamMembers();
   const teamUsernames = members.map((m) => m.githubUsername);
 
-  const byMember = getPRsMergedByMember(teamUsernames, startDate, endDate);
-  const byWeek = getPRsMergedPerWeek(teamUsernames, startDate, endDate);
+  const byMember = getPRsMergedByMember(teamUsernames, startDate, endDate, undefined, repositoryId);
+  const byWeek = getPRsMergedPerWeek(teamUsernames, startDate, endDate, undefined, repositoryId);
 
   return NextResponse.json({ byMember, byWeek });
 }

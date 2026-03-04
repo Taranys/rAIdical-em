@@ -12,6 +12,7 @@ export interface PrCommentInput {
   body: string;
   createdAt: string;
   updatedAt: string;
+  repositoryId?: number | null;
 }
 
 export function upsertPrComment(
@@ -27,6 +28,7 @@ export function upsertPrComment(
       body: input.body,
       createdAt: input.createdAt,
       updatedAt: input.updatedAt,
+      repositoryId: input.repositoryId ?? undefined,
     })
     .onConflictDoUpdate({
       target: prComments.githubId,
@@ -36,6 +38,7 @@ export function upsertPrComment(
         body: input.body,
         createdAt: input.createdAt,
         updatedAt: input.updatedAt,
+        repositoryId: input.repositoryId ?? undefined,
       },
     })
     .returning()

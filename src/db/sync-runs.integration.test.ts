@@ -22,6 +22,13 @@ describe("sync-runs DAL (integration)", () => {
     testDb = drizzle(testSqlite, { schema });
 
     testSqlite.exec(`
+      CREATE TABLE repositories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        owner TEXT NOT NULL,
+        name TEXT NOT NULL,
+        added_at TEXT NOT NULL,
+        UNIQUE(owner, name)
+      );
       CREATE TABLE sync_runs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         repository TEXT NOT NULL,
@@ -31,7 +38,8 @@ describe("sync-runs DAL (integration)", () => {
         pr_count INTEGER NOT NULL DEFAULT 0,
         review_count INTEGER NOT NULL DEFAULT 0,
         comment_count INTEGER NOT NULL DEFAULT 0,
-        error_message TEXT
+        error_message TEXT,
+        repository_id INTEGER REFERENCES repositories(id)
       );
     `);
   });

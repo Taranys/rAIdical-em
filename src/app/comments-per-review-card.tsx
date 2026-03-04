@@ -22,6 +22,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePeriod } from "./dashboard-context";
 import { useTeamColors } from "./team-colors-context";
+import { useRepositoryFilter, appendRepoParam } from "@/hooks/use-repository-filter";
 
 interface MemberData {
   reviewer: string;
@@ -33,13 +34,14 @@ interface MemberData {
 export function CommentsPerReviewCard() {
   const { period } = usePeriod();
   const colorMap = useTeamColors();
+  const repositoryId = useRepositoryFilter();
   const [data, setData] = useState<MemberData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const fetchIdRef = useRef(0);
 
-  const fetchData = useCallback((startDate: string, endDate: string) => {
+  const fetchData = useCallback((startDate: string, endDate: string, repoId?: number) => {
     const id = ++fetchIdRef.current;
-    const params = new URLSearchParams({ startDate, endDate });
+    const params = appendRepoParam(new URLSearchParams({ startDate, endDate }), repoId);
 
     fetch(`/api/dashboard/comments-per-review?${params}`)
       .then((res) => res.json())
@@ -59,8 +61,8 @@ export function CommentsPerReviewCard() {
   }, []);
 
   useEffect(() => {
-    fetchData(period.startDate, period.endDate);
-  }, [period.startDate, period.endDate, fetchData]);
+    fetchData(period.startDate, period.endDate, repositoryId);
+  }, [period.startDate, period.endDate, repositoryId, fetchData]);
 
   if (isLoading) {
     return (

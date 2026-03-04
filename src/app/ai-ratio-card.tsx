@@ -26,6 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
 import { usePeriod } from "./dashboard-context";
+import { useRepositoryFilter, appendRepoParam } from "@/hooks/use-repository-filter";
 
 interface RawRow {
   author: string;
@@ -91,6 +92,7 @@ function buildChartData(raw: RawRow[]): ChartRow[] {
 
 export function AiRatioCard() {
   const { period } = usePeriod();
+  const repositoryId = useRepositoryFilter();
   const [byMember, setByMember] = useState<RawRow[]>([]);
   const [teamTotal, setTeamTotal] = useState<TotalRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -106,9 +108,9 @@ export function AiRatioCard() {
   const [syncError, setSyncError] = useState<string | null>(null);
   const syncPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const fetchData = useCallback((startDate: string, endDate: string) => {
+  const fetchData = useCallback((startDate: string, endDate: string, repoId?: number) => {
     const id = ++fetchIdRef.current;
-    const params = new URLSearchParams({ startDate, endDate });
+    const params = appendRepoParam(new URLSearchParams({ startDate, endDate }), repoId);
 
     fetch(`/api/dashboard/ai-ratio?${params}`)
       .then((res) => res.json())
@@ -127,8 +129,8 @@ export function AiRatioCard() {
   }, []);
 
   useEffect(() => {
-    fetchData(period.startDate, period.endDate);
-  }, [period.startDate, period.endDate, fetchData]);
+    fetchData(period.startDate, period.endDate, repositoryId);
+  }, [period.startDate, period.endDate, repositoryId, fetchData]);
 
   // Cleanup poll on unmount
   useEffect(() => {
@@ -139,11 +141,11 @@ export function AiRatioCard() {
 
   const fetchDetails = useCallback((author: string) => {
     setDetailsLoading(true);
-    const params = new URLSearchParams({
+    const params = appendRepoParam(new URLSearchParams({
       author,
       startDate: period.startDate,
       endDate: period.endDate,
-    });
+    }), repositoryId);
     fetch(`/api/dashboard/ai-ratio/details?${params}`)
       .then((res) => res.json())
       .then((json) => {
@@ -153,7 +155,7 @@ export function AiRatioCard() {
       .catch(() => {
         setDetailsLoading(false);
       });
-  }, [period.startDate, period.endDate]);
+  }, [period.startDate, period.endDate, repositoryId]);
 
   const handleBarClick = (data: { author?: string; activeLabel?: string }) => {
     const author = data.author ?? data.activeLabel;

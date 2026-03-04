@@ -20,6 +20,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { usePeriod } from "./dashboard-context";
+import { useRepositoryFilter, appendRepoParam } from "@/hooks/use-repository-filter";
 
 const LARGE_PR_THRESHOLD = 500;
 
@@ -42,6 +43,7 @@ interface PRDetail {
 
 export function PrSizeCard() {
   const { period } = usePeriod();
+  const repositoryId = useRepositoryFilter();
   const [byMember, setByMember] = useState<MemberSize[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedAuthor, setExpandedAuthor] = useState<string | null>(null);
@@ -49,9 +51,9 @@ export function PrSizeCard() {
   const [isLoadingPRs, setIsLoadingPRs] = useState(false);
   const fetchIdRef = useRef(0);
 
-  const fetchData = useCallback((startDate: string, endDate: string) => {
+  const fetchData = useCallback((startDate: string, endDate: string, repoId?: number) => {
     const id = ++fetchIdRef.current;
-    const params = new URLSearchParams({ startDate, endDate });
+    const params = appendRepoParam(new URLSearchParams({ startDate, endDate }), repoId);
 
     fetch(`/api/dashboard/pr-size?${params}`)
       .then((res) => res.json())
@@ -68,8 +70,8 @@ export function PrSizeCard() {
   }, []);
 
   useEffect(() => {
-    fetchData(period.startDate, period.endDate);
-  }, [period.startDate, period.endDate, fetchData]);
+    fetchData(period.startDate, period.endDate, repositoryId);
+  }, [period.startDate, period.endDate, repositoryId, fetchData]);
 
   function toggleAuthor(author: string) {
     if (expandedAuthor === author) {
@@ -80,10 +82,10 @@ export function PrSizeCard() {
 
     setExpandedAuthor(author);
     setIsLoadingPRs(true);
-    const params = new URLSearchParams({
+    const params = appendRepoParam(new URLSearchParams({
       startDate: period.startDate,
       endDate: period.endDate,
-    });
+    }), repositoryId);
 
     fetch(`/api/dashboard/pr-size/${encodeURIComponent(author)}?${params}`)
       .then((res) => res.json())

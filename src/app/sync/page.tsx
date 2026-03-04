@@ -149,7 +149,7 @@ function StatusBadge({ status }: { status: string }) {
   return <Badge variant={variant}>{status}</Badge>;
 }
 
-// US-013: Sync history table
+// US-013: Sync history table (multi-repo: shows repository name)
 function SyncHistoryTable({ history }: { history: SyncRun[] }) {
   if (history.length === 0) {
     return (
@@ -157,10 +157,14 @@ function SyncHistoryTable({ history }: { history: SyncRun[] }) {
     );
   }
 
+  // Show repo column if we have entries from multiple repos
+  const hasMultipleRepos = new Set(history.map((r) => r.repository)).size > 1;
+
   return (
     <Table>
       <TableHeader>
         <TableRow>
+          {hasMultipleRepos && <TableHead>Repository</TableHead>}
           <TableHead>Started</TableHead>
           <TableHead>Status</TableHead>
           <TableHead className="text-right">PRs</TableHead>
@@ -172,6 +176,9 @@ function SyncHistoryTable({ history }: { history: SyncRun[] }) {
       <TableBody>
         {history.map((run) => (
           <TableRow key={run.id}>
+            {hasMultipleRepos && (
+              <TableCell className="font-mono text-xs">{run.repository}</TableCell>
+            )}
             <TableCell>{formatDate(run.startedAt)}</TableCell>
             <TableCell>
               <StatusBadge status={run.status} />
@@ -424,7 +431,7 @@ export default function SyncPage() {
             <div>
               <CardTitle>GitHub Pull Requests</CardTitle>
               <CardDescription>
-                Sync pull requests from your configured GitHub repository.
+                Sync pull requests from your configured GitHub repositories.
               </CardDescription>
             </div>
             <div className="flex items-center gap-3">

@@ -27,6 +27,14 @@ describe("pull-requests DAL (integration)", () => {
     testDb = drizzle(testSqlite, { schema });
 
     testSqlite.exec(`
+      CREATE TABLE repositories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        owner TEXT NOT NULL,
+        name TEXT NOT NULL,
+        added_at TEXT NOT NULL,
+        UNIQUE(owner, name)
+      );
+
       CREATE TABLE pull_requests (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         github_id INTEGER NOT NULL UNIQUE,
@@ -41,7 +49,8 @@ describe("pull-requests DAL (integration)", () => {
         changed_files INTEGER NOT NULL DEFAULT 0,
         ai_generated TEXT NOT NULL DEFAULT 'human',
         classification_reason TEXT,
-        raw_json TEXT
+        raw_json TEXT,
+        repository_id INTEGER REFERENCES repositories(id)
       );
     `);
   });

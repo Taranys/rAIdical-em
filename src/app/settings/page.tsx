@@ -3,7 +3,7 @@
 // US-005, US-006, US-020, US-2.01, US-2.17: Settings page
 import { useState } from "react";
 import { GitHubPatForm } from "./github-pat-form";
-import { GitHubRepoForm } from "./github-repo-form";
+import { RepositoriesCard } from "./repositories-card";
 import { LlmProviderForm } from "./llm-provider-form";
 import { DatabaseImportForm } from "./database-import-form";
 import { DatabaseResetForm } from "./database-reset-form";
@@ -16,7 +16,7 @@ export default function SettingsPage() {
       <h1 className="text-4xl font-bold tracking-tight mb-8">Settings</h1>
       <div className="space-y-6">
         <GitHubPatForm onPatChange={setIsPatConfigured} />
-        <GitHubRepoForm isPatConfigured={isPatConfigured} />
+        <RepositoriesCard isPatConfigured={isPatConfigured} />
         <LlmProviderForm />
         <DatabaseImportForm />
         <DatabaseResetForm />

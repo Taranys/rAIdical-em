@@ -151,3 +151,7 @@ if (membersToBackfill.length > 1) {
     updateStmt.run(BACKFILL_PALETTE[i % BACKFILL_PALETTE.length], membersToBackfill[i].id);
   }
 }
+
+// Multi-repo support: backfill repositoryId on existing data (one-time, idempotent)
+import { backfillRepositoryId } from "./backfill-repository-id";
+backfillRepositoryId(sqlite as InstanceType<typeof Database>);
