@@ -19,11 +19,24 @@ vi.mock("@/db/seniority-profiles", () => ({
   deleteAllProfiles: vi.fn(),
 }));
 
+vi.mock("@/db/seniority-dimension-configs", () => ({
+  getEnabledDimensionConfigs: vi.fn().mockReturnValue([
+    { id: 1, name: "security", family: "technical", label: "Security", description: "Security desc", sourceCategories: '["security"]', isEnabled: 1, sortOrder: 0, createdAt: "", updatedAt: "" },
+    { id: 2, name: "architecture", family: "technical", label: "Architecture", description: "Architecture desc", sourceCategories: '["architecture_design"]', isEnabled: 1, sortOrder: 1, createdAt: "", updatedAt: "" },
+    { id: 3, name: "performance", family: "technical", label: "Performance", description: "Performance desc", sourceCategories: '["performance"]', isEnabled: 1, sortOrder: 2, createdAt: "", updatedAt: "" },
+    { id: 4, name: "testing", family: "technical", label: "Testing", description: "Testing desc", sourceCategories: '["missing_test_coverage"]', isEnabled: 1, sortOrder: 3, createdAt: "", updatedAt: "" },
+    { id: 5, name: "pedagogy", family: "soft_skill", label: "Pedagogy", description: "Pedagogy desc", sourceCategories: null, isEnabled: 1, sortOrder: 4, createdAt: "", updatedAt: "" },
+    { id: 6, name: "cross_team_awareness", family: "soft_skill", label: "Cross-team Awareness", description: "Cross-team desc", sourceCategories: null, isEnabled: 1, sortOrder: 5, createdAt: "", updatedAt: "" },
+    { id: 7, name: "boldness", family: "soft_skill", label: "Boldness", description: "Boldness desc", sourceCategories: null, isEnabled: 1, sortOrder: 6, createdAt: "", updatedAt: "" },
+    { id: 8, name: "thoroughness", family: "soft_skill", label: "Thoroughness", description: "Thoroughness desc", sourceCategories: null, isEnabled: 1, sortOrder: 7, createdAt: "", updatedAt: "" },
+  ]),
+}));
+
 import {
   computeSeniorityProfiles,
   generateTechnicalRationale,
 } from "./seniority-profile-service";
-import { ALL_DEFINED_DIMENSION_NAMES } from "./seniority-dimensions";
+import { getActiveDimensionNames } from "./seniority-dimensions";
 import { getAllTeamMembers } from "@/db/team-members";
 import {
   getClassifiedCommentsForProfile,
@@ -331,7 +344,7 @@ describe("computeSeniorityProfiles", () => {
     expect(calls.length).toBeGreaterThan(0);
 
     for (const [data] of calls) {
-      expect(ALL_DEFINED_DIMENSION_NAMES.has(data.dimensionName)).toBe(true);
+      expect(getActiveDimensionNames().has(data.dimensionName)).toBe(true);
     }
   });
 

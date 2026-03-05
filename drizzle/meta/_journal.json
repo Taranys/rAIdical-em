@@ -71,6 +71,13 @@
       "when": 1772572113276,
       "tag": "0009_wandering_sir_ram",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1772718951253,
+      "tag": "0010_sudden_cardiac",
+      "breakpoints": true
     }
   ]
 }

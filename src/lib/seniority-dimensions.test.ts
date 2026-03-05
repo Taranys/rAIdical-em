@@ -1,97 +1,115 @@
-// US-2.10: Seniority dimensions configuration tests
-import { describe, it, expect } from "vitest";
+// Seniority dimensions tests — DB-backed accessor functions
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("@/db/seniority-dimension-configs", () => ({
+  getEnabledDimensionConfigs: vi.fn(),
+}));
+
+// Prevent real DB connection
+vi.mock("@/db", () => ({
+  db: {},
+  sqlite: {},
+}));
+
 import {
-  ALL_DEFINED_DIMENSION_NAMES,
-  SOFT_SKILL_DIMENSIONS,
-  TECHNICAL_CATEGORY_DIMENSIONS,
+  getActiveTechnicalDimensions,
+  getActiveSoftSkillDimensions,
+  getActiveDimensionNames,
   type SeniorityDimension,
 } from "./seniority-dimensions";
+import { getEnabledDimensionConfigs } from "@/db/seniority-dimension-configs";
 
-describe("TECHNICAL_CATEGORY_DIMENSIONS", () => {
-  it("maps classification categories to technical dimensions", () => {
-    expect(TECHNICAL_CATEGORY_DIMENSIONS).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          name: "security",
-          family: "technical",
-        }),
-        expect.objectContaining({
-          name: "architecture",
-          family: "technical",
-        }),
-        expect.objectContaining({
-          name: "performance",
-          family: "technical",
-        }),
-        expect.objectContaining({
-          name: "testing",
-          family: "technical",
-        }),
-      ]),
-    );
+const mockConfigs = [
+  { id: 1, name: "security", family: "technical", label: "Security", description: "Security desc", sourceCategories: '["security"]', isEnabled: 1, sortOrder: 0, createdAt: "", updatedAt: "" },
+  { id: 2, name: "architecture", family: "technical", label: "Architecture", description: "Architecture desc", sourceCategories: '["architecture_design"]', isEnabled: 1, sortOrder: 1, createdAt: "", updatedAt: "" },
+  { id: 3, name: "performance", family: "technical", label: "Performance", description: "Performance desc", sourceCategories: '["performance"]', isEnabled: 1, sortOrder: 2, createdAt: "", updatedAt: "" },
+  { id: 4, name: "testing", family: "technical", label: "Testing", description: "Testing desc", sourceCategories: '["missing_test_coverage"]', isEnabled: 1, sortOrder: 3, createdAt: "", updatedAt: "" },
+  { id: 5, name: "pedagogy", family: "soft_skill", label: "Pedagogy", description: "Pedagogy desc", sourceCategories: null, isEnabled: 1, sortOrder: 4, createdAt: "", updatedAt: "" },
+  { id: 6, name: "cross_team_awareness", family: "soft_skill", label: "Cross-team Awareness", description: "Cross-team desc", sourceCategories: null, isEnabled: 1, sortOrder: 5, createdAt: "", updatedAt: "" },
+  { id: 7, name: "boldness", family: "soft_skill", label: "Boldness", description: "Boldness desc", sourceCategories: null, isEnabled: 1, sortOrder: 6, createdAt: "", updatedAt: "" },
+  { id: 8, name: "thoroughness", family: "soft_skill", label: "Thoroughness", description: "Thoroughness desc", sourceCategories: null, isEnabled: 1, sortOrder: 7, createdAt: "", updatedAt: "" },
+];
+
+describe("getActiveTechnicalDimensions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getEnabledDimensionConfigs).mockReturnValue(mockConfigs as never);
   });
 
-  it("all dimensions have a non-empty description", () => {
-    for (const dim of TECHNICAL_CATEGORY_DIMENSIONS) {
-      expect(dim.description.length).toBeGreaterThan(0);
-    }
+  it("returns 4 technical dimensions from DB", () => {
+    const dims = getActiveTechnicalDimensions();
+    expect(dims).toHaveLength(4);
+    expect(dims.map((d) => d.name)).toEqual(["security", "architecture", "performance", "testing"]);
   });
 
   it("all dimensions have family set to technical", () => {
-    for (const dim of TECHNICAL_CATEGORY_DIMENSIONS) {
+    for (const dim of getActiveTechnicalDimensions()) {
       expect(dim.family).toBe("technical");
     }
   });
 
+  it("all dimensions have a non-empty description", () => {
+    for (const dim of getActiveTechnicalDimensions()) {
+      expect(dim.description.length).toBeGreaterThan(0);
+    }
+  });
+
   it("each dimension has a sourceCategories array with at least one category", () => {
-    for (const dim of TECHNICAL_CATEGORY_DIMENSIONS) {
+    for (const dim of getActiveTechnicalDimensions()) {
       expect(dim.sourceCategories.length).toBeGreaterThan(0);
     }
   });
 });
 
-describe("SOFT_SKILL_DIMENSIONS", () => {
-  it("defines the 4 soft skill dimensions", () => {
-    const names = SOFT_SKILL_DIMENSIONS.map((d) => d.name);
-    expect(names).toEqual(
-      expect.arrayContaining([
-        "pedagogy",
-        "cross_team_awareness",
-        "boldness",
-        "thoroughness",
-      ]),
-    );
-    expect(names).toHaveLength(4);
+describe("getActiveSoftSkillDimensions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getEnabledDimensionConfigs).mockReturnValue(mockConfigs as never);
+  });
+
+  it("returns 4 soft skill dimensions from DB", () => {
+    const dims = getActiveSoftSkillDimensions();
+    expect(dims).toHaveLength(4);
+    expect(dims.map((d) => d.name)).toEqual(["pedagogy", "cross_team_awareness", "boldness", "thoroughness"]);
   });
 
   it("all dimensions have family set to soft_skill", () => {
-    for (const dim of SOFT_SKILL_DIMENSIONS) {
+    for (const dim of getActiveSoftSkillDimensions()) {
       expect(dim.family).toBe("soft_skill");
     }
   });
 
   it("all dimensions have a non-empty description", () => {
-    for (const dim of SOFT_SKILL_DIMENSIONS) {
+    for (const dim of getActiveSoftSkillDimensions()) {
       expect(dim.description.length).toBeGreaterThan(0);
     }
   });
 });
 
-describe("ALL_DEFINED_DIMENSION_NAMES", () => {
-  it("contains exactly the 8 defined dimension names", () => {
-    expect(ALL_DEFINED_DIMENSION_NAMES).toEqual(
+describe("getActiveDimensionNames", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getEnabledDimensionConfigs).mockReturnValue(mockConfigs as never);
+  });
+
+  it("contains exactly the 8 enabled dimension names", () => {
+    const names = getActiveDimensionNames();
+    expect(names).toEqual(
       new Set([
-        "security",
-        "architecture",
-        "performance",
-        "testing",
-        "pedagogy",
-        "cross_team_awareness",
-        "boldness",
-        "thoroughness",
+        "security", "architecture", "performance", "testing",
+        "pedagogy", "cross_team_awareness", "boldness", "thoroughness",
       ]),
     );
-    expect(ALL_DEFINED_DIMENSION_NAMES.size).toBe(8);
+    expect(names.size).toBe(8);
+  });
+
+  it("excludes disabled dimensions", () => {
+    const partialConfigs = mockConfigs.filter((c) => c.name !== "testing");
+    vi.mocked(getEnabledDimensionConfigs).mockReturnValue(partialConfigs as never);
+
+    const names = getActiveDimensionNames();
+    expect(names.has("testing")).toBe(false);
+    expect(names.size).toBe(7);
   });
 });
 

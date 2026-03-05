@@ -234,6 +234,27 @@ export const seniorityProfiles = sqliteTable(
   ]
 );
 
+// Configurable seniority dimensions (replaces hardcoded dimensions)
+export const seniorityDimensionConfigs = sqliteTable(
+  "seniority_dimension_configs",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    name: text("name").notNull().unique(), // snake_case slug (e.g. "security", "pedagogy")
+    family: text("family").notNull(), // 'technical' | 'soft_skill'
+    label: text("label").notNull(), // Display name
+    description: text("description").notNull(), // Used in LLM prompts and UI tooltips
+    sourceCategories: text("source_categories"), // JSON array of category slugs (technical only, null for soft_skill)
+    isEnabled: integer("is_enabled").notNull().default(1), // 1 = active, 0 = disabled
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    index("idx_seniority_dimension_configs_family").on(table.family),
+    index("idx_seniority_dimension_configs_enabled").on(table.isEnabled),
+  ]
+);
+
 // US-2.03: Flagged comments for 1:1 prep (polymorphic comment reference)
 export const highlights = sqliteTable(
   "highlights",

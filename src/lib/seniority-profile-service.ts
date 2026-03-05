@@ -16,8 +16,8 @@ import {
   deleteAllProfiles,
 } from "@/db/seniority-profiles";
 import {
-  TECHNICAL_CATEGORY_DIMENSIONS,
-  SOFT_SKILL_DIMENSIONS,
+  getActiveTechnicalDimensions,
+  getActiveSoftSkillDimensions,
 } from "./seniority-dimensions";
 import {
   computeDepthScore,
@@ -217,7 +217,8 @@ export async function computeSeniorityProfiles(
       const consistency = standardDeviation(perCommentScores);
 
       // --- Technical category dimensions (security, architecture, etc.) ---
-      for (const dim of TECHNICAL_CATEGORY_DIMENSIONS) {
+      const technicalDimensions = getActiveTechnicalDimensions();
+      for (const dim of technicalDimensions) {
         const dimComments = memberComments.filter((c) =>
           dim.sourceCategories.includes(c.category as CommentCategory),
         );
@@ -262,7 +263,7 @@ export async function computeSeniorityProfiles(
             filePath: c.filePath,
             prTitle: c.prTitle,
           })),
-          softSkills: SOFT_SKILL_DIMENSIONS.map((d) => ({
+          softSkills: getActiveSoftSkillDimensions().map((d) => ({
             name: d.name,
             description: d.description,
           })),
