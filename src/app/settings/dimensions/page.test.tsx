@@ -37,7 +37,7 @@ beforeEach(() => {
 describe("DimensionsPage", () => {
   it("renders the page title", async () => {
     render(<DimensionsPage />);
-    expect(screen.getByText("Dimensions")).toBeInTheDocument();
+    expect(screen.getByText("Competencies")).toBeInTheDocument();
   });
 
   it("shows loading state initially", () => {

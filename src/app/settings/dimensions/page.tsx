@@ -206,7 +206,7 @@ export default function DimensionsPage() {
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <h1 className="text-4xl font-bold tracking-tight mb-8">Dimensions</h1>
+        <h1 className="text-4xl font-bold tracking-tight mb-8">Competencies</h1>
         <div className="flex items-center gap-2 text-muted-foreground">
           <Loader2 className="size-4 animate-spin" /> Loading dimensions...
         </div>
@@ -218,9 +218,9 @@ export default function DimensionsPage() {
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight">Dimensions</h1>
+          <h1 className="text-4xl font-bold tracking-tight">Competencies</h1>
           <p className="text-muted-foreground mt-1">
-            Configure which seniority dimensions are tracked for your team&apos;s review profiles.
+            Configure which competencies are tracked for your team&apos;s review profiles.
           </p>
         </div>
       </div>

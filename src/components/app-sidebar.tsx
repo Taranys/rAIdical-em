@@ -40,8 +40,8 @@ const DASHBOARD_ITEMS = [
 
 const CONFIG_ITEMS = [
   { title: "Settings", href: "/settings", icon: Settings },
-  { title: "Skills", href: "/settings/categories", icon: Tags },
-  { title: "Dimensions", href: "/settings/dimensions", icon: Sliders },
+  { title: "Review Categories", href: "/settings/categories", icon: Tags },
+  { title: "Competencies", href: "/settings/dimensions", icon: Sliders },
   { title: "Team", href: "/team", icon: Users },
   { title: "Sync", href: "/sync", icon: RefreshCw },
 ];
@@ -55,7 +55,7 @@ function ConfigStatusIndicator({ title, status }: { title: string; status: Sideb
     );
   }
 
-  if (title === "Skills" || title === "Dimensions") {
+  if (title === "Review Categories" || title === "Competencies") {
     return (
       <CheckCircle2 data-testid={`status-${title.toLowerCase()}`} className="ml-auto size-4 text-green-600" />
     );

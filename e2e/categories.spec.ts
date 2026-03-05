@@ -161,7 +161,7 @@ test.describe("Categories Settings Page", () => {
     await page.goto("/settings/categories");
 
     await expect(
-      page.getByRole("heading", { name: "Skills" }),
+      page.getByRole("heading", { name: "Review Categories" }),
     ).toBeVisible();
 
     // Should show 8 default categories (use exact match to avoid strict mode violations)
@@ -174,11 +174,11 @@ test.describe("Categories Settings Page", () => {
     await page.goto("/");
 
     const sidebar = page.locator("[data-sidebar='sidebar']");
-    await sidebar.getByRole("link", { name: "Skills" }).click();
+    await sidebar.getByRole("link", { name: "Review Categories" }).click();
 
     await expect(page).toHaveURL("/settings/categories");
     await expect(
-      page.getByRole("heading", { name: "Skills" }),
+      page.getByRole("heading", { name: "Review Categories" }),
     ).toBeVisible();
   });
 
