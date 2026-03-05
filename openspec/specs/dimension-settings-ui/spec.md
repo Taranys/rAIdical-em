@@ -118,11 +118,11 @@ The system SHALL expose REST endpoints for dimension configuration management.
 - **WHEN** `POST /api/settings/seniority-dimensions/reset` is called
 - **THEN** all custom dimensions are deleted, 8 defaults are re-inserted, and the default list is returned
 
-### Requirement: Sidebar navigation includes dimensions link
-The settings sidebar SHALL include a "Dimensions" navigation link pointing to `/settings/dimensions`.
+### Requirement: Sidebar navigation includes competencies link
+The settings sidebar SHALL include a "Competencies" navigation link pointing to `/settings/dimensions`.
 
-#### Scenario: Dimensions link in sidebar
+#### Scenario: Competencies link in sidebar
 - **WHEN** the EM views any settings page
-- **THEN** the sidebar contains a "Dimensions" link between the existing navigation items
+- **THEN** the sidebar contains a "Competencies" link between the existing navigation items
 - **WHEN** the EM clicks it
 - **THEN** they are navigated to `/settings/dimensions`
