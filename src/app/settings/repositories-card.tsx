@@ -2,6 +2,7 @@
 
 // Multi-repo support: repository management card (list + add)
 import { useEffect, useState } from "react";
+import { useSidebarStatusContext } from "@/contexts/sidebar-status-context";
 import {
   Card,
   CardContent,
@@ -12,6 +13,7 @@ import {
 import { RepositoryList } from "./repository-list";
 import { AddRepositoryForm } from "./add-repository-form";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 interface Repository {
   id: number;
@@ -22,9 +24,12 @@ interface Repository {
 
 interface RepositoriesCardProps {
   isPatConfigured?: boolean;
+  className?: string;
+  onConfiguredChange?: (isConfigured: boolean) => void;
 }
 
-export function RepositoriesCard({ isPatConfigured: isPatConfiguredProp }: RepositoriesCardProps) {
+export function RepositoriesCard({ isPatConfigured: isPatConfiguredProp, className, onConfiguredChange }: RepositoriesCardProps) {
+  const { refresh: refreshSidebarStatus } = useSidebarStatusContext();
   const [isPatConfiguredLocal, setIsPatConfiguredLocal] = useState(false);
   const isPatConfigured = isPatConfiguredProp ?? isPatConfiguredLocal;
   const [repositories, setRepositories] = useState<Repository[]>([]);
@@ -52,13 +57,18 @@ export function RepositoriesCard({ isPatConfigured: isPatConfiguredProp }: Repos
     return () => { cancelled = true; };
   }, [refreshKey]);
 
+  useEffect(() => {
+    onConfiguredChange?.(repositories.length > 0);
+  }, [repositories, onConfiguredChange]);
+
   async function handleRemove(id: number) {
     await fetch(`/api/repositories/${id}`, { method: "DELETE" });
     setRefreshKey((k) => k + 1);
+    refreshSidebarStatus();
   }
 
   return (
-    <Card>
+    <Card className={cn(className)}>
       <CardHeader>
         <CardTitle>Repositories</CardTitle>
         <CardDescription>
@@ -68,7 +78,7 @@ export function RepositoriesCard({ isPatConfigured: isPatConfiguredProp }: Repos
       <CardContent className="space-y-4">
         <RepositoryList repositories={repositories} onRemove={handleRemove} />
         <Separator />
-        <AddRepositoryForm isPatConfigured={isPatConfigured} onAdded={() => setRefreshKey((k) => k + 1)} />
+        <AddRepositoryForm isPatConfigured={isPatConfigured} onAdded={() => { setRefreshKey((k) => k + 1); refreshSidebarStatus(); }} />
       </CardContent>
     </Card>
   );

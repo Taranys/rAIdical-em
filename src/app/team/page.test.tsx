@@ -2,6 +2,12 @@
 // US-007, US-008, US-024: Unit tests for team page
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+
+// Mock sidebar status context before importing component
+vi.mock("@/contexts/sidebar-status-context", () => ({
+  useSidebarStatusContext: () => ({ status: { settings: { configured: false }, team: { configured: false }, sync: { hasRun: false, status: null } }, refresh: vi.fn().mockResolvedValue(undefined) }),
+}));
+
 import TeamPage from "./page";
 
 function mockFetch(responses: Record<string, unknown>) {

@@ -2,6 +2,13 @@
 // US-005: Unit tests for GitHub PAT form component
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+
+// Mock sidebar status context before importing component
+const mockRefresh = vi.fn().mockResolvedValue(undefined);
+vi.mock("@/contexts/sidebar-status-context", () => ({
+  useSidebarStatusContext: () => ({ status: { settings: { configured: false }, team: { configured: false }, sync: { hasRun: false, status: null } }, refresh: mockRefresh }),
+}));
+
 import { GitHubPatForm } from "./github-pat-form";
 
 function mockFetch(responses: Record<string, unknown>) {

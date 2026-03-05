@@ -2,7 +2,12 @@
 
 import type { ReactNode } from "react";
 import { PeriodProvider } from "@/app/dashboard-context";
+import { SidebarStatusProvider } from "@/contexts/sidebar-status-context";
 
 export function AppProviders({ children }: { children: ReactNode }) {
-  return <PeriodProvider>{children}</PeriodProvider>;
+  return (
+    <SidebarStatusProvider>
+      <PeriodProvider>{children}</PeriodProvider>
+    </SidebarStatusProvider>
+  );
 }
