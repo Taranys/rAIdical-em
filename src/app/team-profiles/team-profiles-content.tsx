@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { SeniorityRadarChart, formatDimensionName } from "./seniority-radar-chart";
 import type { Profile, SupportingMetrics } from "./seniority-radar-chart";
+import { ALL_DEFINED_DIMENSION_NAMES } from "@/lib/seniority-dimensions";
 
 interface ProfileWithTimestamp extends Profile {
   lastComputedAt: string;
@@ -218,20 +219,29 @@ export function TeamProfilesContent() {
                 </div>
               </CardHeader>
               <CardContent>
-                <SeniorityRadarChart
-                  profiles={member.profiles}
-                  color={member.color}
-                />
-                {member.profiles.length > 0 && (
-                  <div className="mt-4 rounded-md border">
-                    {member.profiles.map((profile) => (
-                      <DimensionRow
-                        key={`${profile.dimensionFamily}-${profile.dimensionName}`}
-                        profile={profile}
+                {(() => {
+                  const definedProfiles = member.profiles.filter((p) =>
+                    ALL_DEFINED_DIMENSION_NAMES.has(p.dimensionName),
+                  );
+                  return (
+                    <>
+                      <SeniorityRadarChart
+                        profiles={definedProfiles}
+                        color={member.color}
                       />
-                    ))}
-                  </div>
-                )}
+                      {definedProfiles.length > 0 && (
+                        <div className="mt-4 rounded-md border">
+                          {definedProfiles.map((profile) => (
+                            <DimensionRow
+                              key={`${profile.dimensionFamily}-${profile.dimensionName}`}
+                              profile={profile}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </CardContent>
             </Card>
           ))}
