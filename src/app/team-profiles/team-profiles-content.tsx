@@ -1,7 +1,7 @@
 // US-2.11: Team profiles page content — member cards with radar charts
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Card,
   CardContent,
@@ -11,6 +11,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { RefreshCw } from "lucide-react";
 import { SeniorityRadarChart, formatDimensionName } from "./seniority-radar-chart";
 import type { Profile, SupportingMetrics } from "./seniority-radar-chart";
 
@@ -110,31 +112,71 @@ function DimensionDetails({ metrics, family }: { metrics: SupportingMetrics; fam
 export function TeamProfilesContent() {
   const [members, setMembers] = useState<MemberWithProfiles[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isComputing, setIsComputing] = useState(false);
+  const [computeError, setComputeError] = useState<string | null>(null);
   const initRef = useRef(false);
+
+  const fetchProfiles = useCallback(async () => {
+    try {
+      const res = await fetch("/api/team-profiles");
+      const data = await res.json();
+      setMembers(data.members ?? []);
+    } catch {
+      // Silently fail
+    }
+  }, []);
 
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
 
     async function fetchData() {
-      try {
-        const res = await fetch("/api/team-profiles");
-        const data = await res.json();
-        setMembers(data.members ?? []);
-      } catch {
-        // Silently fail
-      } finally {
-        setIsLoading(false);
-      }
+      await fetchProfiles();
+      setIsLoading(false);
     }
     fetchData();
-  }, []);
+  }, [fetchProfiles]);
+
+  async function handleRecalculate() {
+    setIsComputing(true);
+    setComputeError(null);
+    try {
+      const res = await fetch("/api/seniority-profiles/compute", { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json();
+        setComputeError(data.error ?? "Computation failed");
+        return;
+      }
+      // Poll until profiles are updated (fire-and-forget API, computation takes time)
+      // Simple approach: wait a bit then re-fetch
+      await new Promise((r) => setTimeout(r, 2000));
+      await fetchProfiles();
+    } catch {
+      setComputeError("Failed to trigger computation");
+    } finally {
+      setIsComputing(false);
+    }
+  }
 
   return (
     <>
-      <h1 className="text-4xl font-bold tracking-tight mb-6">
-        Team Profiles
-      </h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-4xl font-bold tracking-tight">
+          Team Profiles
+        </h1>
+        <Button
+          onClick={handleRecalculate}
+          disabled={isComputing || isLoading}
+          variant="outline"
+          size="sm"
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${isComputing ? "animate-spin" : ""}`} />
+          {isComputing ? "Computing…" : "Recalculate"}
+        </Button>
+      </div>
+      {computeError && (
+        <p className="text-sm text-destructive mb-4">{computeError}</p>
+      )}
 
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
