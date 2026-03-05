@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { hasSetting, getSetting } from "@/db/settings";
 import { getAllTeamMembers } from "@/db/team-members";
 import { getLatestSyncRun } from "@/db/sync-runs";
+import { listRepositories } from "@/db/repositories";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const settingsConfigured = hasSetting("github_pat") && hasSetting("github_repo");
+  const settingsConfigured = hasSetting("github_pat") && listRepositories().length > 0 && hasSetting("llm_api_key");
 
   const teamConfigured = getAllTeamMembers().length > 0;
 
