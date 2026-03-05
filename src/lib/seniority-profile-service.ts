@@ -134,9 +134,6 @@ export async function computeSeniorityProfiles(
     options.startDate ??
     new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000).toISOString();
 
-  // Clear all existing profiles before recomputing
-  deleteAllProfiles();
-
   const members = getAllTeamMembers();
   const usernames = members.map((m) => m.githubUsername);
 
@@ -171,6 +168,19 @@ export async function computeSeniorityProfiles(
       errors: members.length,
     };
   }
+
+  // Guard: preserve existing profiles when no classified data is available
+  if (allComments.length === 0) {
+    return {
+      status: "success",
+      membersProcessed: 0,
+      profilesGenerated: 0,
+      errors: 0,
+    };
+  }
+
+  // Clear existing profiles only when we have new data to replace them
+  deleteAllProfiles();
 
   let membersProcessed = 0;
   let profilesGenerated = 0;

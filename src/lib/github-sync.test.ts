@@ -76,6 +76,10 @@ vi.mock("@/db/team-members", () => ({
   getActiveTeamMemberUsernames: vi.fn(),
 }));
 
+vi.mock("@/lib/seniority-profile-service", () => ({
+  computeSeniorityProfiles: vi.fn(),
+}));
+
 import { syncPullRequests, fetchRateLimit } from "./github-sync";
 import { upsertPullRequest } from "@/db/pull-requests";
 import { upsertReview } from "@/db/reviews";
@@ -87,6 +91,7 @@ import { getSetting } from "@/db/settings";
 import { classifyComments } from "@/lib/classification-service";
 import { getActiveClassificationRun } from "@/db/classification-runs";
 import { getActiveTeamMemberUsernames } from "@/db/team-members";
+import { computeSeniorityProfiles } from "@/lib/seniority-profile-service";
 
 function makeListItem(overrides: Record<string, unknown> = {}) {
   return {
@@ -203,6 +208,13 @@ describe("syncPullRequests", () => {
       totalComments: 0,
       errors: 0,
       summary: { categories: [], totalClassified: 0, averageConfidence: 0 },
+    });
+    // US-2.10: Default seniority computation mock
+    vi.mocked(computeSeniorityProfiles).mockResolvedValue({
+      status: "success",
+      membersProcessed: 0,
+      profilesGenerated: 0,
+      errors: 0,
     });
   });
 
@@ -977,6 +989,124 @@ describe("syncPullRequests", () => {
 
     // 1 review (reviewer1), 2 comments (1 review comment + 1 PR comment from reviewer1)
     expect(completeSyncRun).toHaveBeenCalledWith(1, "success", 1, null, 1, 2);
+  });
+
+  // US-2.10: Seniority computation chaining tests
+  it("chains seniority computation after successful classification", async () => {
+    const callOrder: string[] = [];
+    vi.mocked(getSetting).mockImplementation((key: string) => {
+      switch (key) {
+        case "auto_classify_on_sync": return "true";
+        case "llm_provider": return "anthropic";
+        case "llm_model": return "claude-opus-4-6";
+        case "llm_api_key": return "sk-xxx";
+        default: return null;
+      }
+    });
+    vi.mocked(classifyComments).mockImplementation(async () => {
+      callOrder.push("classify");
+      return {
+        runId: 1,
+        status: "success",
+        commentsProcessed: 5,
+        totalComments: 5,
+        errors: 0,
+        summary: { categories: [], totalClassified: 5, averageConfidence: 80 },
+      };
+    });
+    vi.mocked(computeSeniorityProfiles).mockImplementation(async () => {
+      callOrder.push("seniority");
+      return { status: "success", membersProcessed: 1, profilesGenerated: 3, errors: 0 };
+    });
+    mockPaginate.mockResolvedValue([makeListItem()]);
+    mockPullsGet.mockResolvedValue({ data: makeDetailPR() });
+
+    await syncPullRequests("owner", "repo", "ghp_token", 1);
+
+    // Allow the fire-and-forget async chain to complete
+    await vi.waitFor(() => {
+      expect(computeSeniorityProfiles).toHaveBeenCalled();
+    });
+
+    expect(callOrder).toEqual(["classify", "seniority"]);
+  });
+
+  it("skips seniority computation when classification fails", async () => {
+    vi.mocked(getSetting).mockImplementation((key: string) => {
+      switch (key) {
+        case "auto_classify_on_sync": return "true";
+        case "llm_provider": return "anthropic";
+        case "llm_model": return "claude-opus-4-6";
+        case "llm_api_key": return "sk-xxx";
+        default: return null;
+      }
+    });
+    vi.mocked(classifyComments).mockRejectedValue(new Error("LLM unavailable"));
+    mockPaginate.mockResolvedValue([makeListItem()]);
+    mockPullsGet.mockResolvedValue({ data: makeDetailPR() });
+
+    await syncPullRequests("owner", "repo", "ghp_token", 1);
+
+    // Give the fire-and-forget chain time to settle
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(classifyComments).toHaveBeenCalled();
+    expect(computeSeniorityProfiles).not.toHaveBeenCalled();
+  });
+
+  it("triggers seniority independently when auto-classify is disabled", async () => {
+    vi.mocked(getSetting).mockImplementation((key: string) => {
+      switch (key) {
+        case "auto_classify_on_sync": return "false";
+        case "llm_provider": return "anthropic";
+        case "llm_model": return "claude-opus-4-6";
+        case "llm_api_key": return "sk-xxx";
+        default: return null;
+      }
+    });
+    mockPaginate.mockResolvedValue([makeListItem()]);
+    mockPullsGet.mockResolvedValue({ data: makeDetailPR() });
+
+    await syncPullRequests("owner", "repo", "ghp_token", 1);
+
+    // Allow fire-and-forget to settle
+    await vi.waitFor(() => {
+      expect(computeSeniorityProfiles).toHaveBeenCalled();
+    });
+
+    expect(classifyComments).not.toHaveBeenCalled();
+    expect(computeSeniorityProfiles).toHaveBeenCalled();
+  });
+
+  it("skips both classification and seniority when active classification run exists", async () => {
+    vi.mocked(getSetting).mockImplementation((key: string) => {
+      switch (key) {
+        case "auto_classify_on_sync": return "true";
+        case "llm_provider": return "anthropic";
+        case "llm_model": return "claude-opus-4-6";
+        case "llm_api_key": return "sk-xxx";
+        default: return null;
+      }
+    });
+    vi.mocked(getActiveClassificationRun).mockReturnValue({
+      id: 99,
+      status: "running",
+      startedAt: "2024-06-01T10:00:00Z",
+      completedAt: null,
+      commentsProcessed: 5,
+      errors: 0,
+      modelUsed: "claude-opus-4-6",
+    });
+    mockPaginate.mockResolvedValue([makeListItem()]);
+    mockPullsGet.mockResolvedValue({ data: makeDetailPR() });
+
+    await syncPullRequests("owner", "repo", "ghp_token", 1);
+
+    // Give time for any potential fire-and-forget
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(classifyComments).not.toHaveBeenCalled();
+    expect(computeSeniorityProfiles).not.toHaveBeenCalled();
   });
 });
 

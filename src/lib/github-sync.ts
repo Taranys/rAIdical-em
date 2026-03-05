@@ -202,34 +202,38 @@ export async function syncPullRequests(
 
     completeSyncRun(syncRunId, "success", prCount, null, reviewCount, commentCount);
 
-    // US-2.06: Auto-classify new comments after successful sync
-    try {
-      const autoClassify = getSetting("auto_classify_on_sync");
-      if (autoClassify !== "false") {
-        const llmProvider = getSetting("llm_provider");
-        const llmModel = getSetting("llm_model");
-        const llmApiKey = getSetting("llm_api_key");
-        if (llmProvider && llmModel && llmApiKey) {
-          const activeRun = getActiveClassificationRun();
-          if (!activeRun) {
-            classifyComments().catch(() => {});
-          }
-        }
-      }
-    } catch {
-      // Silently ignore — errors are recorded in classification_runs table
-    }
-
-    // US-2.10: Auto-compute seniority profiles after classification
+    // US-2.06 / US-2.10: Post-sync pipeline — classify then compute seniority
     try {
       const llmProvider = getSetting("llm_provider");
       const llmModel = getSetting("llm_model");
       const llmApiKey = getSetting("llm_api_key");
-      if (llmProvider && llmModel && llmApiKey) {
-        computeSeniorityProfiles().catch(() => {});
+      const llmConfigured = !!(llmProvider && llmModel && llmApiKey);
+
+      if (llmConfigured) {
+        const autoClassify = getSetting("auto_classify_on_sync");
+        const shouldClassify = autoClassify !== "false";
+        const activeRun = getActiveClassificationRun();
+
+        if (activeRun) {
+          // Another sync already triggered classification+seniority — skip both
+        } else if (shouldClassify) {
+          // Chain: classify → seniority (fire & forget, but sequential)
+          (async () => {
+            try {
+              await classifyComments();
+            } catch {
+              // Classification failed — skip seniority, preserve existing profiles
+              return;
+            }
+            computeSeniorityProfiles().catch(() => {});
+          })().catch(() => {});
+        } else {
+          // Auto-classify disabled — compute seniority from existing classified data
+          computeSeniorityProfiles().catch(() => {});
+        }
       }
     } catch {
-      // Silently ignore — errors are recorded in seniority_profiles table
+      // Silently ignore — errors are recorded in respective tables
     }
   } catch (error) {
     completeSyncRun(
