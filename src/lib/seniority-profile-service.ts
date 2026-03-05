@@ -15,7 +15,6 @@ import {
   upsertSeniorityProfile,
   deleteAllProfiles,
 } from "@/db/seniority-profiles";
-import { detectLanguage } from "./language-detection";
 import {
   TECHNICAL_CATEGORY_DIMENSIONS,
   SOFT_SKILL_DIMENSIONS,
@@ -216,62 +215,6 @@ export async function computeSeniorityProfiles(
         return weight;
       });
       const consistency = standardDeviation(perCommentScores);
-
-      // --- Technical language dimensions (from file paths) ---
-      const languageCounts = new Map<string, number>();
-      for (const comment of memberComments) {
-        const lang = detectLanguage(comment.filePath);
-        if (lang) {
-          languageCounts.set(lang, (languageCounts.get(lang) ?? 0) + 1);
-        }
-      }
-
-      for (const [lang, volume] of languageCounts) {
-        // Compute depth score for comments in this language
-        const langComments = memberComments.filter(
-          (c) => detectLanguage(c.filePath) === lang,
-        );
-        const langCatDist = new Map<string, number>();
-        for (const c of langComments) {
-          langCatDist.set(c.category, (langCatDist.get(c.category) ?? 0) + 1);
-        }
-        const langDepthScore = computeDepthScore(
-          Array.from(langCatDist.entries()).map(([category, count]) => ({
-            category,
-            count,
-          })),
-        );
-        const langHighValue = langComments.filter((c) =>
-          HIGH_VALUE_CATEGORIES.has(c.category),
-        ).length;
-        const langHighValueRatio = volume > 0 ? langHighValue / volume : 0;
-
-        const maturityLevel = deriveTechnicalMaturityLevel({
-          depthScore: langDepthScore,
-          volume,
-          highValueRatio: langHighValueRatio,
-        });
-
-        const langLabel = lang.charAt(0).toUpperCase() + lang.slice(1);
-        const langMetrics = {
-          depthScore: langDepthScore,
-          volume,
-          highValueRatio: Math.round(langHighValueRatio * 100) / 100,
-        };
-
-        upsertSeniorityProfile({
-          teamMemberId: member.id,
-          dimensionName: lang,
-          dimensionFamily: "technical",
-          maturityLevel,
-          supportingMetrics: {
-            ...langMetrics,
-            consistency,
-            rationale: generateTechnicalRationale(langMetrics, maturityLevel, langLabel),
-          },
-        });
-        profilesGenerated++;
-      }
 
       // --- Technical category dimensions (security, architecture, etc.) ---
       for (const dim of TECHNICAL_CATEGORY_DIMENSIONS) {

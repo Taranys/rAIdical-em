@@ -1,6 +1,7 @@
 // US-2.10: Seniority dimensions configuration tests
 import { describe, it, expect } from "vitest";
 import {
+  ALL_DEFINED_DIMENSION_NAMES,
   SOFT_SKILL_DIMENSIONS,
   TECHNICAL_CATEGORY_DIMENSIONS,
   type SeniorityDimension,
@@ -73,6 +74,24 @@ describe("SOFT_SKILL_DIMENSIONS", () => {
     for (const dim of SOFT_SKILL_DIMENSIONS) {
       expect(dim.description.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("ALL_DEFINED_DIMENSION_NAMES", () => {
+  it("contains exactly the 8 defined dimension names", () => {
+    expect(ALL_DEFINED_DIMENSION_NAMES).toEqual(
+      new Set([
+        "security",
+        "architecture",
+        "performance",
+        "testing",
+        "pedagogy",
+        "cross_team_awareness",
+        "boldness",
+        "thoroughness",
+      ]),
+    );
+    expect(ALL_DEFINED_DIMENSION_NAMES.size).toBe(8);
   });
 });
 

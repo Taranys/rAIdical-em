@@ -77,6 +77,13 @@ export const SOFT_SKILL_DIMENSIONS: SeniorityDimension[] = [
   },
 ];
 
+// --- Known dimension names (union of technical + soft skill) ---
+
+export const ALL_DEFINED_DIMENSION_NAMES: Set<string> = new Set([
+  ...TECHNICAL_CATEGORY_DIMENSIONS.map((d) => d.name),
+  ...SOFT_SKILL_DIMENSIONS.map((d) => d.name),
+]);
+
 // --- File extension to language mapping ---
 
 export const FILE_EXTENSION_TO_LANGUAGE: Record<string, string> = {

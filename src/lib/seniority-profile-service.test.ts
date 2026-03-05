@@ -23,6 +23,7 @@ import {
   computeSeniorityProfiles,
   generateTechnicalRationale,
 } from "./seniority-profile-service";
+import { ALL_DEFINED_DIMENSION_NAMES } from "./seniority-dimensions";
 import { getAllTeamMembers } from "@/db/team-members";
 import {
   getClassifiedCommentsForProfile,
@@ -126,7 +127,7 @@ describe("computeSeniorityProfiles", () => {
     expect(deleteAllProfiles).not.toHaveBeenCalled();
   });
 
-  it("computes technical language dimension from file paths", async () => {
+  it("does not generate per-language dimensions from file paths", async () => {
     vi.mocked(getAllTeamMembers).mockReturnValue([
       {
         id: 1,
@@ -150,7 +151,6 @@ describe("computeSeniorityProfiles", () => {
       { reviewer: "alice", category: "nitpick_style", count: 1 },
     ]);
 
-    // Mock LLM for soft skills
     vi.mocked(mockLLMService.classify).mockResolvedValueOnce({
       content: JSON.stringify({
         scores: [
@@ -170,12 +170,10 @@ describe("computeSeniorityProfiles", () => {
     expect(result.membersProcessed).toBe(1);
     expect(result.profilesGenerated).toBeGreaterThan(0);
 
-    // Should have created a "typescript" technical dimension
-    expect(upsertSeniorityProfile).toHaveBeenCalledWith(
+    // Should NOT have created a "typescript" language dimension
+    expect(upsertSeniorityProfile).not.toHaveBeenCalledWith(
       expect.objectContaining({
-        teamMemberId: 1,
         dimensionName: "typescript",
-        dimensionFamily: "technical",
       }),
     );
   });
@@ -290,6 +288,51 @@ describe("computeSeniorityProfiles", () => {
         maturityLevel: "senior", // score 90 >= 70
       }),
     );
+  });
+
+  it("only produces profiles with dimension names in ALL_DEFINED_DIMENSION_NAMES", async () => {
+    vi.mocked(getAllTeamMembers).mockReturnValue([
+      {
+        id: 1,
+        githubUsername: "alice",
+        displayName: "Alice",
+        avatarUrl: null,
+        color: "#E25A3B",
+        isActive: 1,
+        createdAt: "2026-01-01",
+        updatedAt: "2026-01-01",
+      },
+    ]);
+    vi.mocked(getClassifiedCommentsForProfile).mockReturnValue([
+      { reviewer: "alice", filePath: "src/app.ts", category: "security", confidence: 90, body: "XSS", prTitle: "PR1" },
+      { reviewer: "alice", filePath: "src/utils.py", category: "architecture_design", confidence: 85, body: "Design", prTitle: "PR2" },
+      { reviewer: "alice", filePath: "src/lib.rb", category: "performance", confidence: 80, body: "Slow", prTitle: "PR3" },
+    ]);
+    vi.mocked(getCategoryDistributionByReviewer).mockReturnValue([
+      { reviewer: "alice", category: "security", count: 1 },
+      { reviewer: "alice", category: "architecture_design", count: 1 },
+      { reviewer: "alice", category: "performance", count: 1 },
+    ]);
+
+    vi.mocked(mockLLMService.classify).mockResolvedValueOnce({
+      content: JSON.stringify({
+        scores: [
+          { name: "pedagogy", score: 50, reasoning: "Ok" },
+          { name: "cross_team_awareness", score: 50, reasoning: "Ok" },
+          { name: "boldness", score: 50, reasoning: "Ok" },
+          { name: "thoroughness", score: 50, reasoning: "Ok" },
+        ],
+      }),
+    });
+
+    await computeSeniorityProfiles({ llmService: mockLLMService });
+
+    const calls = vi.mocked(upsertSeniorityProfile).mock.calls;
+    expect(calls.length).toBeGreaterThan(0);
+
+    for (const [data] of calls) {
+      expect(ALL_DEFINED_DIMENSION_NAMES.has(data.dimensionName)).toBe(true);
+    }
   });
 
   it("handles LLM errors gracefully and continues to next member", async () => {
