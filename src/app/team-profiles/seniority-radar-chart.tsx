@@ -10,8 +10,6 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
-import { ALL_DEFINED_DIMENSION_NAMES } from "@/lib/seniority-dimensions";
-
 const MATURITY_LEVELS: Record<string, number> = {
   junior: 1,
   experienced: 2,
@@ -96,11 +94,8 @@ export function SeniorityRadarChart({
   profiles,
   color,
 }: SeniorityRadarChartProps) {
-  const definedProfiles = profiles.filter((p) =>
-    ALL_DEFINED_DIMENSION_NAMES.has(p.dimensionName),
-  );
-
-  if (definedProfiles.length === 0) {
+  // Profiles are already filtered server-side by the API to only include enabled dimensions
+  if (profiles.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
         No seniority profile computed yet.
@@ -108,7 +103,7 @@ export function SeniorityRadarChart({
     );
   }
 
-  const chartData: ChartDataEntry[] = definedProfiles.map((p) => ({
+  const chartData: ChartDataEntry[] = profiles.map((p) => ({
     dimension: formatDimensionName(p.dimensionName),
     level: MATURITY_LEVELS[p.maturityLevel] ?? 0,
     label: MATURITY_LABELS[MATURITY_LEVELS[p.maturityLevel] ?? 0] ?? "Unknown",

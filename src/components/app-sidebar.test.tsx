@@ -159,8 +159,8 @@ describe("AppSidebar", () => {
     expect(analyseGroup.textContent).not.toContain("Sync");
   });
 
-  // Configuration group order: Settings → Skills → Team → Sync
-  it("orders Configuration items as Settings, Skills, Team, Sync", () => {
+  // Configuration group order: Settings → Skills → Dimensions → Team → Sync
+  it("orders Configuration items as Settings, Skills, Dimensions, Team, Sync", () => {
     const { container } = renderSidebar();
     const configGroup = container.querySelectorAll("[data-sidebar='group']")[1];
     const links = configGroup.querySelectorAll("a");
@@ -168,8 +168,9 @@ describe("AppSidebar", () => {
 
     expect(titles[0]).toContain("Settings");
     expect(titles[1]).toContain("Skills");
-    expect(titles[2]).toContain("Team");
-    expect(titles[3]).toContain("Sync");
+    expect(titles[2]).toContain("Dimensions");
+    expect(titles[3]).toContain("Team");
+    expect(titles[4]).toContain("Sync");
   });
 
   it("shows green check for Skills (always configured via auto-seed)", () => {

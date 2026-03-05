@@ -1,5 +1,9 @@
-// US-2.10: Seniority competency dimensions configuration
+// Seniority competency dimensions — DB-backed accessor functions
 import type { CommentCategory } from "@/lib/llm/classifier";
+import {
+  getEnabledDimensionConfigs,
+  type DimensionConfig,
+} from "@/db/seniority-dimension-configs";
 
 // --- Types ---
 
@@ -15,74 +19,53 @@ export interface TechnicalCategoryDimension extends SeniorityDimension {
   sourceCategories: CommentCategory[];
 }
 
-// --- Technical dimensions derived from classification categories ---
+// --- DB-backed accessor functions ---
 
-export const TECHNICAL_CATEGORY_DIMENSIONS: TechnicalCategoryDimension[] = [
-  {
-    name: "security",
+function toTechnicalDimension(config: DimensionConfig): TechnicalCategoryDimension {
+  return {
+    name: config.name,
     family: "technical",
-    description:
-      "Ability to detect security vulnerabilities, injection risks, and unsafe practices in code reviews",
-    sourceCategories: ["security"],
-  },
-  {
-    name: "architecture",
-    family: "technical",
-    description:
-      "Understanding of design patterns, system structure, API contracts, and architectural trade-offs",
-    sourceCategories: ["architecture_design"],
-  },
-  {
-    name: "performance",
-    family: "technical",
-    description:
-      "Ability to spot performance bottlenecks, inefficient algorithms, and optimization opportunities",
-    sourceCategories: ["performance"],
-  },
-  {
-    name: "testing",
-    family: "technical",
-    description:
-      "Focus on test coverage, edge cases, test quality, and testing best practices",
-    sourceCategories: ["missing_test_coverage"],
-  },
-];
+    description: config.description,
+    sourceCategories: config.sourceCategories
+      ? (JSON.parse(config.sourceCategories) as CommentCategory[])
+      : [],
+  };
+}
 
-// --- Soft skill dimensions inferred by LLM ---
+function toSeniorityDimension(config: DimensionConfig): SeniorityDimension {
+  return {
+    name: config.name,
+    family: config.family as "technical" | "soft_skill",
+    description: config.description,
+  };
+}
 
-export const SOFT_SKILL_DIMENSIONS: SeniorityDimension[] = [
-  {
-    name: "pedagogy",
-    family: "soft_skill",
-    description:
-      "Quality of explanations in review comments — does the reviewer teach and explain the 'why', not just point out issues?",
-  },
-  {
-    name: "cross_team_awareness",
-    family: "soft_skill",
-    description:
-      "Understanding of global impacts and challenges beyond the reviewer's own team — awareness of cross-cutting concerns and other teams' constraints",
-  },
-  {
-    name: "boldness",
-    family: "soft_skill",
-    description:
-      "Willingness to challenge code and push back on decisions, even from senior or experienced authors — constructive courage in reviews",
-  },
-  {
-    name: "thoroughness",
-    family: "soft_skill",
-    description:
-      "Depth and consistency of reviews — does the reviewer systematically check edge cases, error handling, and completeness?",
-  },
-];
+type DbParam = Parameters<typeof getEnabledDimensionConfigs>[0];
 
-// --- Known dimension names (union of technical + soft skill) ---
+export function getActiveTechnicalDimensions(
+  dbInstance?: DbParam,
+): TechnicalCategoryDimension[] {
+  const enabled = getEnabledDimensionConfigs(dbInstance);
+  return enabled
+    .filter((d) => d.family === "technical")
+    .map(toTechnicalDimension);
+}
 
-export const ALL_DEFINED_DIMENSION_NAMES: Set<string> = new Set([
-  ...TECHNICAL_CATEGORY_DIMENSIONS.map((d) => d.name),
-  ...SOFT_SKILL_DIMENSIONS.map((d) => d.name),
-]);
+export function getActiveSoftSkillDimensions(
+  dbInstance?: DbParam,
+): SeniorityDimension[] {
+  const enabled = getEnabledDimensionConfigs(dbInstance);
+  return enabled
+    .filter((d) => d.family === "soft_skill")
+    .map(toSeniorityDimension);
+}
+
+export function getActiveDimensionNames(
+  dbInstance?: DbParam,
+): Set<string> {
+  const enabled = getEnabledDimensionConfigs(dbInstance);
+  return new Set(enabled.map((d) => d.name));
+}
 
 // --- File extension to language mapping ---
 
