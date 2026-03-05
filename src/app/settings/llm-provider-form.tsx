@@ -1,7 +1,7 @@
 "use client";
 
 // US-2.01 / US-2.06: LLM provider configuration form
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSidebarStatusContext } from "@/contexts/sidebar-status-context";
 import {
   Card,
@@ -54,12 +54,9 @@ export function LlmProviderForm({ className, onConfiguredChange }: LlmProviderFo
   const [autoClassifyEnabled, setAutoClassifyEnabled] = useState(true);
   const [autoClassifyLoading, setAutoClassifyLoading] = useState(true);
 
-  const onConfiguredChangeRef = useRef(onConfiguredChange);
-  onConfiguredChangeRef.current = onConfiguredChange;
-
   useEffect(() => {
-    onConfiguredChangeRef.current?.(isConfigured);
-  }, [isConfigured]);
+    onConfiguredChange?.(isConfigured);
+  }, [isConfigured, onConfiguredChange]);
 
   const checkConfigured = useCallback(async () => {
     try {

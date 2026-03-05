@@ -1,7 +1,7 @@
 "use client";
 
 // Multi-repo support: repository management card (list + add)
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSidebarStatusContext } from "@/contexts/sidebar-status-context";
 import {
   Card,
@@ -57,12 +57,9 @@ export function RepositoriesCard({ isPatConfigured: isPatConfiguredProp, classNa
     return () => { cancelled = true; };
   }, [refreshKey]);
 
-  const onConfiguredChangeRef = useRef(onConfiguredChange);
-  onConfiguredChangeRef.current = onConfiguredChange;
-
   useEffect(() => {
-    onConfiguredChangeRef.current?.(repositories.length > 0);
-  }, [repositories]);
+    onConfiguredChange?.(repositories.length > 0);
+  }, [repositories, onConfiguredChange]);
 
   async function handleRemove(id: number) {
     await fetch(`/api/repositories/${id}`, { method: "DELETE" });
