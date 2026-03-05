@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**rAIdical-em** is a dashboard for engineering managers to track team performance, review quality, and prepare better 1:1s.
+**EM Lighthouse** is a dashboard for engineering managers to track team performance, review quality, and prepare better 1:1s.
 
 - **License:** MIT
 - **Author:** Yoann Prot
@@ -28,7 +28,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Language:** TypeScript (strict mode)
 - **Framework:** Next.js (App Router, Server Components)
 - **UI:** React + Tailwind CSS v4 + shadcn/ui
-- **Database:** SQLite via better-sqlite3 (file: data/rAIdical-em.db)
+- **Database:** SQLite via better-sqlite3 (file: data/EM Lighthouse.db)
 - **ORM:** Drizzle ORM
 - **GitHub API:** Octokit (Phase 1)
 - **Testing:** Vitest (unit/integration) + Playwright (E2E)

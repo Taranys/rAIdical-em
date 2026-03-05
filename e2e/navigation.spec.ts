@@ -7,7 +7,7 @@ test.describe("Application Shell and Navigation", () => {
 
     // App title visible in sidebar
     const sidebar = page.locator("[data-slot='sidebar']");
-    await expect(sidebar.getByText("rAIdical-em")).toBeVisible();
+    await expect(sidebar.getByText("EM Lighthouse")).toBeVisible();
 
     // All navigation links present
     await expect(sidebar.getByRole("link", { name: "Dashboard" })).toBeVisible();

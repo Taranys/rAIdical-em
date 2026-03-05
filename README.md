@@ -1,4 +1,4 @@
-# rAIdical-em
+# EM Lighthouse
 
 **Your engineering management cockpit.** Track team performance, sharpen review culture, and walk into every 1:1 prepared — backed by data, not gut feeling.
 
@@ -16,7 +16,7 @@ Spreadsheets won't cut it. Gut feeling doesn't scale.
 
 ## The solution
 
-rAIdical-em aggregates signals from the tools your team already uses (GitHub, and soon Slack, Confluence, Jira) into a **single dashboard** you open before every 1:1, every sprint review, every quarterly planning.
+EM Lighthouse aggregates signals from the tools your team already uses (GitHub, and soon Slack, Confluence, Jira) into a **single dashboard** you open before every 1:1, every sprint review, every quarterly planning.
 
 At a glance, you see:
 

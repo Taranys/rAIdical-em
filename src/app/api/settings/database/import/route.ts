@@ -65,7 +65,7 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             success: false,
-            error: `Missing required tables: ${missing.join(", ")}. The file does not appear to be a valid rAIdical-em database.`,
+            error: `Missing required tables: ${missing.join(", ")}. The file does not appear to be a valid EM Lighthouse database.`,
           },
           { status: 400 },
         );
