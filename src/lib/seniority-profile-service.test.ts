@@ -43,28 +43,7 @@ describe("computeSeniorityProfiles", () => {
     vi.clearAllMocks();
   });
 
-  it("clears existing profiles before recomputing", async () => {
-    vi.mocked(getAllTeamMembers).mockReturnValue([]);
-
-    await computeSeniorityProfiles({ llmService: mockLLMService });
-
-    expect(deleteAllProfiles).toHaveBeenCalled();
-  });
-
-  it("returns success with zero counts when no team members exist", async () => {
-    vi.mocked(getAllTeamMembers).mockReturnValue([]);
-
-    const result = await computeSeniorityProfiles({
-      llmService: mockLLMService,
-    });
-
-    expect(result.status).toBe("success");
-    expect(result.membersProcessed).toBe(0);
-    expect(result.profilesGenerated).toBe(0);
-    expect(result.errors).toBe(0);
-  });
-
-  it("skips members with no classified comments", async () => {
+  it("returns early without deleting profiles when no classified comments exist", async () => {
     vi.mocked(getAllTeamMembers).mockReturnValue([
       {
         id: 1,
@@ -86,8 +65,65 @@ describe("computeSeniorityProfiles", () => {
 
     expect(result.status).toBe("success");
     expect(result.membersProcessed).toBe(0);
+    expect(result.profilesGenerated).toBe(0);
+    expect(result.errors).toBe(0);
+    expect(deleteAllProfiles).not.toHaveBeenCalled();
     expect(upsertSeniorityProfile).not.toHaveBeenCalled();
     expect(mockLLMService.classify).not.toHaveBeenCalled();
+  });
+
+  it("deletes and recomputes profiles when classified comments are available", async () => {
+    vi.mocked(getAllTeamMembers).mockReturnValue([
+      {
+        id: 1,
+        githubUsername: "alice",
+        displayName: "Alice",
+        avatarUrl: null,
+        color: "#E25A3B",
+        isActive: 1,
+        createdAt: "2026-01-01",
+        updatedAt: "2026-01-01",
+      },
+    ]);
+    vi.mocked(getClassifiedCommentsForProfile).mockReturnValue([
+      { reviewer: "alice", filePath: "src/app.ts", category: "bug_correctness", confidence: 90, body: "Bug here", prTitle: "PR1" },
+    ]);
+    vi.mocked(getCategoryDistributionByReviewer).mockReturnValue([
+      { reviewer: "alice", category: "bug_correctness", count: 1 },
+    ]);
+    vi.mocked(mockLLMService.classify).mockResolvedValueOnce({
+      content: JSON.stringify({
+        scores: [
+          { name: "pedagogy", score: 50, reasoning: "Ok" },
+          { name: "cross_team_awareness", score: 50, reasoning: "Ok" },
+          { name: "boldness", score: 50, reasoning: "Ok" },
+          { name: "thoroughness", score: 50, reasoning: "Ok" },
+        ],
+      }),
+    });
+
+    const result = await computeSeniorityProfiles({
+      llmService: mockLLMService,
+    });
+
+    expect(deleteAllProfiles).toHaveBeenCalled();
+    expect(result.membersProcessed).toBe(1);
+    expect(result.profilesGenerated).toBeGreaterThan(0);
+    expect(upsertSeniorityProfile).toHaveBeenCalled();
+  });
+
+  it("returns success with zero counts when no team members exist", async () => {
+    vi.mocked(getAllTeamMembers).mockReturnValue([]);
+
+    const result = await computeSeniorityProfiles({
+      llmService: mockLLMService,
+    });
+
+    expect(result.status).toBe("success");
+    expect(result.membersProcessed).toBe(0);
+    expect(result.profilesGenerated).toBe(0);
+    expect(result.errors).toBe(0);
+    expect(deleteAllProfiles).not.toHaveBeenCalled();
   });
 
   it("computes technical language dimension from file paths", async () => {
