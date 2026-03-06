@@ -9,9 +9,9 @@ import { AppProviders } from "@/components/app-providers";
 import { VibeKanbanDevTools } from "@/components/vibe-kanban-web-companion";
 
 export const metadata: Metadata = {
-  title: "rAIdical-em",
+  title: "EM Lighthouse",
   description:
-    "rAIdical-em — Track team performance, review quality, and prepare better 1:1s.",
+    "EM Lighthouse — Track team performance, review quality, and prepare better 1:1s.",
 };
 
 export default function RootLayout({

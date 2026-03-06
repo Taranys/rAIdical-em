@@ -101,7 +101,7 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-2">
-          <span className="text-lg font-bold">rAIdical-em</span>
+          <span className="text-lg font-bold">EM Lighthouse</span>
         </div>
       </SidebarHeader>
       <SidebarContent>

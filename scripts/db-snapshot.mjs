@@ -7,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = path.join(__dirname, "..", "data", "rAIdical-em.db");
+const DB_PATH = path.join(__dirname, "..", "data", "em-lighthouse.db");
 const SNAPSHOTS_DIR = path.join(__dirname, "..", "data", "snapshots");
 
 const [command, name = "default"] = process.argv.slice(2);

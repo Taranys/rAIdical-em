@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@/db", () => ({
   db: {},
   sqlite: { close: vi.fn() },
-  DB_PATH: "/fake/path/rAIdical-em.db",
+  DB_PATH: "/fake/path/em-lighthouse.db",
   replaceDatabase: vi.fn(),
 }));
 

@@ -7,7 +7,7 @@ const IV_LENGTH = 12;
 
 function deriveKey(): Buffer {
   return pbkdf2Sync(
-    hostname() + "rAIdical-em",
+    hostname() + "em-lighthouse",
     SALT,
     100_000,
     32,

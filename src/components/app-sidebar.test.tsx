@@ -62,7 +62,7 @@ describe("AppSidebar", () => {
 
   it("renders the app title", () => {
     renderSidebar();
-    expect(screen.getByText("rAIdical-em")).toBeInTheDocument();
+    expect(screen.getByText("EM Lighthouse")).toBeInTheDocument();
   });
 
   it("renders all navigation links", () => {
